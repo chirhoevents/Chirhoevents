@@ -95,6 +95,17 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const source = new URL(request.url).searchParams.get('source')
+
+    if (source === 'outbound') {
+      const outbound = await prisma.outboundEmail.findUnique({ where: { id: emailId } })
+      if (!outbound) {
+        return NextResponse.json({ error: 'Email not found' }, { status: 404 })
+      }
+      await prisma.outboundEmail.delete({ where: { id: emailId } })
+      return NextResponse.json({ success: true })
+    }
+
     const email = await prisma.emailLog.findUnique({ where: { id: emailId } })
 
     if (!email) {

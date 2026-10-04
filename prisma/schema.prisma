@@ -2693,6 +2693,35 @@ enum BillingNoteType {
 // INBOUND EMAIL HANDLING
 // ===================================
 
+// Every email ChiRho sends through Resend, recorded by src/lib/resend.ts so a
+// master admin can find and resend anything — including sends that never
+// write an EmailLog row (waitlist, liability, billing, platform mail).
+model OutboundEmail {
+  id              String   @id @default(uuid()) @db.Uuid
+  resendEmailId   String?  @map("resend_email_id") @db.VarChar(255)
+  fromAddress     String   @map("from_address") @db.VarChar(500)
+  toAddresses     String[] @map("to_addresses")
+  ccAddresses     String[] @default([]) @map("cc_addresses")
+  bccAddresses    String[] @default([]) @map("bcc_addresses")
+  // Lower-cased to/cc/bcc joined, for "contains" search (Prisma can't
+  // substring-match inside a String[]).
+  recipients      String   @db.Text
+  replyTo         String?  @map("reply_to") @db.VarChar(1000)
+  subject         String   @db.VarChar(1000)
+  htmlBody        String?  @map("html_body") @db.Text
+  textBody        String?  @map("text_body") @db.Text
+  // Attachment contents aren't stored; a resend goes out without them.
+  attachmentNames String[] @default([]) @map("attachment_names")
+  status          String   @default("sent") @db.VarChar(20) // sent | failed
+  errorMessage    String?  @map("error_message") @db.Text
+  resentFromId    String?  @map("resent_from_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([createdAt], name: "idx_outbound_email_created")
+  @@index([status], name: "idx_outbound_email_status")
+  @@map("outbound_emails")
+}
+
 // Raw storage for received emails via Resend webhook
 model ReceivedEmail {
   id            String    @id @default(uuid()) @db.Uuid

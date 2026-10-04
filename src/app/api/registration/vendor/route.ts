@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { generateVendorCode, generateVendorAccessCode } from '@/lib/access-code'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'

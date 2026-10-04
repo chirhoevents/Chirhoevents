@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { addDays, differenceInDays } from 'date-fns'
 import { JsonValue } from '@prisma/client/runtime/library'
 

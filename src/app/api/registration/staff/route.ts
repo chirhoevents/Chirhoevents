@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import QRCode from 'qrcode'
 import { generateStaffPorosCode } from '@/lib/access-code'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'

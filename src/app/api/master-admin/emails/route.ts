@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { MUTED_INBOXES } from '@/lib/inbound-organizer-routing'
 
 // Decode JWT payload to extract user ID when cookies aren't available
 function decodeJwtPayload(token: string): { sub?: string } | null {
@@ -55,6 +56,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'received' // 'received' or 'sent'
+    // Sent tab: 'outbound' = every email ChiRho sent (OutboundEmail);
+    // 'log' = the older per-registration EmailLog.
+    const source = searchParams.get('source') === 'log' ? 'log' : 'outbound'
+    // Received tab: mail sent only to muted inboxes (hello@) is hidden unless asked for.
+    const showMuted = searchParams.get('showMuted') === '1'
     const search = searchParams.get('search') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
@@ -62,7 +68,9 @@ export async function GET(request: NextRequest) {
 
     if (type === 'received') {
       // Fetch received/inbound emails
-      const where: Record<string, unknown> = {}
+      const mutedOnly = { OR: MUTED_INBOXES.map((address) => ({ toAddresses: { equals: [address] } })) }
+      const visible: Record<string, unknown> = showMuted ? {} : { NOT: mutedOnly }
+      const where: Record<string, unknown> = { ...visible }
 
       if (search) {
         where.OR = [
@@ -91,10 +99,11 @@ export async function GET(request: NextRequest) {
       ])
 
       // Get counts
-      const [totalReceived, processedCount, unprocessedCount] = await Promise.all([
-        prisma.receivedEmail.count(),
-        prisma.receivedEmail.count({ where: { processed: true } }),
-        prisma.receivedEmail.count({ where: { processed: false } }),
+      const [totalReceived, processedCount, unprocessedCount, mutedCount] = await Promise.all([
+        prisma.receivedEmail.count({ where: visible }),
+        prisma.receivedEmail.count({ where: { ...visible, processed: true } }),
+        prisma.receivedEmail.count({ where: { ...visible, processed: false } }),
+        prisma.receivedEmail.count({ where: mutedOnly }),
       ])
 
       return NextResponse.json({
@@ -106,7 +115,39 @@ export async function GET(request: NextRequest) {
           total: totalReceived,
           processed: processedCount,
           unprocessed: unprocessedCount,
+          muted: mutedCount,
         },
+        mutedInboxes: MUTED_INBOXES,
+      })
+    } else if (source === 'outbound') {
+      const where: Record<string, unknown> = {}
+
+      if (search) {
+        where.OR = [
+          { recipients: { contains: search.toLowerCase() } },
+          { subject: { contains: search, mode: 'insensitive' } },
+        ]
+      }
+
+      const [emails, total, sentCount, failedCount, allCount] = await Promise.all([
+        prisma.outboundEmail.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.outboundEmail.count({ where }),
+        prisma.outboundEmail.count({ where: { status: 'sent' } }),
+        prisma.outboundEmail.count({ where: { status: 'failed' } }),
+        prisma.outboundEmail.count(),
+      ])
+
+      return NextResponse.json({
+        emails: emails.map((e) => ({ ...e, source: 'outbound' })),
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+        counts: { total: allCount, sent: sentCount, failed: failedCount, bounced: 0 },
       })
     } else {
       // Fetch sent/outbound emails
@@ -151,7 +192,7 @@ export async function GET(request: NextRequest) {
       })
 
       return NextResponse.json({
-        emails,
+        emails: emails.map((e) => ({ ...e, source: 'log' })),
         total,
         page,
         totalPages: Math.ceil(total / limit),

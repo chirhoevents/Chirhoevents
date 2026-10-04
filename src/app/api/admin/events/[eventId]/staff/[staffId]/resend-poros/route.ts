@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'

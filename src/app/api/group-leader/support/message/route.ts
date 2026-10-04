@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY)

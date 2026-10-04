@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
 import { incrementOrgStorage } from '@/lib/storage/track-storage'

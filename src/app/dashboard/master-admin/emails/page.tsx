@@ -21,6 +21,10 @@ import {
   Loader2,
   PenSquare,
   Trash2,
+  Forward,
+  RotateCcw,
+  EyeOff,
+  Paperclip,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -42,7 +46,9 @@ interface ReceivedEmail {
   } | null
 }
 
-interface SentEmail {
+// A row from the older per-registration EmailLog.
+interface LoggedEmail {
+  source: 'log'
   id: string
   organizationId: string
   recipientEmail: string
@@ -55,10 +61,50 @@ interface SentEmail {
   errorMessage: string | null
 }
 
+// A row from OutboundEmail: every email ChiRho has sent since it was added.
+interface OutboundEmail {
+  source: 'outbound'
+  id: string
+  fromAddress: string
+  toAddresses: string[]
+  ccAddresses: string[]
+  bccAddresses: string[]
+  replyTo: string | null
+  subject: string
+  htmlBody: string | null
+  textBody: string | null
+  attachmentNames: string[]
+  status: 'sent' | 'failed'
+  errorMessage: string | null
+  resentFromId: string | null
+  createdAt: string
+}
+
+type SentEmail = LoggedEmail | OutboundEmail
+type AnyEmail = ReceivedEmail | SentEmail
+
+const isReceived = (email: AnyEmail): email is ReceivedEmail => !('source' in email)
+
+const sentRecipients = (email: SentEmail): string =>
+  email.source === 'log'
+    ? email.recipientName ? `${email.recipientName} <${email.recipientEmail}>` : email.recipientEmail
+    : [...email.toAddresses, ...email.ccAddresses].join(', ')
+
+const sentAt = (email: SentEmail): string => (email.source === 'log' ? email.sentAt : email.createdAt)
+
+const sentStatus = (email: SentEmail): 'sent' | 'failed' | 'bounced' =>
+  email.source === 'log' ? email.sentStatus : email.status
+
+interface ForwardOptions {
+  suggestion: { contactEmail: string; eventName: string; organizationName: string } | null
+  organizations: { id: string; name: string; contactEmail: string }[]
+}
+
 interface ReceivedCounts {
   total: number
   processed: number
   unprocessed: number
+  muted?: number
 }
 
 interface SentCounts {
@@ -82,13 +128,24 @@ export default function EmailsPage() {
   const [searchTrigger, setSearchTrigger] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [selectedEmail, setSelectedEmail] = useState<ReceivedEmail | SentEmail | null>(null)
+  const [selectedEmail, setSelectedEmail] = useState<AnyEmail | null>(null)
   const [viewModalOpen, setViewModalOpen] = useState(false)
-  const [replyMode, setReplyMode] = useState(false)
+  // Which action panel is open under the email in the preview modal.
+  const [mode, setMode] = useState<'view' | 'reply' | 'forward' | 'resend'>('view')
   const [replyMessage, setReplyMessage] = useState('')
   const [sendingReply, setSendingReply] = useState(false)
   const [deletingEmailId, setDeletingEmailId] = useState<string | null>(null)
-  const [confirmDeleteEmail, setConfirmDeleteEmail] = useState<ReceivedEmail | SentEmail | null>(null)
+  const [confirmDeleteEmail, setConfirmDeleteEmail] = useState<AnyEmail | null>(null)
+  // Received tab: hello@ is spam-only, so it's hidden unless asked for.
+  const [showMuted, setShowMuted] = useState(false)
+  const [mutedInboxes, setMutedInboxes] = useState<string[]>([])
+  // Sent tab: every ChiRho email, or the older per-registration log.
+  const [sentSource, setSentSource] = useState<'outbound' | 'log'>('outbound')
+  // Forward / resend panels
+  const [forwardOptions, setForwardOptions] = useState<ForwardOptions | null>(null)
+  const [recipientInput, setRecipientInput] = useState('')
+  const [forwardNote, setForwardNote] = useState('')
+  const [sendingAction, setSendingAction] = useState(false)
 
   useEffect(() => {
     // When linked from Support Tickets with ?ticket=N, prefill the search and
@@ -104,7 +161,7 @@ export default function EmailsPage() {
   useEffect(() => {
     fetchEmails()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, page, searchTrigger])
+  }, [activeTab, page, searchTrigger, showMuted, sentSource])
 
   const fetchEmails = async () => {
     setLoading(true)
@@ -115,6 +172,8 @@ export default function EmailsPage() {
         page: page.toString(),
         limit: '50',
       })
+      if (activeTab === 'received' && showMuted) params.append('showMuted', '1')
+      if (activeTab === 'sent') params.append('source', sentSource)
 
       if (searchQuery) {
         params.append('search', searchQuery)
@@ -131,6 +190,7 @@ export default function EmailsPage() {
       if (activeTab === 'received') {
         setReceivedEmails(data.emails)
         setReceivedCounts(data.counts)
+        setMutedInboxes(data.mutedInboxes || [])
       } else {
         setSentEmails(data.emails)
         setSentCounts(data.counts)
@@ -163,22 +223,108 @@ export default function EmailsPage() {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
-  const openEmailPreview = (email: ReceivedEmail | SentEmail) => {
+  const resetPanels = () => {
+    setMode('view')
+    setReplyMessage('')
+    setRecipientInput('')
+    setForwardNote('')
+    setForwardOptions(null)
+  }
+
+  const openEmailPreview = (email: AnyEmail) => {
     setSelectedEmail(email)
     setViewModalOpen(true)
-    setReplyMode(false)
-    setReplyMessage('')
+    resetPanels()
   }
 
   const closeModal = () => {
     setViewModalOpen(false)
-    setReplyMode(false)
-    setReplyMessage('')
+    resetPanels()
     setSelectedEmail(null)
   }
 
+  const authHeaders = async (json = false): Promise<Record<string, string>> => {
+    const token = await getToken()
+    return {
+      ...(json ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    }
+  }
+
+  const openForward = async (email: ReceivedEmail) => {
+    setMode('forward')
+    setRecipientInput('')
+    setForwardNote('')
+    setForwardOptions(null)
+    try {
+      const response = await fetch(`/api/master-admin/emails/received/${email.id}/forward`, {
+        headers: await authHeaders(),
+      })
+      if (!response.ok) throw new Error('Failed to load organizations')
+      const data: ForwardOptions = await response.json()
+      setForwardOptions(data)
+      if (data.suggestion) setRecipientInput(data.suggestion.contactEmail)
+    } catch (error) {
+      console.error('Error loading forward options:', error)
+      setForwardOptions({ suggestion: null, organizations: [] })
+    }
+  }
+
+  const openResend = (email: SentEmail) => {
+    setMode('resend')
+    setRecipientInput(
+      email.source === 'log' ? email.recipientEmail : email.toAddresses.join(', ')
+    )
+  }
+
+  const sendForward = async () => {
+    if (!selectedEmail || !isReceived(selectedEmail) || !recipientInput.trim()) return
+    setSendingAction(true)
+    try {
+      const response = await fetch(`/api/master-admin/emails/received/${selectedEmail.id}/forward`, {
+        method: 'POST',
+        headers: await authHeaders(true),
+        body: JSON.stringify({ to: recipientInput, note: forwardNote }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to forward email')
+      alert(`Forwarded to ${data.sentTo.join(', ')}`)
+      closeModal()
+    } catch (error) {
+      console.error('Error forwarding email:', error)
+      alert(error instanceof Error ? error.message : 'Failed to forward email')
+    } finally {
+      setSendingAction(false)
+    }
+  }
+
+  const sendResend = async () => {
+    if (!selectedEmail || isReceived(selectedEmail) || !recipientInput.trim()) return
+    setSendingAction(true)
+    try {
+      const response = await fetch(`/api/master-admin/emails/sent/${selectedEmail.id}/resend`, {
+        method: 'POST',
+        headers: await authHeaders(true),
+        body: JSON.stringify({ source: selectedEmail.source, to: recipientInput }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to resend email')
+      alert(
+        `Resent to ${data.sentTo.join(', ')}` +
+          (data.attachmentsSkipped ? ` (without its ${data.attachmentsSkipped} attachment(s))` : '')
+      )
+      closeModal()
+      fetchEmails()
+    } catch (error) {
+      console.error('Error resending email:', error)
+      alert(error instanceof Error ? error.message : 'Failed to resend email')
+    } finally {
+      setSendingAction(false)
+    }
+  }
+
   const sendReply = async () => {
-    if (!selectedEmail || !('fromAddress' in selectedEmail) || !replyMessage.trim()) return
+    if (!selectedEmail || !isReceived(selectedEmail) || !replyMessage.trim()) return
 
     setSendingReply(true)
     try {
@@ -211,14 +357,14 @@ export default function EmailsPage() {
     }
   }
 
-  const deleteEmail = async (email: ReceivedEmail | SentEmail) => {
-    const isReceived = 'fromAddress' in email
+  const deleteEmail = async (email: AnyEmail) => {
+    const received = isReceived(email)
     setDeletingEmailId(email.id)
     try {
       const token = await getToken()
-      const endpoint = isReceived
+      const endpoint = received
         ? `/api/master-admin/emails/received/${email.id}`
-        : `/api/master-admin/emails/sent/${email.id}`
+        : `/api/master-admin/emails/sent/${email.id}?source=${email.source}`
       const response = await fetch(endpoint, {
         method: 'DELETE',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
@@ -230,7 +376,7 @@ export default function EmailsPage() {
       }
 
       // Remove from local state
-      if (isReceived) {
+      if (received) {
         setReceivedEmails((prev) => prev.filter((e) => e.id !== email.id))
         setReceivedCounts((prev) => ({ ...prev, total: prev.total - 1 }))
       } else {
@@ -427,6 +573,44 @@ export default function EmailsPage() {
             Search
           </button>
         </div>
+        {activeTab === 'received' && mutedInboxes.length > 0 && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
+            <EyeOff className="h-4 w-4 text-gray-400" />
+            {showMuted ? (
+              <span>Showing mail sent only to {mutedInboxes.join(', ')}.</span>
+            ) : (
+              <span>
+                {receivedCounts.muted ?? 0} email{receivedCounts.muted === 1 ? '' : 's'} sent only to {mutedInboxes.join(', ')} hidden (spam inbox).
+              </span>
+            )}
+            <button
+              onClick={() => { setShowMuted((v) => !v); setPage(1) }}
+              className="text-purple-600 hover:text-purple-800 font-medium"
+            >
+              {showMuted ? 'Hide them' : 'Show them'}
+            </button>
+          </div>
+        )}
+        {activeTab === 'sent' && (
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            {([
+              ['outbound', 'All ChiRho emails'],
+              ['log', 'Registration email log (older)'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => { setSentSource(value); setPage(1) }}
+                className={`px-3 py-1 rounded-full border ${
+                  sentSource === value
+                    ? 'bg-purple-100 border-purple-300 text-purple-700'
+                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Email List */}
@@ -491,6 +675,13 @@ export default function EmailsPage() {
                       <p className="text-sm text-gray-500">{formatDate(email.createdAt)}</p>
                     </div>
                     <button
+                      onClick={(e) => { e.stopPropagation(); openEmailPreview(email); openForward(email); }}
+                      className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Forward email"
+                    >
+                      <Forward className="h-5 w-5" />
+                    </button>
+                    <button
                       onClick={(e) => { e.stopPropagation(); openEmailPreview(email); }}
                       className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                     >
@@ -511,7 +702,8 @@ export default function EmailsPage() {
         ) : (
           <div className="divide-y divide-gray-200">
             {sentEmails.map((email) => {
-              const StatusIcon = statusConfig[email.sentStatus].icon
+              const status = sentStatus(email)
+              const StatusIcon = statusConfig[status].icon
               return (
                 <div
                   key={email.id}
@@ -521,19 +713,30 @@ export default function EmailsPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig[email.sentStatus].color}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig[status].color}`}>
                           <StatusIcon className="h-3 w-3" />
-                          {statusConfig[email.sentStatus].label}
+                          {statusConfig[status].label}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                          {email.emailType}
-                        </span>
+                        {email.source === 'log' && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            {email.emailType}
+                          </span>
+                        )}
+                        {email.source === 'outbound' && email.resentFromId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            <RotateCcw className="h-3 w-3" />
+                            Resent
+                          </span>
+                        )}
+                        {email.source === 'outbound' && email.attachmentNames.length > 0 && (
+                          <Paperclip className="h-3.5 w-3.5 text-gray-400" />
+                        )}
                       </div>
                       <p className="font-medium text-gray-900 truncate">
                         {email.subject}
                       </p>
                       <p className="text-sm text-gray-600 truncate">
-                        To: {email.recipientName ? `${email.recipientName} <${email.recipientEmail}>` : email.recipientEmail}
+                        To: {sentRecipients(email)}
                       </p>
                       {email.errorMessage && (
                         <p className="text-sm text-red-600 truncate mt-1">
@@ -543,8 +746,15 @@ export default function EmailsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">{formatDate(email.sentAt)}</p>
+                        <p className="text-sm text-gray-500">{formatDate(sentAt(email))}</p>
                       </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEmailPreview(email); openResend(email); }}
+                        className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                        title="Resend email"
+                      >
+                        <RotateCcw className="h-5 w-5" />
+                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); openEmailPreview(email); }}
                         className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -611,16 +821,14 @@ export default function EmailsPage() {
               <p className="text-gray-600 mb-2">
                 Are you sure you want to delete this email? This action cannot be undone.
               </p>
-              {'fromAddress' in confirmDeleteEmail && confirmDeleteEmail.inboundTicket && (
+              {isReceived(confirmDeleteEmail) && confirmDeleteEmail.inboundTicket && (
                 <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
                   This email has an associated support ticket (#{confirmDeleteEmail.inboundTicket.ticketNumber}). The ticket will remain but will no longer be linked to this email.
                 </p>
               )}
               <p className="text-sm text-gray-500 mb-6 truncate">
                 <span className="font-medium">
-                  {'fromAddress' in confirmDeleteEmail
-                    ? confirmDeleteEmail.subject || '(No subject)'
-                    : confirmDeleteEmail.subject}
+                  {confirmDeleteEmail.subject || '(No subject)'}
                 </span>
               </p>
               <div className="flex justify-end gap-3">
@@ -667,12 +875,18 @@ export default function EmailsPage() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {replyMode ? 'Reply to Email' : ('fromAddress' in selectedEmail ? 'Received Email' : 'Sent Email')}
+                    {mode === 'reply'
+                      ? 'Reply to Email'
+                      : mode === 'forward'
+                      ? 'Forward Email'
+                      : mode === 'resend'
+                      ? 'Resend Email'
+                      : isReceived(selectedEmail) ? 'Received Email' : 'Sent Email'}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    {'fromAddress' in selectedEmail
+                    {isReceived(selectedEmail)
                       ? `From: ${selectedEmail.fromAddress}`
-                      : `To: ${selectedEmail.recipientEmail}`
+                      : `To: ${sentRecipients(selectedEmail)}`
                     }
                   </p>
                 </div>
@@ -686,7 +900,7 @@ export default function EmailsPage() {
 
               {/* Email Details */}
               <div className="border-b border-gray-200 pb-4 mb-4 space-y-2">
-                {'fromAddress' in selectedEmail ? (
+                {isReceived(selectedEmail) ? (
                   <>
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-medium text-gray-700 w-20">From:</span>
@@ -724,30 +938,48 @@ export default function EmailsPage() {
                   </>
                 ) : (
                   <>
+                    {selectedEmail.source === 'outbound' && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-gray-700 w-20">From:</span>
+                        <span className="text-gray-900">{selectedEmail.fromAddress}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-medium text-gray-700 w-20">To:</span>
-                      <span className="text-gray-900">
-                        {selectedEmail.recipientName ? `${selectedEmail.recipientName} <${selectedEmail.recipientEmail}>` : selectedEmail.recipientEmail}
-                      </span>
+                      <span className="text-gray-900">{sentRecipients(selectedEmail)}</span>
                     </div>
+                    {selectedEmail.source === 'outbound' && selectedEmail.replyTo && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-gray-700 w-20">Reply-To:</span>
+                        <span className="text-gray-900">{selectedEmail.replyTo}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-medium text-gray-700 w-20">Subject:</span>
                       <span className="text-gray-900">{selectedEmail.subject}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-medium text-gray-700 w-20">Sent:</span>
-                      <span className="text-gray-900">{new Date(selectedEmail.sentAt).toLocaleString()}</span>
+                      <span className="text-gray-900">{new Date(sentAt(selectedEmail)).toLocaleString()}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium text-gray-700 w-20">Type:</span>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                        {selectedEmail.emailType}
-                      </span>
-                    </div>
+                    {selectedEmail.source === 'log' && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-gray-700 w-20">Type:</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          {selectedEmail.emailType}
+                        </span>
+                      </div>
+                    )}
+                    {selectedEmail.source === 'outbound' && selectedEmail.attachmentNames.length > 0 && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-gray-700 w-20">Attached:</span>
+                        <span className="text-gray-900">{selectedEmail.attachmentNames.join(', ')}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-medium text-gray-700 w-20">Status:</span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig[selectedEmail.sentStatus].color}`}>
-                        {statusConfig[selectedEmail.sentStatus].label}
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig[sentStatus(selectedEmail)].color}`}>
+                        {statusConfig[sentStatus(selectedEmail)].label}
                       </span>
                     </div>
                     {selectedEmail.errorMessage && (
@@ -762,29 +994,34 @@ export default function EmailsPage() {
 
               {/* Email Content */}
               <div className="max-h-[50vh] overflow-y-auto">
-                {'fromAddress' in selectedEmail ? (
-                  selectedEmail.htmlBody ? (
-                    <div
-                      className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: selectedEmail.htmlBody }}
-                    />
-                  ) : selectedEmail.textBody ? (
-                    <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans">
-                      {selectedEmail.textBody}
-                    </pre>
-                  ) : (
-                    <p className="text-gray-500 italic">No content available</p>
-                  )
-                ) : (
-                  <div
-                    className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: selectedEmail.htmlContent }}
-                  />
-                )}
+                {(() => {
+                  const html = isReceived(selectedEmail)
+                    ? selectedEmail.htmlBody
+                    : selectedEmail.source === 'log' ? selectedEmail.htmlContent : selectedEmail.htmlBody
+                  const text = isReceived(selectedEmail)
+                    ? selectedEmail.textBody
+                    : selectedEmail.source === 'outbound' ? selectedEmail.textBody : null
+                  if (html) {
+                    return (
+                      <div
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: html }}
+                      />
+                    )
+                  }
+                  if (text) {
+                    return (
+                      <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans">
+                        {text}
+                      </pre>
+                    )
+                  }
+                  return <p className="text-gray-500 italic">No content available</p>
+                })()}
               </div>
 
               {/* Reply Form (for received emails) */}
-              {'fromAddress' in selectedEmail && replyMode && (
+              {isReceived(selectedEmail) && mode === 'reply' && (
                 <div className="mt-4 border-t border-gray-200 pt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Your Reply
@@ -800,6 +1037,90 @@ export default function EmailsPage() {
                 </div>
               )}
 
+              {/* Forward Form (for received emails) */}
+              {isReceived(selectedEmail) && mode === 'forward' && (
+                <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
+                  {forwardOptions === null ? (
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Looking up the sender&apos;s event…
+                    </p>
+                  ) : forwardOptions.suggestion ? (
+                    <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      This sender is registered for <strong>{forwardOptions.suggestion.eventName}</strong> ({forwardOptions.suggestion.organizationName}).
+                      Their organizer contact is filled in below.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                      We couldn&apos;t match this sender to a registration. Pick an organization or type an address.
+                    </p>
+                  )}
+                  {forwardOptions && forwardOptions.organizations.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+                      <select
+                        value=""
+                        onChange={(e) => e.target.value && setRecipientInput(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        disabled={sendingAction}
+                      >
+                        <option value="">Choose an organization to fill in its contact…</option>
+                        {forwardOptions.organizations.map((org) => (
+                          <option key={org.id} value={org.contactEmail}>
+                            {org.name} — {org.contactEmail}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Send to</label>
+                    <input
+                      type="text"
+                      value={recipientInput}
+                      onChange={(e) => setRecipientInput(e.target.value)}
+                      placeholder="organizer@example.org (separate several with commas)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      disabled={sendingAction}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
+                    <textarea
+                      value={forwardNote}
+                      onChange={(e) => setForwardNote(e.target.value)}
+                      placeholder="e.g. This came to ChiRho support — can you help them out?"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                      disabled={sendingAction}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Their reply will go straight to {selectedEmail.fromAddress}.
+                  </p>
+                </div>
+              )}
+
+              {/* Resend Form (for sent emails) */}
+              {!isReceived(selectedEmail) && mode === 'resend' && (
+                <div className="mt-4 border-t border-gray-200 pt-4 space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Send a copy to</label>
+                  <input
+                    type="text"
+                    value={recipientInput}
+                    onChange={(e) => setRecipientInput(e.target.value)}
+                    placeholder="person@example.com (separate several with commas)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    disabled={sendingAction}
+                  />
+                  <p className="text-xs text-gray-500">
+                    The same email goes out again, unchanged, with the same Reply-To.
+                    {selectedEmail.source === 'outbound' && selectedEmail.attachmentNames.length > 0 &&
+                      ` Attachments (${selectedEmail.attachmentNames.join(', ')}) aren't saved, so they won't be included.`}
+                  </p>
+                </div>
+              )}
+
               {/* Modal Footer */}
               <div className="mt-6 flex justify-between gap-3">
                 <button
@@ -810,30 +1131,52 @@ export default function EmailsPage() {
                   Delete
                 </button>
                 <div className="flex gap-3">
-                {'fromAddress' in selectedEmail && !replyMode && (
-                  <button
-                    onClick={() => setReplyMode(true)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-                  >
-                    <Reply className="h-4 w-4" />
-                    Reply
-                  </button>
-                )}
-                {'fromAddress' in selectedEmail && replyMode && (
+                {mode === 'view' && isReceived(selectedEmail) && (
                   <>
                     <button
-                      onClick={() => setReplyMode(false)}
+                      onClick={() => openForward(selectedEmail)}
+                      className="px-4 py-2 bg-white border border-purple-600 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-2"
+                    >
+                      <Forward className="h-4 w-4" />
+                      Forward
+                    </button>
+                    <button
+                      onClick={() => setMode('reply')}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                    >
+                      <Reply className="h-4 w-4" />
+                      Reply
+                    </button>
+                  </>
+                )}
+                {mode === 'view' && !isReceived(selectedEmail) && (
+                  <button
+                    onClick={() => openResend(selectedEmail)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Resend
+                  </button>
+                )}
+                {mode !== 'view' && (
+                  <>
+                    <button
+                      onClick={() => setMode('view')}
                       className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                      disabled={sendingReply}
+                      disabled={sendingReply || sendingAction}
                     >
                       Cancel
                     </button>
                     <button
-                      onClick={sendReply}
-                      disabled={sendingReply || !replyMessage.trim()}
+                      onClick={mode === 'reply' ? sendReply : mode === 'forward' ? sendForward : sendResend}
+                      disabled={
+                        mode === 'reply'
+                          ? sendingReply || !replyMessage.trim()
+                          : sendingAction || !recipientInput.trim()
+                      }
                       className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {sendingReply ? (
+                      {sendingReply || sendingAction ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Sending...
@@ -841,13 +1184,13 @@ export default function EmailsPage() {
                       ) : (
                         <>
                           <Send className="h-4 w-4" />
-                          Send Reply
+                          {mode === 'reply' ? 'Send Reply' : mode === 'forward' ? 'Forward' : 'Resend'}
                         </>
                       )}
                     </button>
                   </>
                 )}
-                {!replyMode && (
+                {mode === 'view' && (
                   <button
                     onClick={closeModal}
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"

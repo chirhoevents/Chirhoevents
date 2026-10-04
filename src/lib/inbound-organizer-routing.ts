@@ -182,3 +182,70 @@ export async function findOrganizerForSender(senderEmail: string): Promise<Organ
     organizationName: event.organization.name,
   }
 }
+
+/**
+ * ChiRho inboxes that only ever receive spam. Mail addressed solely to these
+ * is still stored (nothing is lost) but skips all processing and is hidden
+ * from the master-admin inbox by default.
+ */
+export const MUTED_INBOXES = ['hello@chirhoevents.com']
+
+export function isMutedInboxOnly(addresses: (string | null | undefined)[]): boolean {
+  const recipients = addresses.map(extractEmailAddress).filter(Boolean)
+  return recipients.length > 0 && recipients.every((a) => MUTED_INBOXES.includes(a))
+}
+
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * HTML for an inbound email forwarded on to someone else (an organizer).
+ * `intro` is trusted HTML; everything else is escaped except the original
+ * HTML body, which is passed through as a normal mail forward would.
+ */
+export function buildForwardedEmailHtml({
+  intro,
+  note,
+  from,
+  to,
+  receivedAt,
+  subject,
+  htmlBody,
+  textBody,
+  attachmentCount = 0,
+}: {
+  intro: string
+  note?: string | null
+  from: string
+  to?: string[]
+  receivedAt?: Date
+  subject: string
+  htmlBody: string | null
+  textBody: string | null
+  attachmentCount?: number
+}): string {
+  const body = htmlBody
+    || `<pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">${escapeHtml(textBody || '(No message body)')}</pre>`
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 680px;">
+      <div style="background: #F5F1E8; padding: 15px; border-left: 4px solid #1E3A5F; margin-bottom: 20px; border-radius: 4px; font-size: 14px; line-height: 1.5;">
+        <strong>${intro}</strong><br>
+        ${note ? `<p style="margin: 8px 0; white-space: pre-wrap;">${escapeHtml(note)}</p>` : ''}
+        <strong>From:</strong> ${escapeHtml(from)}<br>
+        ${to && to.length > 0 ? `<strong>To:</strong> ${escapeHtml(to.join(', '))}<br>` : ''}
+        ${receivedAt ? `<strong>Received:</strong> ${escapeHtml(receivedAt.toUTCString())}<br>` : ''}
+        <strong>Subject:</strong> ${escapeHtml(subject)}<br>
+        Hit <strong>Reply</strong> to answer the sender directly.
+        ${attachmentCount > 0 ? `<br><em>The original had ${attachmentCount} attachment(s) that weren't included. Ask the sender to send them to you directly.</em>` : ''}
+      </div>
+      <div style="background: #ffffff; padding: 20px; border: 1px solid #ddd; border-radius: 4px;">
+        ${body}
+      </div>
+    </div>
+  `
+}
