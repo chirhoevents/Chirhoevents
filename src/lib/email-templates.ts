@@ -13,6 +13,7 @@ export interface EmailTemplate {
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+const CHIRHO_SUPPORT_EMAIL = 'support@chirhoevents.com'
 
 /**
  * Professional email wrapper with consistent branding
@@ -25,7 +26,11 @@ export function wrapEmail(content: string, options?: {
 }): string {
   const orgName = options?.organizationName || 'ChiRho Events'
   const preheader = options?.preheader || ''
-  const supportEmail = options?.supportEmail || 'support@chirhoevents.com'
+  // No ChiRho fallback here: participant emails that omit supportEmail used to
+  // advertise support@chirhoevents.com, so attendees wrote to ChiRho instead of
+  // the event organizer. Every send sets a Reply-To that reaches the right
+  // party, so "reply to this email" is the safe default.
+  const supportEmail = options?.supportEmail
 
   return `
 <!DOCTYPE html>
@@ -103,7 +108,9 @@ export function wrapEmail(content: string, options?: {
                       <strong>${orgName}</strong>
                     </p>
                     <p style="margin: 0 0 8px 0;">
-                      Questions? Email <a href="mailto:${supportEmail}" style="color: #9C8466;">${supportEmail}</a>
+                      ${supportEmail
+                        ? `Questions? Email <a href="mailto:${supportEmail}" style="color: #9C8466;">${supportEmail}</a>`
+                        : 'Questions? Just reply to this email.'}
                     </p>
                     <p style="margin: 0; color: #999999; font-size: 12px;">
                       © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
@@ -962,7 +969,7 @@ export function generateOrganizationWelcomeEmail({
     </ul>
 
     <p>Welcome to the ChiRho family. We're honored to serve your ministry!</p>
-  `, { organizationName: 'ChiRho Events' })
+  `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL })
 }
 
 /**
@@ -1042,7 +1049,7 @@ export function generateInvoiceEmail({
       If you have any questions about this invoice, please contact our billing team at
       <a href="mailto:billing@chirhoevents.com">billing@chirhoevents.com</a>.
     </p>
-  `, { organizationName: 'ChiRho Events', preheader: `Invoice ${invoiceNumber} - $${amount.toFixed(2)} due ${dueDate}` })
+  `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL, preheader: `Invoice ${invoiceNumber} - $${amount.toFixed(2)} due ${dueDate}` })
 }
 
 /**
@@ -1103,7 +1110,7 @@ export function generateSupportTicketConfirmationEmail({
     <p style="font-size: 14px; color: #666;">
       Reference your ticket ID <strong>#${ticketId}</strong> in any follow-up communications.
     </p>
-  `, { organizationName: 'ChiRho Events', preheader: `Support ticket #${ticketId} received - we'll respond within 24 hours` })
+  `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL, preheader: `Support ticket #${ticketId} received - we'll respond within 24 hours` })
 }
 
 /**
@@ -1161,7 +1168,7 @@ export function generateSupportTicketResponseEmail({
     <p style="font-size: 14px; color: #666; margin-top: 24px;">
       — ChiRho Events Support Team
     </p>
-  `, { organizationName: 'ChiRho Events', preheader: isResolved ? `Ticket #${ticketId} resolved` : `New response to ticket #${ticketId}` })
+  `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL, preheader: isResolved ? `Ticket #${ticketId} resolved` : `New response to ticket #${ticketId}` })
 }
 
 /**
@@ -1201,7 +1208,7 @@ export function generatePasswordResetEmail({
       If the button doesn't work, copy and paste this link into your browser:<br>
       <a href="${resetUrl}" style="word-break: break-all;">${resetUrl}</a>
     </p>
-  `, { organizationName: 'ChiRho Events', preheader: 'Reset your ChiRho Events password' })
+  `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL, preheader: 'Reset your ChiRho Events password' })
 }
 
 /**
@@ -1279,7 +1286,7 @@ export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
           ChiRho Events
         </p>
       ` : ''}
-    `, { organizationName: 'ChiRho Events', preheader: `You're invited to ${data.eventName || 'an upcoming event'}` }),
+    `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL, preheader: `You're invited to ${data.eventName || 'an upcoming event'}` }),
   },
   {
     id: 'general_invitation',
@@ -1311,7 +1318,7 @@ export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
           ChiRho Events
         </p>
       ` : ''}
-    `, { organizationName: 'ChiRho Events', preheader: 'You have received an invitation from ChiRho Events' }),
+    `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL, preheader: 'You have received an invitation from ChiRho Events' }),
   },
   {
     id: 'organization_invitation',
@@ -1457,7 +1464,7 @@ export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
           <a href="https://chirhoevents.com" style="color: #1E3A5F;">chirhoevents.com</a>
         </p>
       `}
-    `, { organizationName: 'ChiRho Events', preheader: 'Discover how ChiRho Events can help your Catholic ministry thrive' }),
+    `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL, preheader: 'Discover how ChiRho Events can help your Catholic ministry thrive' }),
   },
   {
     id: 'announcement',
@@ -1489,7 +1496,7 @@ export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
           ChiRho Events
         </p>
       ` : ''}
-    `, { organizationName: 'ChiRho Events' }),
+    `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL }),
   },
   {
     id: 'follow_up',
@@ -1527,7 +1534,7 @@ export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
           ChiRho Events
         </p>
       ` : ''}
-    `, { organizationName: 'ChiRho Events', preheader: 'Following up on our conversation' }),
+    `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL, preheader: 'Following up on our conversation' }),
   },
   {
     id: 'welcome',
@@ -1582,7 +1589,7 @@ export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
           <strong>The ChiRho Events Team</strong>
         </p>
       `}
-    `, { organizationName: 'ChiRho Events', preheader: 'Welcome to the ChiRho Events family!' }),
+    `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL, preheader: 'Welcome to the ChiRho Events family!' }),
   },
   {
     id: 'custom',
@@ -1612,7 +1619,7 @@ export const masterAdminEmailTemplates: MasterAdminEmailTemplate[] = [
           ChiRho Events
         </p>
       ` : ''}
-    `, { organizationName: 'ChiRho Events' }),
+    `, { organizationName: 'ChiRho Events', supportEmail: CHIRHO_SUPPORT_EMAIL }),
   },
 ]
 
@@ -2309,6 +2316,7 @@ export function generateWaitlistConfirmationEmail({
   partySize,
   organizationName,
   eventUrl,
+  supportEmail,
 }: {
   name: string
   eventName: string
@@ -2316,6 +2324,7 @@ export function generateWaitlistConfirmationEmail({
   partySize: number
   organizationName: string
   eventUrl?: string
+  supportEmail?: string
 }): string {
   return wrapEmail(`
     <h1>You're on the Waitlist!</h1>
@@ -2353,7 +2362,7 @@ export function generateWaitlistConfirmationEmail({
     <p style="font-size: 14px; color: #666;">
       — ${organizationName}
     </p>
-  `, { organizationName, preheader: `You're #${position} on the waitlist for ${eventName}` })
+  `, { organizationName, supportEmail, preheader: `You're #${position} on the waitlist for ${eventName}` })
 }
 
 /**
@@ -2382,11 +2391,13 @@ export function generateWaitlistInvitationEmail({
   requestedHousingLabel,
   requestedDayPassName,
   isCounterOffer,
+  supportEmail,
 }: {
   name: string
   eventName: string
   partySize: number
   organizationName: string
+  supportEmail?: string
   registrationUrl: string
   expiresIn?: string
   offeredPartySize?: number
@@ -2503,7 +2514,7 @@ export function generateWaitlistInvitationEmail({
     <p style="font-size: 14px; color: #666;">
       — ${organizationName}
     </p>
-  `, { organizationName, preheader: `${offerSummary} reserved for ${eventName} — register within ${expiresIn ?? '48 hours'}` })
+  `, { organizationName, supportEmail, preheader: `${offerSummary} reserved for ${eventName} — register within ${expiresIn ?? '48 hours'}` })
 }
 
 export function generateGroupRegistrationConfirmationEmail({
@@ -2789,5 +2800,5 @@ export function generateGroupRegistrationConfirmationEmail({
     <p style="font-size: 14px; color: #666;">
       — ${organizationName}
     </p>
-  `, { organizationName, preheader: `Registration confirmed for ${groupName} - ${eventName}` })
+  `, { organizationName, supportEmail, preheader: `Registration confirmed for ${groupName} - ${eventName}` })
 }

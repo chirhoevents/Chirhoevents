@@ -383,6 +383,7 @@ export async function POST(
         partySize: parseInt(partySize),
         organizationName: event.organization.name,
         eventUrl,
+        supportEmail: resolveReplyTo(event.settings, event.organization),
       })
 
       await resend.emails.send({

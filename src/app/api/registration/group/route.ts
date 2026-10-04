@@ -756,6 +756,7 @@ export async function POST(request: NextRequest) {
         registrationInstructions: eventSettings?.registrationInstructions || undefined,
         customMessage: groupCustomMessage,
         organizationName: event.organization.name,
+        supportEmail: resolveReplyTo(event.settings, event.organization),
         porosLiabilityUrl,
         groupLeaderPortalUrl,
       })
