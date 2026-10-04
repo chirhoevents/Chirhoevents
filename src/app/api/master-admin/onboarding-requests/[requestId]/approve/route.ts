@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import Stripe from 'stripe'
 import crypto from 'crypto'

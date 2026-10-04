@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { resolveReplyTo } from '@/lib/email-reply-to'

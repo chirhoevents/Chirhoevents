@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 

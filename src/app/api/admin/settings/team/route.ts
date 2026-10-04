@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, userHasPermission } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { ADMIN_ROLES, getRoleName, getRoleDescription, type UserRole } from '@/lib/permissions'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 

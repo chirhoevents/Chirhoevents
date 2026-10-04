@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 
 const DEFAULT_RECIPIENT = 'chirhoevents@gmail.com'

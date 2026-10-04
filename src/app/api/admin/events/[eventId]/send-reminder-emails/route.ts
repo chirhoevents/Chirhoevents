@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import {

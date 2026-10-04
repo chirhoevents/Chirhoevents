@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { prisma } from '@/lib/prisma'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { resolveReplyTo } from '@/lib/email-reply-to'

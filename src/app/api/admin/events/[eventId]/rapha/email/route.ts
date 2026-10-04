@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)

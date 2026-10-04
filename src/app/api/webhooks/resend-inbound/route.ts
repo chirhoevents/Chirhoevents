@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import {
   isLikelySpamInbound,
@@ -9,10 +9,13 @@ import {
   sendMasterAdminNotification,
 } from '@/lib/master-admin-notify'
 import {
+  buildForwardedEmailHtml,
+  escapeHtml,
   extractEmailAddress,
   findOrganizerForSender,
   isAddressedToRoutableInbox,
   isAutoReply,
+  isMutedInboxOnly,
   type OrganizerRoute,
 } from '@/lib/inbound-organizer-routing'
 
@@ -199,6 +202,17 @@ async function handleInboundEmail(emailData: any) {
     })
 
     console.log('[Resend Webhook] Email saved to database:', receivedEmail.id)
+
+    // Mail only to muted inboxes (hello@ — spam only) is kept for the record
+    // but gets no ticket, auto-reply, forward, or notification.
+    if (isMutedInboxOnly([...(emailData.to || []), ...(emailData.cc || [])])) {
+      await prisma.receivedEmail.update({
+        where: { id: receivedEmail.id },
+        data: { processed: true, processedAt: new Date() },
+      })
+      console.log('[Resend Webhook] Muted inbox — skipping processing')
+      return
+    }
 
     // 2. If this email references an existing ticket (via [Ticket #N] in the
     //    subject or In-Reply-To/References headers), thread it as a reply
@@ -472,14 +486,6 @@ async function sendDefaultAutoReply(emailData: any, ticketNumber: number) {
   }
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
 // Returns false when the send fails so the caller can fall back to the normal
 // support-ticket flow rather than silently dropping the message.
 async function forwardToEventOrganizer(
@@ -488,11 +494,7 @@ async function forwardToEventOrganizer(
   htmlBody: string | null,
   route: OrganizerRoute
 ): Promise<boolean> {
-  const sender = escapeHtml(emailData.from || 'Unknown sender')
   const subject = emailData.subject || '(No Subject)'
-  const attachmentCount = Array.isArray(emailData.attachments) ? emailData.attachments.length : 0
-  const body = htmlBody
-    || `<pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">${escapeHtml(textBody || '(No message body)')}</pre>`
 
   try {
     const { error } = await resend.emails.send({
@@ -500,20 +502,14 @@ async function forwardToEventOrganizer(
       reply_to: emailData.from,
       to: route.contactEmail,
       subject: `Fwd: ${subject}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 680px;">
-          <div style="background: #F5F1E8; padding: 15px; border-left: 4px solid #1E3A5F; margin-bottom: 20px; border-radius: 4px; font-size: 14px; line-height: 1.5;">
-            <strong>A registrant for ${escapeHtml(route.eventName)} emailed ChiRho Events, so we've passed it along to you.</strong><br>
-            <strong>From:</strong> ${sender}<br>
-            <strong>Subject:</strong> ${escapeHtml(subject)}<br>
-            Hit <strong>Reply</strong> to answer them directly.
-            ${attachmentCount > 0 ? `<br><em>The original had ${attachmentCount} attachment(s) that weren't included. Ask the sender to send them to you directly.</em>` : ''}
-          </div>
-          <div style="background: #ffffff; padding: 20px; border: 1px solid #ddd; border-radius: 4px;">
-            ${body}
-          </div>
-        </div>
-      `,
+      html: buildForwardedEmailHtml({
+        intro: `A registrant for ${escapeHtml(route.eventName)} emailed ChiRho Events, so we've passed it along to you.`,
+        from: emailData.from || 'Unknown sender',
+        subject,
+        htmlBody,
+        textBody,
+        attachmentCount: Array.isArray(emailData.attachments) ? emailData.attachments.length : 0,
+      }),
     })
     if (error) {
       console.error('[Resend Webhook] Error forwarding to event organizer:', error)

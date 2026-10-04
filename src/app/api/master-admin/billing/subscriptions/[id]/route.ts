@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import Stripe from 'stripe'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 const resend = new Resend(process.env.RESEND_API_KEY!)

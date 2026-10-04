@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { uploadSafeEnvCert } from '@/lib/r2/upload-safe-env-cert'
 import { resolveReplyTo } from '@/lib/email-reply-to'

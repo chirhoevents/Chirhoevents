@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { wrapEmail, emailButton, emailInfoBox, emailDetailRow } from '@/lib/email-templates'
 
 const resend = new Resend(process.env.RESEND_API_KEY)

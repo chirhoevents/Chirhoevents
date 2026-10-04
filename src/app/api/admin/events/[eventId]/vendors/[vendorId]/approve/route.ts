@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { wrapEmail, emailButton, emailInfoBox } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'

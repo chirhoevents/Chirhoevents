@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 
 // Must use Node.js runtime for @react-pdf/renderer (not Edge)
 export const runtime = 'nodejs'

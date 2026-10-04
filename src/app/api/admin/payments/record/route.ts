@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization, isAdmin } from '@/lib/auth-utils'
 import { hasPermission, type UserRole } from '@/lib/permissions'

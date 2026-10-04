@@ -3,7 +3,7 @@ import { getCurrentUser, isAdmin, userHasPermission } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { getRoleName, getRoleDescription, type UserRole } from '@/lib/permissions'
 
 const resend = new Resend(process.env.RESEND_API_KEY)

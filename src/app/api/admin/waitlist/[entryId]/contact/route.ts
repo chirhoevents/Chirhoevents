@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { Resend } from 'resend'
-import { generateWaitlistInvitationEmail } from '@/lib/email-templates'
+import { Resend } from '@/lib/resend'
+import { buildWaitlistInvitationEmailHtml } from '@/lib/waitlist-invitation-email'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import {
@@ -399,71 +399,22 @@ export async function POST(
     const registrationUrl = `${APP_URL}/waitlist/register/${registrationToken}`
     let emailSent = false
 
-    // Resolve day-pass option names for the email copy (offered + requested).
-    const dayPassIdsToLookup = Array.from(
-      new Set(
-        [reservedDayPassOptionId, entry.preferredDayPassOptionId].filter(
-          (v): v is string => !!v
-        )
-      )
-    )
-    const dayPassNameById = new Map<string, string>()
-    if (dayPassIdsToLookup.length > 0) {
-      const dpOptions = await prisma.dayPassOption.findMany({
-        where: { id: { in: dayPassIdsToLookup } },
-        select: { id: true, name: true },
-      })
-      for (const dp of dpOptions) dayPassNameById.set(dp.id, dp.name)
-    }
-
-    const housingLabel = (h: HousingType | null): string | null =>
-      h === 'on_campus'
-        ? 'On-Campus'
-        : h === 'off_campus'
-        ? 'Off-Campus'
-        : h === 'day_pass'
-        ? 'Day Pass'
-        : null
-
-    // If admin used the counter-offer path the reserved values differ from
-    // preferred — surface that in the email.
-    const isCounterOffer =
-      spotsNeeded !== entry.partySize ||
-      offeredYouth !== entry.youthCount ||
-      offeredChaperone !== entry.chaperoneCount ||
-      offeredPriest !== entry.priestCount ||
-      (reservedHousingType ?? null) !==
-        ((entry.preferredHousingType as HousingType | null) ?? null) ||
-      (reservedDayPassOptionId ?? null) !==
-        (entry.preferredDayPassOptionId ?? null)
-
     try {
-      const emailHtml = generateWaitlistInvitationEmail({
-        name: entry.name,
+      const emailHtml = await buildWaitlistInvitationEmailHtml({
+        entry,
         eventName: entry.event.name,
-        partySize: entry.partySize,
         organizationName: entry.event.organization.name,
         supportEmail: resolveReplyTo(entry.event.settings, entry.event.organization),
         registrationUrl,
         expiresIn: '48 hours',
-        offeredPartySize: spotsNeeded,
-        offeredYouth: entry.registrationType === 'group' ? offeredYouth : null,
-        offeredChaperones:
-          entry.registrationType === 'group' ? offeredChaperone : null,
-        offeredPriests:
-          entry.registrationType === 'group' ? offeredPriest : null,
-        offeredHousingLabel: housingLabel(reservedHousingType),
-        offeredDayPassName: reservedDayPassOptionId
-          ? dayPassNameById.get(reservedDayPassOptionId) ?? null
-          : null,
-        requestedPartySize: entry.partySize,
-        requestedHousingLabel: housingLabel(
-          (entry.preferredHousingType as HousingType | null) ?? null
-        ),
-        requestedDayPassName: entry.preferredDayPassOptionId
-          ? dayPassNameById.get(entry.preferredDayPassOptionId) ?? null
-          : null,
-        isCounterOffer,
+        offered: {
+          partySize: spotsNeeded,
+          youth: offeredYouth,
+          chaperones: offeredChaperone,
+          priests: offeredPriest,
+          housingType: reservedHousingType,
+          dayPassOptionId: reservedDayPassOptionId,
+        },
       })
 
       await resend.emails.send({

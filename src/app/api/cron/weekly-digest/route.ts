@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { generateWeeklyDigestEmail, generateWeeklyDigestSubject } from '@/lib/weekly-digest'
 import { buildOrganizationDigest, getDigestSettings } from '@/lib/weekly-digest-data'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'

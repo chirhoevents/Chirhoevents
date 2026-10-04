@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
 import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 

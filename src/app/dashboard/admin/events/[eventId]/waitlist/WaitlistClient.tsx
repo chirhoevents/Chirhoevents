@@ -58,6 +58,7 @@ import {
   ArrowRight,
   MailOpen,
   Pencil,
+  Send,
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -468,6 +469,35 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
     } catch (error) {
       console.error('Error updating status:', error)
       alert('Failed to update status. Please try again.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  // Resend the waitlist email they already got, without touching their place
+  // in line or the seats held for them. extendExpiry gives an invitee a fresh
+  // 48 hours on the same link.
+  const handleResendEmail = async (entry: WaitlistEntry, extendExpiry = false) => {
+    try {
+      setActionLoading(entry.id)
+      const token = await getToken()
+      const response = await fetch(`/api/admin/waitlist/${entry.id}/resend-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ extendExpiry }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend the email')
+      }
+      alert(`Email resent to ${data.sentTo || entry.email}.`)
+      if (extendExpiry) await fetchWaitlist()
+    } catch (error) {
+      console.error('Error resending waitlist email:', error)
+      alert(error instanceof Error ? error.message : 'Failed to resend the email. Please try again.')
     } finally {
       setActionLoading(null)
     }
@@ -1168,6 +1198,17 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
                           className="w-full justify-start"
                           onClick={() => {
                             setManageEntry(null)
+                            handleResendEmail(e)
+                          }}
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          Resend their waitlist confirmation email
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => {
+                            setManageEntry(null)
                             openEditDialog(e, 'edit')
                           }}
                         >
@@ -1190,6 +1231,33 @@ export default function WaitlistClient({ eventId, eventName }: WaitlistClientPro
 
                     {e.status === 'contacted' && (
                       <>
+                        <p className="text-xs uppercase tracking-wide text-[#6B7280]">
+                          Resend invitation
+                        </p>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-[#1E3A5F] text-[#1E3A5F]"
+                          onClick={() => {
+                            setManageEntry(null)
+                            handleResendEmail(e)
+                          }}
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          Resend invitation email
+                          <span className="ml-2 text-xs opacity-80">(same link and deadline)</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => {
+                            setManageEntry(null)
+                            handleResendEmail(e, true)
+                          }}
+                        >
+                          <Timer className="h-4 w-4 mr-2" />
+                          Resend with a fresh 48 hours
+                        </Button>
+                        <div className="h-2" />
                         <p className="text-xs uppercase tracking-wide text-[#6B7280]">
                           Update status
                         </p>

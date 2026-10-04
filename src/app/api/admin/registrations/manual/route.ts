@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { generateIndividualConfirmationCode } from '@/lib/access-code'
 import { isAdminRole } from '@/lib/permissions'

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { Resend } from '@/lib/resend'
 import { formatPlainTextForEmail, getMasterAdminTemplateById, masterAdminEmailTemplates } from '@/lib/email-templates'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
