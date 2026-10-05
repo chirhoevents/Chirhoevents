@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { POROS_FROM } from '@/lib/poros-email'
+import { POROS_FROM, buildParentLiabilityFormEmail } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
@@ -170,27 +170,20 @@ export async function POST(req: NextRequest) {
     // Send email to parent
     const parentFormUrl = `${process.env.NEXT_PUBLIC_APP_URL}/poros/parent/${liabilityForm.parentToken}`
 
+    const { subject, html } = buildParentLiabilityFormEmail({
+      firstName,
+      lastName,
+      eventName: event.name,
+      parentLink: parentFormUrl,
+      expiresAt: liabilityForm.parentTokenExpiresAt,
+    })
+
     await resend.emails.send({
       from: POROS_FROM,
       reply_to: resolveReplyTo(event.settings, event.organization),
       to: parentEmail,
-      subject: `Liability Form Required for ${firstName} ${lastName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1E3A5F;">Liability Form Required</h2>
-          <p>Hello,</p>
-          <p>Your child, <strong>${firstName} ${lastName}</strong>, is registered to attend <strong>${event.name}</strong>.</p>
-          <p>We need you to complete a liability and medical information form before the event.</p>
-          <p>
-            <a href="${parentFormUrl}" style="display: inline-block; background-color: #9C8466; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-              Complete Liability Form
-            </a>
-          </p>
-          <p style="color: #6B7280; font-size: 14px;">This link will expire in 30 days.</p>
-          <p>If you have any questions, please contact your group leader.</p>
-          <p>Thank you,<br>ChiRho Events Team</p>
-        </div>
-      `,
+      subject,
+      html,
     })
 
     return NextResponse.json({

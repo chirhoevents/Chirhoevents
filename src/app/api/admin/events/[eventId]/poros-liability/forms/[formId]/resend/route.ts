@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { POROS_FROM } from '@/lib/poros-email'
+import { POROS_FROM, buildParentLiabilityFormEmail } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsEditAccess } from '@/lib/api-auth'
 import { Resend } from '@/lib/resend'
@@ -95,61 +95,20 @@ export async function POST(
     const parentLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/parent/${parentToken}`
     const replyToAddr = resolveReplyTo(form.event.settings, form.event.organization)
 
+    const { subject, html } = buildParentLiabilityFormEmail({
+      firstName: form.participantFirstName,
+      lastName: form.participantLastName,
+      eventName: form.event.name,
+      parentLink,
+      expiresAt: parentTokenExpiresAt,
+    })
+
     await resend.emails.send({
       from: POROS_FROM,
       reply_to: replyToAddr,
       to: targetParentEmail,
-      subject: `ACTION REQUIRED: Complete ${form.participantFirstName} ${form.participantLastName}'s liability form - ${form.event.name}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-            <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/Poros logo.png" alt="ChiRho Events" style="max-width: 250px; height: auto;" />
-          </div>
-
-          <div style="background-color: #B91C1C; padding: 12px 20px; text-align: center;">
-            <p style="color: #ffffff; margin: 0; font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
-              ⚠️ REMINDER — REGISTRATION IS NOT COMPLETE
-            </p>
-          </div>
-
-          <div style="padding: 30px 20px;">
-            <h1 style="color: #1E3A5F; margin-top: 0;">Complete ${form.participantFirstName}'s Liability Form</h1>
-
-            <p>Hi,</p>
-
-            <p>
-              <strong>${form.participantFirstName} ${form.participantLastName}</strong> is registered for
-              <strong>${form.event.name}</strong>, but <strong>they cannot attend until you complete
-              and sign their liability form</strong>. As their parent/guardian, only you can complete this step.
-            </p>
-
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${parentLink}" style="display: inline-block; padding: 15px 30px; background-color: #B91C1C; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                Complete Form Now (Takes ~5 Minutes)
-              </a>
-            </div>
-
-            <p style="color: #666; font-size: 14px;">
-              Or copy and paste this link into your browser:<br>
-              <a href="${parentLink}" style="color: #1E3A5F;">${parentLink}</a>
-            </p>
-
-            <div style="background-color: #FFF3CD; padding: 15px; border-left: 4px solid #FFC107; margin: 20px 0;">
-              <p style="color: #856404; margin: 0; font-size: 14px;">
-                This link expires in 7 days. If it expires before you complete the form, contact us for a new one.
-              </p>
-            </div>
-
-            <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
-
-            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-
-            <p style="color: #666; font-size: 12px; text-align: center;">
-              © ${new Date().getFullYear()} ChiRho Events. All rights reserved.
-            </p>
-          </div>
-        </div>
-      `,
+      subject,
+      html,
     })
 
     return NextResponse.json({

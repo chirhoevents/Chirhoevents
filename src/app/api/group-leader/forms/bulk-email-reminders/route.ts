@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { POROS_FROM } from '@/lib/poros-email'
+import { POROS_FROM, buildParentLiabilityFormEmail } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
@@ -89,29 +89,36 @@ export async function POST(req: NextRequest) {
               signatureData: {},
             },
           })
+        } else if (
+          !liabilityForm.parentToken ||
+          (liabilityForm.parentTokenExpiresAt !== null && liabilityForm.parentTokenExpiresAt < new Date())
+        ) {
+          // A reminder with an expired link is a dead end for the parent
+          liabilityForm = await prisma.liabilityForm.update({
+            where: { id: liabilityForm.id },
+            data: {
+              parentToken: crypto.randomUUID(),
+              parentTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            },
+          })
         }
 
         const parentFormUrl = `${process.env.NEXT_PUBLIC_APP_URL}/poros/parent/${liabilityForm.parentToken}`
+
+        const { subject, html } = buildParentLiabilityFormEmail({
+          firstName: participant.firstName,
+          lastName: participant.lastName,
+          eventName: participant.groupRegistration.event.name,
+          parentLink: parentFormUrl,
+          expiresAt: liabilityForm.parentTokenExpiresAt,
+        })
 
         return resend.emails.send({
           from: POROS_FROM,
           reply_to: resolveReplyTo(participant.groupRegistration.event.settings, participant.groupRegistration.event.organization),
           to: participant.parentEmail,
-          subject: `Reminder: Liability Form Required for ${participant.firstName}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #1E3A5F;">Reminder: Liability Form Required</h2>
-              <p>Hello,</p>
-              <p>This is a friendly reminder that we still need you to complete the liability form for <strong>${participant.firstName} ${participant.lastName}</strong> for <strong>${participant.groupRegistration.event.name}</strong>.</p>
-              <p>
-                <a href="${parentFormUrl}" style="display: inline-block; background-color: #9C8466; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-                  Complete Form Now
-                </a>
-              </p>
-              <p style="color: #6B7280; font-size: 14px;">Please complete this form as soon as possible to ensure your child can participate in the event.</p>
-              <p>Thank you,<br>ChiRho Events Team</p>
-            </div>
-          `,
+          subject,
+          html,
         })
       }
     })
