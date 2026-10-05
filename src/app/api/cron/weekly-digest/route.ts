@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
           continue
         }
 
-        if (!specificOrgId && todayDayOfWeek !== MONDAY) {
+        if (!specificOrgId) {
           const lastDigest = await prisma.emailLog.findFirst({
             where: {
               organizationId: org.id,
@@ -106,19 +106,35 @@ export async function GET(request: NextRequest) {
             select: { sentAt: true },
           })
           const daysSinceLast = lastDigest
-            ? Math.floor((Date.now() - lastDigest.sentAt.getTime()) / (1000 * 60 * 60 * 24))
+            ? (Date.now() - lastDigest.sentAt.getTime()) / (1000 * 60 * 60 * 24)
             : Number.POSITIVE_INFINITY
-          if (daysSinceLast < 7) {
-            console.log(`[weekly-digest] Skip ${org.id} (${org.name}): not Monday (day=${todayDayOfWeek}) and last sent ${daysSinceLast}d ago`)
-            results.push({
-              orgId: org.id,
-              orgName: org.name,
-              status: 'not_scheduled_today',
-              recipients: 0,
-            })
-            continue
+
+          if (todayDayOfWeek === MONDAY) {
+            // This week's digest already went out (the /ensure fallback or a
+            // duplicate cron firing) — don't send it twice.
+            if (daysSinceLast < 6) {
+              console.log(`[weekly-digest] Skip ${org.id} (${org.name}): already sent ${daysSinceLast.toFixed(1)}d ago`)
+              results.push({
+                orgId: org.id,
+                orgName: org.name,
+                status: 'already_sent',
+                recipients: 0,
+              })
+              continue
+            }
+          } else {
+            if (daysSinceLast < 7) {
+              console.log(`[weekly-digest] Skip ${org.id} (${org.name}): not Monday (day=${todayDayOfWeek}) and last sent ${Math.floor(daysSinceLast)}d ago`)
+              results.push({
+                orgId: org.id,
+                orgName: org.name,
+                status: 'not_scheduled_today',
+                recipients: 0,
+              })
+              continue
+            }
+            console.log(`[weekly-digest] Catch-up send for ${org.id} (${org.name}): last sent ${Math.floor(daysSinceLast)}d ago (today ${todayDayOfWeek})`)
           }
-          console.log(`[weekly-digest] Catch-up send for ${org.id} (${org.name}): last sent ${daysSinceLast}d ago (today ${todayDayOfWeek})`)
         }
 
         const recipients = digestSettings.recipients.length > 0
@@ -221,6 +237,7 @@ export async function GET(request: NextRequest) {
       sent: results.filter(r => r.status === 'sent').length,
       skipped: results.filter(r => r.status === 'skipped').length,
       notScheduledToday: results.filter(r => r.status === 'not_scheduled_today').length,
+      alreadySent: results.filter(r => r.status === 'already_sent').length,
       errors: results.filter(r => r.status === 'error').length,
     }
     console.log(`[weekly-digest] Done. ${JSON.stringify(summary)}`)
