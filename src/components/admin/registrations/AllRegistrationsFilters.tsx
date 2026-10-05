@@ -78,7 +78,7 @@ export default function AllRegistrationsFilters({
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by group name, leader, email..."
+              placeholder="Search by name, email, access code..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-10"
