@@ -57,12 +57,13 @@ export async function GET(request: NextRequest) {
 
     // Search filter for groups
     if (search) {
-      const searchLower = search.toLowerCase()
+      const searchLower = search.trim().toLowerCase()
       groupWhereClause.OR = [
         { groupName: { contains: searchLower, mode: 'insensitive' } },
         { parishName: { contains: searchLower, mode: 'insensitive' } },
         { groupLeaderName: { contains: searchLower, mode: 'insensitive' } },
         { groupLeaderEmail: { contains: searchLower, mode: 'insensitive' } },
+        { accessCode: { contains: searchLower, mode: 'insensitive' } },
       ]
       individualWhereClause.OR = [
         { firstName: { contains: searchLower, mode: 'insensitive' } },
