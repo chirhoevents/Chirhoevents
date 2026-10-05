@@ -21,7 +21,8 @@ export const maxDuration = 60
  *
  * The purpose is a safety net: if Vercel Cron misfires, doesn't deploy,
  * hits an env issue, or gets rate-limited, the digest still lands the
- * first time an admin visits the dashboard on Monday.
+ * first time an admin visits the dashboard on Monday after the cron's
+ * 14:00 UTC slot.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -33,13 +34,22 @@ export async function POST(request: NextRequest) {
     const organizationId = await getEffectiveOrgId(user as any)
 
     const MONDAY = 1
-    const todayDayOfWeek = new Date().getUTCDay()
+    const now = new Date()
+    const todayDayOfWeek = now.getUTCDay()
 
     // Only fire on Mondays. On other days the regular cron's catch-up path
     // handles a missed Monday; the fallback exists specifically for the
     // Monday scheduled slot.
     if (todayDayOfWeek !== MONDAY) {
       return NextResponse.json({ status: 'not_monday', dayOfWeek: todayDayOfWeek })
+    }
+
+    // Monday UTC starts Sunday 8 PM Eastern, so without this an admin on the
+    // dashboard Sunday evening would get the digest ~14 hours early. Wait
+    // until an hour after the 14:00 UTC cron so it only covers a missed run.
+    const FALLBACK_HOUR_UTC = 15
+    if (now.getUTCHours() < FALLBACK_HOUR_UTC) {
+      return NextResponse.json({ status: 'before_scheduled_send' })
     }
 
     const org = await prisma.organization.findUnique({

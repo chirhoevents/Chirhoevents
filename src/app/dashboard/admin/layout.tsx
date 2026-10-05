@@ -239,7 +239,7 @@ export default function AdminLayout({
 
   // Weekly-digest safety net: on the first admin dashboard load per browser
   // session, ping /api/cron/weekly-digest/ensure. That endpoint no-ops
-  // unless today is Monday AND the org's last successful digest is 6+
+  // unless it's Monday after 15:00 UTC AND the org's last successful digest is 6+
   // days old — so it fires the missed digest if Vercel Cron didn't. Fire
   // and forget; failure is silent because the regular cron will retry.
   useEffect(() => {
