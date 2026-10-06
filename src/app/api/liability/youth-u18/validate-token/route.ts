@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { CANCELLED_REGISTRATION_FORM_MESSAGE, isLiabilityFormRegistrationCancelled } from '@/lib/liability-form-registration'
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +41,10 @@ export async function POST(request: NextRequest) {
         { error: 'This form has already been completed.' },
         { status: 400 }
       )
+    }
+
+    if (await isLiabilityFormRegistrationCancelled(liabilityForm)) {
+      return NextResponse.json({ error: CANCELLED_REGISTRATION_FORM_MESSAGE }, { status: 410 })
     }
 
     // Anything already collected (e.g. emergency contacts and dietary needs

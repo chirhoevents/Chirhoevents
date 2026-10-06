@@ -22,6 +22,10 @@ export async function GET(
               select: {
                 liabilityFormsRequiredIndividual: true,
                 porosHousingEnabled: true,
+                singleRoomLabel: true,
+                doubleRoomLabel: true,
+                tripleRoomLabel: true,
+                quadRoomLabel: true,
                 contactEmail: true,
                 contactPhone: true,
               },
@@ -78,6 +82,14 @@ export async function GET(
         registration.event.endDate
       ),
       dayPassName: registration.dayPassOption?.name ?? null,
+      includesMealPackage: registration.includesMealPackage,
+      // The organizer's custom room names
+      roomLabels: {
+        singleRoomLabel: registration.event.settings?.singleRoomLabel ?? null,
+        doubleRoomLabel: registration.event.settings?.doubleRoomLabel ?? null,
+        tripleRoomLabel: registration.event.settings?.tripleRoomLabel ?? null,
+        quadRoomLabel: registration.event.settings?.quadRoomLabel ?? null,
+      },
       eventName: registration.event.name,
       totalAmount: paymentBalance?.totalAmountDue || 0,
       amountPaid: paymentBalance?.amountPaid || 0,

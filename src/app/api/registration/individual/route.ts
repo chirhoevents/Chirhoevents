@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { Resend } from '@/lib/resend'
-import QRCode from 'qrcode'
+import { generateIndividualRegistrationQr } from '@/lib/individual-qr'
 import { randomUUID } from 'crypto'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { CARD_PAYMENT_DISABLED_MESSAGE, CARD_PAYMENT_DISABLED_TITLE } from '@/lib/event-card-payment-disabled'
@@ -34,6 +34,7 @@ import {
   individualAttendanceLines,
   individualLiabilityEmailBlock,
   individualLiabilityFormUrl,
+  individualHousingOptions,
   individualParentTokenExpiry,
   organizerMessageBlock,
 } from '@/lib/individual-registration'
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
       lastName,
       email,
       phone,
-      housingType,
+      housingType: requestedHousingType,
       emergencyContact1Name,
       emergencyContact1Phone,
       emergencyContact1Relation,
@@ -80,6 +81,9 @@ export async function POST(request: NextRequest) {
       couponCode = '',
       waitlistToken = null,
     } = body
+    // Adjusted below to the event's housing rules
+    let housingType: string = requestedHousingType
+    let roomType: string | null = body.roomType || null
 
     if (!eventId || !firstName || !lastName || !email || !phone || !housingType ||
         !emergencyContact1Name || !emergencyContact1Phone || !emergencyContact1Relation) {
@@ -213,7 +217,7 @@ export async function POST(request: NextRequest) {
 
       const wl = tokenCheck.entry
       const requestedHousing = (housingType || null) as HousingType | null
-      const requestedRoom = ((body.roomType || null) as RoomType | null) ?? null
+      const requestedRoom = (roomType as RoomType | null)
       const requestedDayPassOptionId = (body.dayPassOptionId || null) as string | null
 
       // Match against effective_* values so a counter-offer wins over the
@@ -285,6 +289,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // The event's housing rules, the same ones the form shows: no housing at
+    // all means off-campus; otherwise the chosen option and room type must be
+    // ones the organizer allows
+    if (!isDayPass) {
+      const housingOffered = eventOffersHousing(event.settings, event.startDate, event.endDate)
+      const housingOptions = individualHousingOptions(event.settings)
+      if (!housingOffered) {
+        housingType = 'off_campus'
+      } else if (housingType === 'on_campus') {
+        if (!housingOptions.onCampusAllowed) {
+          return NextResponse.json({ error: 'On-campus housing is not offered for this event.' }, { status: 400 })
+        }
+        if (roomType && !housingOptions.rooms.some(room => room.value === roomType)) {
+          return NextResponse.json({ error: 'That room type is not offered for this event.' }, { status: 400 })
+        }
+      } else if (!housingOptions.offCampusAllowed) {
+        return NextResponse.json(
+          { error: 'This event requires on-campus housing. Please go back and choose a room.' },
+          { status: 400 }
+        )
+      }
+      if (housingType !== 'on_campus') roomType = null
+    }
+
+    // Optional meal package add-on, only when the organizer offers it
+    const includeMealPackage =
+      !!body.includeMealPackage &&
+      !!event.settings?.individualMealsEnabled &&
+      event.pricing.individualMealPackagePrice != null
+
     // Check capacity before allowing registration
     if (!waitlistBypass && event.capacityTotal !== null && event.capacityRemaining !== null) {
       if (event.capacityRemaining <= 0) {
@@ -300,7 +334,7 @@ export async function POST(request: NextRequest) {
       const optionCapacityCheck = checkOptionCapacity(
         event.settings,
         housingType as HousingType,
-        (body.roomType || null) as RoomType | null,
+        roomType as RoomType | null,
         1 // Individual registration = 1 person
       )
 
@@ -347,19 +381,16 @@ export async function POST(request: NextRequest) {
         doubleRoomPrice: toPrice(event.pricing.doubleRoomPrice),
         tripleRoomPrice: toPrice(event.pricing.tripleRoomPrice),
         quadRoomPrice: toPrice(event.pricing.quadRoomPrice),
+        individualMealPackagePrice: toPrice(event.pricing.individualMealPackagePrice),
         earlyBirdDeadline: event.pricing.earlyBirdDeadline,
       },
       {
         housingType,
-        roomType: body.roomType || null,
+        roomType,
         dayPassOptionPrice: dayPassOption ? Number(dayPassOption.price) : null,
+        includeMealPackage,
       }
     )
-
-    // Add meal package if included
-    if (body.includeMealPackage && event.pricing.individualMealPackagePrice) {
-      totalAmount += Number(event.pricing.individualMealPackagePrice)
-    }
 
     // Validate and apply coupon if provided
     let appliedCoupon: { id: string; code: string; discountAmount: number } | null = null
@@ -408,7 +439,7 @@ export async function POST(request: NextRequest) {
             code: coupon.code,
             discountAmount,
           }
-          // NOTE: usageCount is incremented after confirmed payment (webhook for card, here for check)
+          // The use is claimed below, atomically, once the registration goes ahead
         }
       }
     }
@@ -481,7 +512,7 @@ export async function POST(request: NextRequest) {
 
     // Housing / room capacity (day passes don't use housing). Skipped if the
     // waitlist invite already reserved this option.
-    const roomTypeForCapacity = (body.roomType || null) as RoomType | null
+    const roomTypeForCapacity = roomType as RoomType | null
     if (!isDayPass && !waitlistOptionReserved && event.settings) {
       if (waitlistBypass) {
         await decrementOptionCapacity(event.id, housingType as HousingType, roomTypeForCapacity, 1)
@@ -507,6 +538,31 @@ export async function POST(request: NextRequest) {
         )
       }
       rollback.push(() => incrementDayPassOptionCapacity(body.dayPassOptionId, 1))
+    }
+
+    // Claim the coupon use now (not after payment), in one atomic step, so a
+    // single-use or limited code can't be used by several people while their
+    // checkouts are still open. Given back if this registration is released.
+    if (appliedCoupon) {
+      const couponId = appliedCoupon.id
+      const claimed = await prisma.$executeRaw`
+        UPDATE coupons SET usage_count = usage_count + 1
+        WHERE id = ${couponId}::uuid AND active = true AND (
+          usage_limit_type = 'unlimited'
+          OR (usage_limit_type = 'single_use' AND usage_count < 1)
+          OR (usage_limit_type = 'limited' AND (max_uses IS NULL OR usage_count < max_uses))
+        )
+      `
+      if (claimed === 0) {
+        await runRollback()
+        return NextResponse.json(
+          { error: 'That coupon code has just been used up. Please go back and remove it or try another code.' },
+          { status: 400 }
+        )
+      }
+      rollback.push(() => prisma.$executeRaw`
+        UPDATE coupons SET usage_count = GREATEST(0, usage_count - 1) WHERE id = ${couponId}::uuid
+      `)
     }
 
     // Generate unique confirmation code
@@ -542,9 +598,10 @@ export async function POST(request: NextRequest) {
         gender: body.gender || null,
         ticketType: body.ticketType || 'general_admission',
         dayPassOptionId: body.dayPassOptionId || null,
-        housingType: housingType || null,
-        roomType: body.roomType || null,
-        preferredRoommate: body.preferredRoommate || null,
+        housingType: (housingType || null) as HousingType | null,
+        roomType: roomType as RoomType | null,
+        includesMealPackage: includeMealPackage,
+        preferredRoommate: housingType === 'on_campus' ? body.preferredRoommate || null : null,
         tShirtSize: body.tShirtSize || null,
         dietaryRestrictions: body.dietaryRestrictions || null,
         adaAccommodations: body.adaAccommodations || null,
@@ -559,6 +616,18 @@ export async function POST(request: NextRequest) {
       },
     })
     rollback.push(() => deleteRegistrationPermanently('individual', registration.id))
+
+    // Which coupon this registration used, so a release can give the use back
+    if (appliedCoupon) {
+      await prisma.couponRedemption.create({
+        data: {
+          couponId: appliedCoupon.id,
+          registrationId: registration.id,
+          registrationType: 'individual',
+          discountApplied: appliedCoupon.discountAmount,
+        },
+      })
+    }
 
     // Increment organization's registration counter
     await prisma.organization.update({
@@ -575,18 +644,7 @@ export async function POST(request: NextRequest) {
     }))
 
     // Generate QR code containing registration data
-    const qrData = JSON.stringify({
-      registration_id: registration.id,
-      event_id: event.id,
-      type: 'individual',
-      name: `${firstName} ${lastName}`,
-    })
-
-    const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
-      errorCorrectionLevel: 'H',
-      margin: 1,
-      width: 300,
-    })
+    const qrCodeDataUrl = await generateIndividualRegistrationQr(registration)
 
     // Update registration with QR code
     await prisma.individualRegistration.update({
@@ -689,12 +747,6 @@ export async function POST(request: NextRequest) {
 
     // Nothing to pay: confirmed now, same email as a paid card registration
     if (effectivePaymentMethod === 'free') {
-      if (appliedCoupon) {
-        await prisma.coupon.update({
-          where: { id: appliedCoupon.id },
-          data: { usageCount: { increment: 1 } },
-        })
-      }
       await markWaitlistRegistered()
 
       const confirmedEmail = buildIndividualConfirmedEmail({
@@ -758,9 +810,11 @@ export async function POST(request: NextRequest) {
       const attendanceLines = individualAttendanceLines({
         ticketType: body.ticketType,
         housingType,
-        roomType: body.roomType,
+        roomType,
         housingOffered: eventOffersHousing(event.settings, event.startDate, event.endDate),
         dayPassName: dayPassOption?.name,
+        settings: event.settings,
+        includesMealPackage: includeMealPackage,
       })
       const emailSubject = `Registration Received - ${event.name}`
       const emailHtml = `
@@ -913,14 +967,6 @@ export async function POST(request: NextRequest) {
           },
           emailError instanceof Error ? emailError.message : 'Unknown error'
         )
-      }
-
-      // For check payments, increment coupon usage now (no Stripe webhook will fire)
-      if (appliedCoupon) {
-        await prisma.coupon.update({
-          where: { id: appliedCoupon.id },
-          data: { usageCount: { increment: 1 } },
-        })
       }
 
       await markWaitlistRegistered()

@@ -200,11 +200,15 @@ export default function ParentCompletionForm() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-navy mb-2">Invalid or Expired Link</h2>
+          <h2 className="text-2xl font-bold text-navy mb-2">
+            {error.includes('cancelled') ? 'Registration Cancelled' : 'Invalid or Expired Link'}
+          </h2>
           <p className="text-gray-600 mb-6">{error}</p>
-          <p className="text-sm text-gray-500">
-            This link may have expired. Please contact your group leader or the event organizer for assistance.
-          </p>
+          {!error.includes('cancelled') && (
+            <p className="text-sm text-gray-500">
+              This link may have expired. Please contact your group leader or the event organizer for assistance.
+            </p>
+          )}
         </div>
       </div>
     )

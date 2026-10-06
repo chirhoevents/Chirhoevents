@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { CheckCircle, Download, QrCode, Loader2, FileText, UserPlus } from 'lucide-react'
 import LoadingScreen from '@/components/LoadingScreen'
-import { individualAttendanceLines } from '@/lib/individual-registration'
+import { individualAttendanceLines, type IndividualHousingSettings } from '@/lib/individual-registration'
 
 interface RegistrationData {
   id: string
@@ -22,6 +22,8 @@ interface RegistrationData {
   roomType?: string
   housingOffered?: boolean
   dayPassName?: string | null
+  includesMealPackage?: boolean
+  roomLabels?: IndividualHousingSettings
   eventName: string
   totalAmount: number
   paymentStatus: string
@@ -270,6 +272,8 @@ export default function IndividualConfirmationPage() {
                   roomType: registration.roomType,
                   housingOffered: !!registration.housingOffered,
                   dayPassName: registration.dayPassName,
+                  settings: registration.roomLabels,
+                  includesMealPackage: registration.includesMealPackage,
                 }).map(line => (
                   <div key={line.label}>
                     <span className="text-gray-600">{line.label}:</span>

@@ -526,8 +526,13 @@ export async function POST(request: NextRequest) {
 
         console.log('✅ Individual registration confirmed and email sent to:', registration.email)
 
-        // FIX 2.6: Increment coupon usage after confirmed payment
-        if (session.metadata?.couponId) {
+        // FIX 2.6: Increment coupon usage after confirmed payment — only for
+        // registrations made before uses were claimed at registration time
+        // (those have a CouponRedemption row and are already counted)
+        const alreadyCounted = session.metadata?.couponId
+          ? await prisma.couponRedemption.count({ where: { registrationId, registrationType: 'individual' } })
+          : 0
+        if (session.metadata?.couponId && alreadyCounted === 0) {
           await prisma.coupon.update({
             where: { id: session.metadata.couponId },
             data: { usageCount: { increment: 1 } },

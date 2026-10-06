@@ -5,6 +5,16 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { Resend } from '@/lib/resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { randomUUID } from 'crypto'
+import { calculateIndividualPrice, individualParentTokenExpiry } from '@/lib/individual-registration'
+import {
+  incrementOptionCapacity,
+  incrementDayPassOptionCapacity,
+  reserveOptionCapacity,
+  type HousingType,
+  type RoomType,
+} from '@/lib/option-capacity'
+import { POROS_FROM, buildParentLiabilityFormEmail } from '@/lib/poros-email'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -43,12 +53,16 @@ export async function PUT(
         age: true,
         housingType: true,
         roomType: true,
+        ticketType: true,
+        dayPassOptionId: true,
+        registeredAt: true,
         emergencyContact1Name: true,
         emergencyContact1Phone: true,
         event: {
           select: {
             id: true,
             name: true,
+            endDate: true,
             organizationId: true,
             pricing: true,
             organization: true,
@@ -101,48 +115,92 @@ export async function PUT(
       adminNotes,
     } = body
 
-    // Calculate new price if housing type or room type changed
+    // Room type only means something for on-campus housing. The edit form
+    // always sends one (defaulting to "single"), so ignore it otherwise —
+    // otherwise fixing a name could look like a housing change.
+    const oldHousing = existingRegistration.housingType
+    const oldRoom = oldHousing === 'on_campus' ? existingRegistration.roomType : null
+    const newHousing = housingType || oldHousing
+    const newRoom = newHousing === 'on_campus' ? (roomType || null) : null
+    const optionChanged = newHousing !== oldHousing || newRoom !== oldRoom
+
+    // Reprice by the difference between the old and new option, using the
+    // prices in effect when they registered (early bird included). Applying
+    // only the difference keeps any coupon discount and add-ons they had,
+    // instead of resetting them to full price.
     const currentTotalAmount = paymentBalance ? Number(paymentBalance.totalAmountDue) : 0
     const currentAmountPaid = paymentBalance ? Number(paymentBalance.amountPaid) : 0
     let newTotalAmount = currentTotalAmount
     let priceChanged = false
 
-    if ((housingType !== existingRegistration.housingType || roomType !== existingRegistration.roomType) &&
-        existingRegistration.event.pricing) {
-      const pricing = existingRegistration.event.pricing
+    const pricing = existingRegistration.event.pricing
+    if (optionChanged && pricing) {
+      const dayPassOption = existingRegistration.dayPassOptionId
+        ? await prisma.dayPassOption.findUnique({
+            where: { id: existingRegistration.dayPassOptionId },
+            select: { price: true },
+          })
+        : null
+      const toPrice = (value: unknown) => (value == null ? null : Number(value))
+      const priceFor = (housing: string | null, room: string | null) =>
+        calculateIndividualPrice(
+          {
+            individualBasePrice: toPrice(pricing.individualBasePrice),
+            individualEarlyBirdPrice: toPrice(pricing.individualEarlyBirdPrice),
+            individualOffCampusPrice: toPrice(pricing.individualOffCampusPrice),
+            individualDayPassPrice: toPrice(pricing.individualDayPassPrice),
+            youthRegularPrice: toPrice(pricing.youthRegularPrice),
+            singleRoomPrice: toPrice(pricing.singleRoomPrice),
+            doubleRoomPrice: toPrice(pricing.doubleRoomPrice),
+            tripleRoomPrice: toPrice(pricing.tripleRoomPrice),
+            quadRoomPrice: toPrice(pricing.quadRoomPrice),
+            earlyBirdDeadline: pricing.earlyBirdDeadline,
+          },
+          {
+            housingType: housing || 'off_campus',
+            roomType: room,
+            dayPassOptionPrice: dayPassOption ? Number(dayPassOption.price) : null,
+          },
+          existingRegistration.registeredAt
+        )
+      const difference = priceFor(newHousing, newRoom) - priceFor(oldHousing, oldRoom)
+      newTotalAmount = Math.max(0, Math.round((currentTotalAmount + difference) * 100) / 100)
+      priceChanged = newTotalAmount !== currentTotalAmount
+    }
 
-      // Calculate price based on housing type
-      if (housingType === 'on_campus') {
-        // Base price plus room price
-        const basePrice = pricing.individualBasePrice ? Number(pricing.individualBasePrice) : 0
-        let roomPrice = 0
-
-        if (roomType === 'single' && pricing.singleRoomPrice) {
-          roomPrice = Number(pricing.singleRoomPrice)
-        } else if (roomType === 'double' && pricing.doubleRoomPrice) {
-          roomPrice = Number(pricing.doubleRoomPrice)
-        } else if (roomType === 'triple' && pricing.tripleRoomPrice) {
-          roomPrice = Number(pricing.tripleRoomPrice)
-        } else if (roomType === 'quad' && pricing.quadRoomPrice) {
-          roomPrice = Number(pricing.quadRoomPrice)
-        } else if (roomType === 'shared') {
-          // Use triple price for shared if available
-          roomPrice = pricing.tripleRoomPrice ? Number(pricing.tripleRoomPrice) : 0
-        }
-
-        newTotalAmount = basePrice + roomPrice
-      } else if (housingType === 'off_campus' && pricing.individualOffCampusPrice) {
-        newTotalAmount = Number(pricing.individualOffCampusPrice)
-      } else if (housingType === 'day_pass') {
-        // Use day pass price if available, otherwise fall back to off-campus price
-        if (pricing.individualDayPassPrice) {
-          newTotalAmount = Number(pricing.individualDayPassPrice)
-        } else if (pricing.individualOffCampusPrice) {
-          newTotalAmount = Number(pricing.individualOffCampusPrice)
+    // Move the housing spot: take the new option first (atomically, only if
+    // there's room), then give the old one back
+    const eventSettings = existingRegistration.event.settings
+    if (optionChanged && eventSettings) {
+      if (newHousing && newHousing !== 'day_pass') {
+        const taken = await reserveOptionCapacity(
+          existingRegistration.eventId,
+          newHousing as HousingType,
+          newRoom as RoomType | null,
+          1
+        )
+        if (!taken) {
+          return NextResponse.json(
+            { error: 'There are no spots left for that housing or room type. Raise its capacity in the event settings, or choose another option.' },
+            { status: 400 }
+          )
         }
       }
-
-      priceChanged = newTotalAmount !== currentTotalAmount
+      try {
+        if (oldHousing === 'day_pass') {
+          if (existingRegistration.dayPassOptionId) {
+            await incrementDayPassOptionCapacity(existingRegistration.dayPassOptionId, 1)
+          }
+        } else if (oldHousing) {
+          await incrementOptionCapacity(existingRegistration.eventId, oldHousing as HousingType, oldRoom as RoomType | null, 1)
+        }
+      } catch (releaseError) {
+        // Couldn't give the old spot back: undo taking the new one
+        if (newHousing && newHousing !== 'day_pass') {
+          await incrementOptionCapacity(existingRegistration.eventId, newHousing as HousingType, newRoom as RoomType | null, 1)
+        }
+        throw releaseError
+      }
     }
 
     // Calculate new balance if price changed
@@ -165,8 +223,9 @@ export async function PUT(
         city: city || null,
         state: state || null,
         zip: zip || null,
-        housingType: housingType || null,
-        roomType: roomType || null,
+        housingType: newHousing || null,
+        roomType: newRoom,
+        ...(optionChanged ? { ticketType: newHousing === 'day_pass' ? 'day_pass' as const : 'general_admission' as const } : {}),
         tShirtSize: tShirtSize || null,
         preferredRoommate: preferredRoommate || null,
         dietaryRestrictions: dietaryRestrictions || null,
@@ -181,16 +240,93 @@ export async function PUT(
       },
     })
 
-    // Update payment balance if price changed
+    // Update payment balance if price changed (and whether it's now paid up)
     if (priceChanged && paymentBalance) {
+      const paymentStatus =
+        newAmountRemaining < 0 ? 'overpaid'
+          : newAmountRemaining === 0 ? 'paid_full'
+            : currentAmountPaid > 0 ? 'partial'
+              : paymentBalance.paymentStatus === 'pending_check_payment' ? 'pending_check_payment' : 'unpaid'
       await prisma.paymentBalance.update({
         where: { id: paymentBalance.id },
         data: {
           totalAmountDue: newTotalAmount,
           amountRemaining: newAmountRemaining,
+          paymentStatus,
           updatedAt: new Date(),
         },
       })
+    }
+
+    // Youth event: if the corrected age moves them across 18, switch their
+    // (not yet signed) liability form between the adult form and the
+    // parent-signed youth form. A minor's parent gets the link right away.
+    const newAge = parseInt(age)
+    if (
+      eventSettings?.liabilityFormsRequiredIndividual &&
+      !Number.isNaN(newAge) &&
+      existingRegistration.age !== newAge
+    ) {
+      const wasMinor = existingRegistration.age != null && existingRegistration.age < 18
+      const isMinor = newAge < 18
+      const form = await prisma.liabilityForm.findFirst({
+        where: { individualRegistrationId: registrationId },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (form && !form.completed) {
+        if (isMinor && !wasMinor) {
+          const parentToken = randomUUID()
+          const parentTokenExpiresAt = individualParentTokenExpiry(existingRegistration.event.endDate)
+          await prisma.liabilityForm.update({
+            where: { id: form.id },
+            data: {
+              formType: 'youth_u18',
+              participantType: 'youth_u18',
+              participantAge: newAge,
+              parentEmail: email,
+              parentToken,
+              parentTokenExpiresAt,
+              emergencyContact1Name: updatedRegistration.emergencyContact1Name,
+              emergencyContact1Phone: updatedRegistration.emergencyContact1Phone,
+              emergencyContact1Relation: updatedRegistration.emergencyContact1Relation,
+              emergencyContact2Name: updatedRegistration.emergencyContact2Name,
+              emergencyContact2Phone: updatedRegistration.emergencyContact2Phone,
+              emergencyContact2Relation: updatedRegistration.emergencyContact2Relation,
+            },
+          })
+          const parentEmail = buildParentLiabilityFormEmail({
+            firstName: updatedRegistration.firstName,
+            lastName: updatedRegistration.lastName,
+            eventName: existingRegistration.event.name,
+            parentLink: `${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/parent/${parentToken}`,
+            expiresAt: parentTokenExpiresAt,
+          })
+          try {
+            await resend.emails.send({
+              from: POROS_FROM,
+              reply_to: resolveReplyTo(eventSettings, existingRegistration.event.organization),
+              to: email,
+              subject: parentEmail.subject,
+              html: parentEmail.html,
+            })
+          } catch (emailError) {
+            console.error('Failed to send parent liability link after age change:', emailError)
+          }
+        } else if (!isMinor && wasMinor) {
+          await prisma.liabilityForm.update({
+            where: { id: form.id },
+            data: {
+              formType: 'youth_o18_chaperone',
+              participantType: null,
+              participantAge: newAge,
+              parentToken: null,
+              parentTokenExpiresAt: null,
+            },
+          })
+        } else {
+          await prisma.liabilityForm.update({ where: { id: form.id }, data: { participantAge: newAge } })
+        }
+      }
     }
 
     // Track changes made
@@ -210,8 +346,11 @@ export async function PUT(
     if (existingRegistration.age !== age) {
       changesMade.age = { old: existingRegistration.age, new: age }
     }
-    if (existingRegistration.housingType !== housingType) {
-      changesMade.housingType = { old: existingRegistration.housingType, new: housingType }
+    if (oldHousing !== newHousing) {
+      changesMade.housingType = { old: oldHousing, new: newHousing }
+    }
+    if (oldRoom !== newRoom) {
+      changesMade.roomType = { old: oldRoom, new: newRoom }
     }
 
     // Create audit trail entry if changes were made

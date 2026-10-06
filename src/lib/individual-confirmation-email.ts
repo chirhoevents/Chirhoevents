@@ -1,5 +1,6 @@
 import {
   eventOffersHousing,
+  type IndividualHousingSettings,
   individualAttendanceLines,
   individualLiabilityEmailBlock,
   individualLiabilityFormUrl,
@@ -16,6 +17,7 @@ interface ConfirmedRegistration {
   ticketType: string | null
   housingType: string | null
   roomType: string | null
+  includesMealPackage?: boolean | null
   dayPassName?: string | null
   /** The minor's parent link, if this is an under-18 registration at a youth event */
   parentToken?: string | null
@@ -25,12 +27,11 @@ interface ConfirmedEvent {
   name: string
   startDate: Date
   endDate: Date
-  settings: {
+  settings: (IndividualHousingSettings & {
     liabilityFormsRequiredIndividual?: boolean | null
-    porosHousingEnabled?: boolean | null
     confirmationEmailMessage?: string | null
     registrationInstructions?: string | null
-  } | null
+  }) | null
   organization: {
     name: string
     logoUrl?: string | null
@@ -68,6 +69,8 @@ export function buildIndividualConfirmedEmail({
     roomType: registration.roomType,
     housingOffered: eventOffersHousing(event.settings, event.startDate, event.endDate),
     dayPassName: registration.dayPassName,
+    settings: event.settings,
+    includesMealPackage: registration.includesMealPackage,
   })
 
   const paymentBlock = payment.method === 'card'

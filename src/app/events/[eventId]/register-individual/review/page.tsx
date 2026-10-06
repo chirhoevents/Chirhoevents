@@ -11,6 +11,7 @@ import LoadingScreen from '@/components/LoadingScreen'
 import {
   calculateIndividualPrice,
   individualAttendanceLines,
+  type IndividualHousingSettings,
   type IndividualPricing,
 } from '@/lib/individual-registration'
 import { CARD_PAYMENT_DISABLED_MESSAGE, CARD_PAYMENT_DISABLED_TITLE } from '@/lib/event-card-payment-disabled'
@@ -22,7 +23,8 @@ interface EventData {
   endDate: string
   isOneDayEvent?: boolean
   pricing: IndividualPricing
-  settings: {
+  settings: IndividualHousingSettings & {
+    individualMealsEnabled?: boolean
     registrationInstructions: string | null
     checkPaymentEnabled: boolean
     checkPaymentPayableTo: string | null
@@ -77,14 +79,15 @@ export default function IndividualInvoiceReviewPage() {
   const searchParams = useSearchParams()
   const eventId = params.eventId as string
 
-  // Queue management
+  // Queue management. A waitlist invitation skips the queue, same as on the
+  // form page; otherwise invitees get sent back to the waiting room here.
   const {
     loading: queueLoading,
     queueActive,
     expiresAt,
     extensionAllowed,
     markComplete,
-  } = useRegistrationQueue(eventId, 'individual')
+  } = useRegistrationQueue(eventId, 'individual', { skip: !!searchParams.get('waitlist') })
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -257,6 +260,11 @@ export default function IndividualInvoiceReviewPage() {
   }, [event, eventId, registrationData.couponCode, registrationData.email])
 
   const selectedDayPass = event?.dayPassOptions?.find(opt => opt.id === registrationData.dayPassOptionId)
+  // Meal package add-on chosen on the form (only if the event still offers it)
+  const includeMealPackage =
+    searchParams.get('mealPackage') === '1' &&
+    !!event?.settings.individualMealsEnabled &&
+    event?.pricing.individualMealPackagePrice != null
 
   // Same pricing rules as the registration API, so the total shown is the amount charged
   const calculatePricing = () => {
@@ -266,6 +274,7 @@ export default function IndividualInvoiceReviewPage() {
       housingType: registrationData.housingType,
       roomType: registrationData.roomType,
       dayPassOptionPrice: selectedDayPass?.price ?? null,
+      includeMealPackage,
     })
 
     // Calculate coupon discount
@@ -290,6 +299,8 @@ export default function IndividualInvoiceReviewPage() {
     roomType: registrationData.roomType,
     housingOffered: !!event?.settings.porosHousingEnabled && !event?.isOneDayEvent,
     dayPassName: selectedDayPass?.name,
+    settings: event?.settings,
+    includesMealPackage: includeMealPackage,
   })
   // e.g. "123 Main St, Springfield, IL 12345"
   const address = [
@@ -319,6 +330,7 @@ export default function IndividualInvoiceReviewPage() {
           ...(waitlistToken ? { waitlistToken } : {}),
           age: registrationData.age ? parseInt(registrationData.age) : null,
           paymentMethod: 'card',
+          includeMealPackage,
           customAnswers,
         }),
       })
@@ -376,6 +388,7 @@ export default function IndividualInvoiceReviewPage() {
           ...(waitlistToken ? { waitlistToken } : {}),
           age: registrationData.age ? parseInt(registrationData.age) : null,
           paymentMethod: 'check',
+          includeMealPackage,
           customAnswers,
         }),
       })

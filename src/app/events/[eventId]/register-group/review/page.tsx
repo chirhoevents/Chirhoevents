@@ -89,14 +89,15 @@ export default function InvoiceReviewPage() {
   const searchParams = useSearchParams()
   const eventId = params.eventId as string
 
-  // Queue management
+  // Queue management. A waitlist invitation skips the queue, same as on the
+  // form page; otherwise invitees get sent back to the waiting room here.
   const {
     loading: queueLoading,
     queueActive,
     expiresAt,
     extensionAllowed,
     markComplete,
-  } = useRegistrationQueue(eventId, 'group')
+  } = useRegistrationQueue(eventId, 'group', { skip: !!searchParams.get('waitlist') })
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)

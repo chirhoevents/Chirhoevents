@@ -19,6 +19,7 @@ export interface IndividualPricing {
   doubleRoomPrice?: Price
   tripleRoomPrice?: Price
   quadRoomPrice?: Price
+  individualMealPackagePrice?: Price
   earlyBirdDeadline?: string | Date | null
 }
 
@@ -27,6 +28,8 @@ export interface IndividualSelection {
   roomType?: string | null
   /** Price of the chosen day pass option, if one was chosen */
   dayPassOptionPrice?: Price
+  /** Optional meal package add-on (only offered when the event enables it) */
+  includeMealPackage?: boolean
 }
 
 /**
@@ -62,7 +65,84 @@ export function calculateIndividualPrice(
     total += roomPrices[selection.roomType] ?? 0
   }
 
+  if (selection.includeMealPackage) {
+    total += pricing.individualMealPackagePrice ?? 0
+  }
+
   return Number(total)
+}
+
+export const ROOM_TYPES = ['single', 'double', 'triple', 'quad'] as const
+export type IndividualRoomType = (typeof ROOM_TYPES)[number]
+
+// Event settings fields the individual housing rules read (all optional, so
+// the public event API's settings object and Prisma's EventSettings both fit)
+export interface IndividualHousingSettings {
+  porosHousingEnabled?: boolean | null
+  allowOnCampus?: boolean | null
+  allowOffCampus?: boolean | null
+  allowSingleRoom?: boolean | null
+  allowDoubleRoom?: boolean | null
+  allowTripleRoom?: boolean | null
+  allowQuadRoom?: boolean | null
+  singleRoomLabel?: string | null
+  doubleRoomLabel?: string | null
+  tripleRoomLabel?: string | null
+  quadRoomLabel?: string | null
+  onCampusCapacity?: number | null
+  onCampusRemaining?: number | null
+  singleRoomCapacity?: number | null
+  singleRoomRemaining?: number | null
+  doubleRoomCapacity?: number | null
+  doubleRoomRemaining?: number | null
+  tripleRoomCapacity?: number | null
+  tripleRoomRemaining?: number | null
+  quadRoomCapacity?: number | null
+  quadRoomRemaining?: number | null
+}
+
+const ROOM_SETTING_KEYS: Record<IndividualRoomType, {
+  allow: keyof IndividualHousingSettings
+  label: keyof IndividualHousingSettings
+  capacity: keyof IndividualHousingSettings
+  remaining: keyof IndividualHousingSettings
+}> = {
+  single: { allow: 'allowSingleRoom', label: 'singleRoomLabel', capacity: 'singleRoomCapacity', remaining: 'singleRoomRemaining' },
+  double: { allow: 'allowDoubleRoom', label: 'doubleRoomLabel', capacity: 'doubleRoomCapacity', remaining: 'doubleRoomRemaining' },
+  triple: { allow: 'allowTripleRoom', label: 'tripleRoomLabel', capacity: 'tripleRoomCapacity', remaining: 'tripleRoomRemaining' },
+  quad: { allow: 'allowQuadRoom', label: 'quadRoomLabel', capacity: 'quadRoomCapacity', remaining: 'quadRoomRemaining' },
+}
+
+/** The organizer's name for a room type (e.g. "Dorm Double"), or "Double Room" */
+export function roomTypeLabel(roomType: string, settings?: IndividualHousingSettings | null): string {
+  const key = ROOM_SETTING_KEYS[roomType as IndividualRoomType]
+  const custom = key ? settings?.[key.label] : null
+  if (typeof custom === 'string' && custom.trim()) return custom.trim()
+  return `${roomType.charAt(0).toUpperCase()}${roomType.slice(1)} Room`
+}
+
+const isFull = (capacity: unknown, remaining: unknown) =>
+  typeof capacity === 'number' && typeof remaining === 'number' && remaining <= 0
+
+/**
+ * What an individual may choose for housing, from the event's settings:
+ * whether on-campus / off-campus are allowed (and on-campus not full), and
+ * which room types are allowed, each marked full or not.
+ */
+export function individualHousingOptions(settings: IndividualHousingSettings | null | undefined) {
+  const rooms = ROOM_TYPES
+    .filter(room => settings?.[ROOM_SETTING_KEYS[room].allow] !== false)
+    .map(room => ({
+      value: room,
+      label: roomTypeLabel(room, settings),
+      full: isFull(settings?.[ROOM_SETTING_KEYS[room].capacity], settings?.[ROOM_SETTING_KEYS[room].remaining]),
+    }))
+  return {
+    onCampusAllowed: settings?.allowOnCampus !== false,
+    onCampusFull: isFull(settings?.onCampusCapacity, settings?.onCampusRemaining),
+    offCampusAllowed: settings?.allowOffCampus !== false,
+    rooms,
+  }
 }
 
 /**
@@ -90,19 +170,28 @@ export function individualAttendanceLines(reg: {
   roomType?: string | null
   housingOffered: boolean
   dayPassName?: string | null
+  /** For the organizer's custom room names */
+  settings?: IndividualHousingSettings | null
+  includesMealPackage?: boolean | null
 }): Array<{ label: string; value: string }> {
+  const lines: Array<{ label: string; value: string }> = []
   if (reg.ticketType === 'day_pass' || reg.housingType === 'day_pass') {
-    return [{ label: 'Ticket', value: reg.dayPassName ? `Day Pass: ${reg.dayPassName}` : 'Day Pass' }]
-  }
-  const lines = [{ label: 'Ticket', value: 'General Admission' }]
-  if (!reg.housingOffered) return lines
-  if (reg.housingType === 'on_campus') {
-    lines.push({ label: 'Housing', value: 'On-campus housing' })
-    if (reg.roomType) {
-      lines.push({ label: 'Room', value: `${reg.roomType.charAt(0).toUpperCase()}${reg.roomType.slice(1)} room` })
-    }
+    lines.push({ label: 'Ticket', value: reg.dayPassName ? `Day Pass: ${reg.dayPassName}` : 'Day Pass' })
   } else {
-    lines.push({ label: 'Housing', value: 'Off-campus (own accommodations)' })
+    lines.push({ label: 'Ticket', value: 'General Admission' })
+    if (reg.housingOffered) {
+      if (reg.housingType === 'on_campus') {
+        lines.push({ label: 'Housing', value: 'On-campus housing' })
+        if (reg.roomType) {
+          lines.push({ label: 'Room', value: roomTypeLabel(reg.roomType, reg.settings) })
+        }
+      } else {
+        lines.push({ label: 'Housing', value: 'Off-campus (own accommodations)' })
+      }
+    }
+  }
+  if (reg.includesMealPackage) {
+    lines.push({ label: 'Meal Package', value: 'Included' })
   }
   return lines
 }

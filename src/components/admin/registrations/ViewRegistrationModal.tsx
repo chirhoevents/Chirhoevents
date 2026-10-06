@@ -177,6 +177,7 @@ interface IndividualRegistrationData {
   housingType?: string | null
   roomType?: string | null
   preferredRoommate?: string | null
+  includesMealPackage?: boolean | null
   tShirtSize?: string | null
   dietaryRestrictions?: string | null
   adaAccommodations?: string | null
@@ -693,6 +694,12 @@ export default function ViewRegistrationModal({
                             <div>
                               <span className="text-gray-600">Preferred Roommate:</span>
                               <p className="font-medium">{data.preferredRoommate}</p>
+                            </div>
+                          )}
+                          {data.includesMealPackage && (
+                            <div>
+                              <span className="text-gray-600">Meal Package:</span>
+                              <p className="font-medium">Included</p>
                             </div>
                           )}
                           {data.tShirtSize && (

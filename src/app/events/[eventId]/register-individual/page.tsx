@@ -17,6 +17,8 @@ import CustomQuestionRenderer, {
 import {
   calculateIndividualPrice,
   individualAttendanceLines,
+  individualHousingOptions,
+  type IndividualHousingSettings,
   type IndividualPricing,
 } from '@/lib/individual-registration'
 
@@ -31,8 +33,9 @@ interface EventPricing extends IndividualPricing {
   dayPassChaperonePrice?: number
 }
 
-interface EventSettings {
+interface EventSettings extends IndividualHousingSettings {
   couponsEnabled?: boolean
+  individualMealsEnabled?: boolean
   individualRegistrationEnabled?: boolean
   liabilityFormsRequiredIndividual?: boolean
   allowDayPass?: boolean
@@ -137,6 +140,7 @@ export default function IndividualRegistrationPage() {
     housingType: 'on_campus',
     roomType: 'double',
     preferredRoommate: '',
+    includeMealPackage: false,
     tShirtSize: '',
     dietaryRestrictions: '',
     adaAccommodations: '',
@@ -218,13 +222,36 @@ export default function IndividualRegistrationPage() {
   const housingOffered = !!event?.settings?.porosHousingEnabled && !event?.isOneDayEvent
   // Youth event: under-18 attendees need a parent-signed liability form
   const isYouthEvent = !!event?.settings?.liabilityFormsRequiredIndividual
+  // What the organizer allows: on-campus and/or off-campus, which room types,
+  // and which are already full
+  const housingOptions = individualHousingOptions(event?.settings)
+  const availableRooms = housingOptions.rooms.filter(room => !room.full)
+  const onCampusAvailable =
+    housingOptions.onCampusAllowed && !housingOptions.onCampusFull && availableRooms.length > 0
+  // Off-campus not allowed: on-campus housing is required, not optional
+  const housingRequired = !housingOptions.offCampusAllowed
   const effectiveHousingType =
     formData.ticketType === 'day_pass'
       ? 'day_pass'
-      : housingOffered && formData.wantsHousing
-        ? formData.housingType
+      : housingOffered && onCampusAvailable && (formData.wantsHousing || housingRequired)
+        ? 'on_campus'
         : 'off_campus'
-  const effectiveRoomType = effectiveHousingType === 'on_campus' ? formData.roomType : ''
+  const chosenRoomAvailable = availableRooms.some(room => room.value === formData.roomType)
+  const effectiveRoomType = effectiveHousingType === 'on_campus'
+    ? (chosenRoomAvailable ? formData.roomType : availableRooms[0]?.value ?? '')
+    : ''
+  // Keep the room picker on a room type that's still open
+  useEffect(() => {
+    if (event && availableRooms.length > 0 && !chosenRoomAvailable) {
+      setFormData(prev => ({ ...prev, roomType: availableRooms[0].value }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- availableRooms is derived from event
+  }, [event, chosenRoomAvailable])
+
+  // Optional meal package add-on, when the organizer offers one
+  const mealPackageOffered =
+    !!event?.settings?.individualMealsEnabled && event?.pricing?.individualMealPackagePrice != null
+  const includeMealPackage = mealPackageOffered && !!formData.includeMealPackage
   const selectedDayPass = formData.ticketType === 'day_pass'
     ? event?.dayPassOptions?.find(opt => opt.id === formData.dayPassOptionId)
     : undefined
@@ -235,6 +262,7 @@ export default function IndividualRegistrationPage() {
         housingType: effectiveHousingType,
         roomType: effectiveRoomType,
         dayPassOptionPrice: selectedDayPass?.price ?? null,
+        includeMealPackage,
       })
     : 0
 
@@ -308,6 +336,7 @@ export default function IndividualRegistrationPage() {
       housingType: effectiveHousingType,
       roomType: effectiveRoomType,
       preferredRoommate: effectiveHousingType === 'on_campus' ? formData.preferredRoommate : '',
+      ...(includeMealPackage ? { mealPackage: '1' } : {}),
       tShirtSize: formData.tShirtSize,
       dietaryRestrictions: formData.dietaryRestrictions,
       adaAccommodations: formData.adaAccommodations,
@@ -830,26 +859,33 @@ export default function IndividualRegistrationPage() {
                           Housing Preference
                         </label>
 
-                        {/* Housing toggle */}
-                        <div className="flex items-center space-x-3 mb-4">
-                          <input
-                            type="checkbox"
-                            id="wantsHousing"
-                            checked={formData.wantsHousing}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              wantsHousing: e.target.checked,
-                              housingType: e.target.checked ? 'on_campus' : 'off_campus'
-                            })}
-                            className="w-4 h-4 text-gold border-gray-300 rounded"
-                          />
-                          <label htmlFor="wantsHousing" className="text-sm text-gray-700">
-                            I need on-campus housing
-                          </label>
-                        </div>
+                        {/* Housing toggle: hidden when on-campus isn't possible or is required */}
+                        {onCampusAvailable && !housingRequired && (
+                          <div className="flex items-center space-x-3 mb-4">
+                            <input
+                              type="checkbox"
+                              id="wantsHousing"
+                              checked={formData.wantsHousing}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                wantsHousing: e.target.checked,
+                                housingType: e.target.checked ? 'on_campus' : 'off_campus'
+                              })}
+                              className="w-4 h-4 text-gold border-gray-300 rounded"
+                            />
+                            <label htmlFor="wantsHousing" className="text-sm text-gray-700">
+                              I need on-campus housing
+                            </label>
+                          </div>
+                        )}
+                        {onCampusAvailable && housingRequired && (
+                          <p className="text-sm text-gray-700 mb-4">
+                            On-campus housing is required for this event. Choose your room type:
+                          </p>
+                        )}
 
-                        {/* Room Type Selection - Only if wants housing */}
-                        {formData.wantsHousing && (
+                        {/* Room Type Selection - Only if staying on campus */}
+                        {effectiveHousingType === 'on_campus' && (
                           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-4">
                             <div>
                               <label className="block text-sm font-medium text-navy mb-2">
@@ -858,21 +894,17 @@ export default function IndividualRegistrationPage() {
                               <select
                                 required
                                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                                value={formData.roomType}
+                                value={effectiveRoomType}
                                 onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
                               >
-                                {event?.settings?.allowSingleRoom !== false && (
-                                  <option value="single">Single Room {event?.pricing?.singleRoomPrice ? `(+$${event.pricing.singleRoomPrice})` : ''}</option>
-                                )}
-                                {event?.settings?.allowDoubleRoom !== false && (
-                                  <option value="double">Double Room {event?.pricing?.doubleRoomPrice ? `(+$${event.pricing.doubleRoomPrice})` : ''}</option>
-                                )}
-                                {event?.settings?.allowTripleRoom !== false && (
-                                  <option value="triple">Triple Room {event?.pricing?.tripleRoomPrice ? `(+$${event.pricing.tripleRoomPrice})` : ''}</option>
-                                )}
-                                {event?.settings?.allowQuadRoom !== false && (
-                                  <option value="quad">Quad Room {event?.pricing?.quadRoomPrice ? `(+$${event.pricing.quadRoomPrice})` : ''}</option>
-                                )}
+                                {housingOptions.rooms.map(room => {
+                                  const price = event?.pricing?.[`${room.value}RoomPrice` as 'singleRoomPrice']
+                                  return (
+                                    <option key={room.value} value={room.value} disabled={room.full}>
+                                      {room.label}{price ? ` (+$${price})` : ''}{room.full ? ' — Full' : ''}
+                                    </option>
+                                  )
+                                })}
                               </select>
                             </div>
 
@@ -894,11 +926,33 @@ export default function IndividualRegistrationPage() {
                           </div>
                         )}
 
-                        {!formData.wantsHousing && (
+                        {effectiveHousingType !== 'on_campus' && (
                           <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                            You will arrange your own accommodations off-campus.
+                            {!onCampusAvailable && housingOptions.onCampusAllowed
+                              ? 'On-campus housing is full. '
+                              : ''}
+                            {housingRequired && !onCampusAvailable
+                              ? 'Please contact the event organizer about housing before registering.'
+                              : 'You will arrange your own accommodations off-campus.'}
                           </p>
                         )}
+                      </div>
+                    )}
+
+                    {/* Meal package add-on */}
+                    {mealPackageOffered && (
+                      <div className="border-t pt-4 mt-4 flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          id="includeMealPackage"
+                          checked={!!formData.includeMealPackage}
+                          onChange={(e) => setFormData({ ...formData, includeMealPackage: e.target.checked })}
+                          className="w-4 h-4 mt-1 text-gold border-gray-300 rounded"
+                        />
+                        <label htmlFor="includeMealPackage" className="text-sm text-gray-700">
+                          <span className="font-medium text-navy">Add the meal package</span>{' '}
+                          (+${Number(event?.pricing?.individualMealPackagePrice ?? 0).toFixed(2)}) — all event meals
+                        </label>
                       </div>
                     )}
                   </CardContent>
@@ -1200,6 +1254,8 @@ export default function IndividualRegistrationPage() {
                       roomType: effectiveRoomType,
                       housingOffered,
                       dayPassName: selectedDayPass?.name,
+                      settings: event?.settings,
+                      includesMealPackage: includeMealPackage,
                     }).map(line => (
                       <div key={line.label} className="flex justify-between text-sm">
                         <span className="text-gray-600">{line.label}:</span>

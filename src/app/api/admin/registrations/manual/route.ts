@@ -9,6 +9,7 @@ import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { decrementOptionCapacity, type HousingType, type RoomType } from '@/lib/option-capacity'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { randomUUID } from 'crypto'
+import { generateIndividualRegistrationQr } from '@/lib/individual-qr'
 import {
   calculateIndividualPrice,
   eventOffersHousing,
@@ -53,7 +54,15 @@ export async function POST(request: NextRequest) {
         pricing: true,
         organization: { select: { contactEmail: true } },
         settings: {
-          select: { contactEmail: true, porosHousingEnabled: true, liabilityFormsRequiredIndividual: true },
+          select: {
+            contactEmail: true,
+            porosHousingEnabled: true,
+            liabilityFormsRequiredIndividual: true,
+            singleRoomLabel: true,
+            doubleRoomLabel: true,
+            tripleRoomLabel: true,
+            quadRoomLabel: true,
+          },
         },
       },
     })
@@ -161,6 +170,13 @@ export async function POST(request: NextRequest) {
           registrationStatus: 'complete',
           confirmationCode,
         },
+      })
+
+      // Check-in QR code, same as a self-registration
+      const qrCode = await generateIndividualRegistrationQr(registration)
+      await prisma.individualRegistration.update({
+        where: { id: registration.id },
+        data: { qrCode },
       })
 
       // Individual pricing, the same rules as public individual registration
@@ -278,6 +294,7 @@ export async function POST(request: NextRequest) {
           housingType: registration.housingType,
           roomType: registration.roomType,
           housingOffered: eventOffersHousing(event.settings, event.startDate, event.endDate),
+          settings: event.settings,
         })
         const emailSubject = `You're Registered - ${event.name}`
         const emailHtml = `
@@ -302,6 +319,17 @@ export async function POST(request: NextRequest) {
                 </p>
               </div>
 
+              <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                <h3 style="color: #1E3A5F; margin-top: 0;">Your Check-In QR Code</h3>
+                <a href="${appUrl}/registration/confirmation/individual/${registration.id}"
+                   style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">
+                  View My QR Code
+                </a>
+                <p style="font-size: 14px; color: #666; margin-top: 10px;">
+                  Save this QR code! You'll need it for check-in at the event.
+                </p>
+              </div>
+
               <h3 style="color: #1E3A5F;">Registration Summary</h3>
               <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
                 <p style="margin: 5px 0;"><strong>Name:</strong> ${fields.firstName} ${fields.lastName}</p>
@@ -318,7 +346,7 @@ export async function POST(request: NextRequest) {
                 ${liabilityFormsRequired ? `
                 <li><strong>${isMinor ? 'Parent/Guardian Completes the Liability Form' : 'Complete Your Liability Form'}:</strong> Use the button below${isMinor ? ` — a parent or guardian must fill out and sign ${fields.firstName}'s form` : ''}.</li>
                 ` : ''}
-                <li><strong>Check-In:</strong> Bring a photo ID to check in at the event.</li>
+                <li><strong>Check-In:</strong> Bring your QR code (on your phone or printed) to check in at the event.</li>
               </ol>
 
               ${liabilityFormsRequired ? individualLiabilityEmailBlock({

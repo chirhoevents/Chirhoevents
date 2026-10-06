@@ -179,6 +179,18 @@ export async function abandonUnpaidCheckout(
     data: { registrationsUsed: { decrement: count } },
   })
 
+  // Give back coupon uses claimed at registration (deleted with the
+  // registration below)
+  const redemptions = await prisma.couponRedemption.findMany({
+    where: { registrationId, registrationType: type },
+    select: { couponId: true },
+  })
+  for (const { couponId } of redemptions) {
+    await prisma.$executeRaw`
+      UPDATE coupons SET usage_count = GREATEST(0, usage_count - 1) WHERE id = ${couponId}::uuid
+    `
+  }
+
   // It was never a real registration, so remove it entirely rather than
   // leaving a cancelled row in the admin's list.
   await releaseRegistrationAssignments(type, registrationId)
