@@ -49,10 +49,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate age is between 12-17
-    if (age < 12 || age > 17) {
+    // Validate age is under 18. No lower limit: events like first Communion
+    // retreats include young children.
+    if (!(age >= 1 && age <= 17)) {
       return NextResponse.json(
-        { error: 'Age must be between 12 and 17 for Youth Under 18 forms' },
+        { error: 'Age must be under 18 for Youth Under 18 forms' },
         { status: 400 }
       )
     }
@@ -89,8 +90,9 @@ export async function POST(request: NextRequest) {
 
       eventName = individualRegistration.event.name
       eventStartDate = individualRegistration.event.startDate
-      contactEmail = individualRegistration.email
       replyToAddr = resolveReplyTo(individualRegistration.event.settings, individualRegistration.organization)
+      // No group leader for an individual — questions go to the organizer
+      contactEmail = replyToAddr
 
       // Check if a liability form already exists for this individual
       const existingForm = individualRegistration.liabilityForms[0]

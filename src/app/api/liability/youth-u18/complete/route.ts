@@ -110,47 +110,49 @@ export async function POST(request: NextRequest) {
       parentEmail: liabilityForm.parentEmail,
     }
 
-    // A parent can be completing a form for a group that's already over-invited
-    // (more pending forms outstanding than real spots left) — check for a free
-    // seat and create the Participant in one transaction, so that if several
-    // parents for the same group submit within milliseconds of each other,
-    // only as many as there are real spots left actually get through.
-    let participant
-    try {
-      participant = liabilityForm.groupRegistrationId
-        ? await prisma.$transaction(async (tx) => {
-            await assertParticipantSlotAvailable(tx, liabilityForm.groupRegistrationId!)
-            return tx.participant.create({
-              data: { groupRegistrationId: liabilityForm.groupRegistrationId!, ...participantData },
-            })
+    // Group forms become a Participant on the group. Individual registrations
+    // are already their own attendee record (with their own QR code), so the
+    // form just links to that registration.
+    let participant: { id: string } | null = null
+    if (liabilityForm.groupRegistrationId) {
+      const groupRegistrationId = liabilityForm.groupRegistrationId
+      // A parent can be completing a form for a group that's already over-invited
+      // (more pending forms outstanding than real spots left) — check for a free
+      // seat and create the Participant in one transaction, so that if several
+      // parents for the same group submit within milliseconds of each other,
+      // only as many as there are real spots left actually get through.
+      try {
+        participant = await prisma.$transaction(async (tx) => {
+          await assertParticipantSlotAvailable(tx, groupRegistrationId)
+          return tx.participant.create({
+            data: { groupRegistrationId, ...participantData },
           })
-        : await prisma.participant.create({
-            data: { groupRegistrationId: liabilityForm.groupRegistrationId!, ...participantData },
-          })
-    } catch (err) {
-      if (err instanceof GroupCapacityFullError) {
-        return NextResponse.json({ error: GROUP_CAPACITY_FULL_MESSAGE }, { status: 409 })
+        })
+      } catch (err) {
+        if (err instanceof GroupCapacityFullError) {
+          return NextResponse.json({ error: GROUP_CAPACITY_FULL_MESSAGE }, { status: 409 })
+        }
+        throw err
       }
-      throw err
-    }
 
-    // Generate QR code for participant (used for check-in and medical lookup)
-    try {
-      const qrCode = await generateParticipantQRCode(participant.id)
-      await prisma.participant.update({
-        where: { id: participant.id },
-        data: { qrCode },
-      })
-    } catch (qrError) {
-      console.error('Failed to generate QR code:', qrError)
-      // Continue without failing - QR code can be generated later
+      // Generate QR code for participant (used for check-in and medical lookup)
+      try {
+        const qrCode = await generateParticipantQRCode(participant.id)
+        await prisma.participant.update({
+          where: { id: participant.id },
+          data: { qrCode },
+        })
+      } catch (qrError) {
+        console.error('Failed to generate QR code:', qrError)
+        // Continue without failing - QR code can be generated later
+      }
     }
 
     // Update liability form with parent's data and link to participant
     const updatedForm = await prisma.liabilityForm.update({
       where: { id: liabilityForm.id },
       data: {
-        participantId: participant.id,
+        participantId: participant?.id ?? null,
         // Never set at initiate time either — without this, the admin dashboard's
         // youth-submitted count (filtered on LiabilityForm.participantType) silently
         // excludes every youth-u18 submission, which is exactly the kind of gap that
@@ -199,6 +201,11 @@ export async function POST(request: NextRequest) {
         })
       : 0
 
+    const organizerEmail = resolveReplyTo(liabilityForm.event.settings, liabilityForm.organization)
+    const correctionContact = groupRegistration
+      ? 'your group leader'
+      : `the event organizer at <a href="mailto:${organizerEmail}" style="color: #92400E;">${organizerEmail}</a>`
+
     // Build review link for parent
     const reviewLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/poros/review/${parent_token}`
 
@@ -229,7 +236,7 @@ export async function POST(request: NextRequest) {
               <p>Thank you for completing <strong>${liabilityForm.participantFirstName} ${liabilityForm.participantLastName}</strong>'s liability form for <strong>${liabilityForm.event.name}</strong>.</p>
 
               <div style="background-color: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0; color: #92400E;"><strong>Important:</strong> Once submitted, this form cannot be edited. If you believe a mistake was made, please contact your group leader immediately to make the necessary changes.</p>
+                <p style="margin: 0; color: #92400E;"><strong>Important:</strong> Once submitted, this form cannot be edited. If you believe a mistake was made, please contact ${correctionContact} right away to make the necessary changes.</p>
               </div>
 
               <div style="text-align: center; margin: 30px 0;">
@@ -246,9 +253,11 @@ export async function POST(request: NextRequest) {
                 </div>
               ` : ''}
 
+              ${groupRegistration ? `
               <p style="font-size: 14px; color: #666;">
-                A copy has been sent to your group leader at ${groupRegistration?.groupLeaderEmail || 'the group leader'}.
+                A copy has been sent to your group leader at ${groupRegistration.groupLeaderEmail}.
               </p>
+              ` : ''}
 
               <p style="margin-top: 30px;">Pax Christi,<br><strong>ChiRho Events Team</strong></p>
 

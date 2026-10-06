@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { parseDateTimeInTimezone } from '@/lib/timezone'
+import { blockedEventModuleMessage, EVENT_MODULE_SETTINGS_SELECT } from '@/lib/event-module-guard'
 
 // Treat a datetime-local string from the form as wall-clock time in the event's
 // timezone (the admin's selected IANA zone), then store the corresponding UTC
@@ -378,11 +379,22 @@ export async function PUT(
         organizationId: true,
         capacityTotal: true,
         capacityRemaining: true,
+        settings: { select: EVENT_MODULE_SETTINGS_SELECT },
       },
     })
 
     if (!existingEvent) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+
+    // Poros / SALVE / Rapha can only be turned on if the org's plan includes them
+    const moduleError = await blockedEventModuleMessage(
+      existingEvent.organizationId,
+      data,
+      existingEvent.settings
+    )
+    if (moduleError) {
+      return NextResponse.json({ error: moduleError, moduleNotInPlan: true }, { status: 403 })
     }
 
     // Calculate new capacity values

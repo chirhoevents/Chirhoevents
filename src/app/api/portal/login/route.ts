@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
               id: true,
               completed: true,
               formType: true,
+              parentToken: true,
+              parentTokenExpiresAt: true,
             },
           },
         },
@@ -66,6 +68,17 @@ export async function POST(request: NextRequest) {
       // Check if form is already completed
       const existingForm = individualRegistration.liabilityForms[0]
       const formCompleted = existingForm?.completed ?? false
+
+      // A minor's registration is step 1 of the youth form; when the parent
+      // link from registration is still valid, send them straight to step 2.
+      const parentToken =
+        existingForm &&
+        !formCompleted &&
+        existingForm.formType === 'youth_u18' &&
+        existingForm.parentToken &&
+        (!existingForm.parentTokenExpiresAt || existingForm.parentTokenExpiresAt > new Date())
+          ? existingForm.parentToken
+          : null
 
       // Format event dates
       const startDate = new Date(individualRegistration.event.startDate)
@@ -93,6 +106,7 @@ export async function POST(request: NextRequest) {
         eventDates,
         formCompleted,
         existingFormId: existingForm?.id || null,
+        parentToken,
         // For individuals, we auto-determine form type based on age
         // No role selection needed
         autoFormType: individualRegistration.age && individualRegistration.age < 18 ? 'youth_u18' : 'youth_o18_chaperone',

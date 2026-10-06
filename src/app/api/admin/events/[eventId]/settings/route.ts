@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { blockedEventModuleMessage, EVENT_MODULE_SETTINGS_SELECT } from '@/lib/event-module-guard'
 
 // List of all valid settings fields that can be updated
 const VALID_SETTINGS_FIELDS = [
@@ -146,6 +147,16 @@ export async function PATCH(
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
+    // Poros / SALVE / Rapha can only be turned on if the org's plan includes them
+    const currentSettings = await prisma.eventSettings.findUnique({
+      where: { eventId },
+      select: EVENT_MODULE_SETTINGS_SELECT,
+    })
+    const moduleError = await blockedEventModuleMessage(organizationId, updateData, currentSettings)
+    if (moduleError) {
+      return NextResponse.json({ error: moduleError, moduleNotInPlan: true }, { status: 403 })
     }
 
     // Update or create event settings

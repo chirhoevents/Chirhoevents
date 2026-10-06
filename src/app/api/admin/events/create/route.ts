@@ -5,6 +5,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { parseDateTimeInTimezone } from '@/lib/timezone'
 import { countEventsUsedInCurrentPeriod } from '@/lib/event-usage'
+import { blockedEventModuleMessage } from '@/lib/event-module-guard'
 
 // Treat a datetime-local string from the form as wall-clock time in the event's
 // timezone (the admin's selected IANA zone), then store the corresponding UTC
@@ -90,6 +91,12 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+    }
+
+    // Poros / SALVE / Rapha can only be turned on if the org's plan includes them
+    const moduleError = await blockedEventModuleMessage(organizationId, data)
+    if (moduleError) {
+      return NextResponse.json({ error: moduleError, moduleNotInPlan: true }, { status: 403 })
     }
 
     // Create event with all related data

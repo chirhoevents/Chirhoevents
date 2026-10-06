@@ -11,6 +11,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Check, ChevronLeft, ChevronRight, Loader2, Upload, Trash2, Image as ImageIcon } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import CatalogQuestionPicker, { type CatalogQuestionPickerHandle } from '@/components/admin/CatalogQuestionPicker'
+import ModuleNotInPlanDialog from '@/components/admin/ModuleNotInPlanDialog'
+import { useAdminContext } from '@/contexts/AdminContext'
+import { type ModuleKey } from '@/lib/subscription-tiers'
 
 // This is a one-off arrangement for a single event (Mount Saint Mary's "Mount
 // 2000"), not a general-purpose feature — the external-payment-links section
@@ -263,6 +266,9 @@ export default function CreateEventClient({
 }: CreateEventClientProps) {
   const router = useRouter()
   const { getToken } = useAuth()
+  const { modulesEnabled, subscriptionTier } = useAdminContext()
+  // Module the admin tried to turn on that their plan doesn't include
+  const [blockedModule, setBlockedModule] = useState<ModuleKey | null>(null)
   const [currentStep, setCurrentStep] = useState(1)
   const [saving, setSaving] = useState(false)
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
@@ -1432,9 +1438,13 @@ export default function CreateEventClient({
                         type="checkbox"
                         id="porosEnabled"
                         checked={formData.porosEnabled}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          if (e.target.checked && modulesEnabled && !modulesEnabled.poros) {
+                            setBlockedModule('poros')
+                            return
+                          }
                           updateFormData({ porosEnabled: e.target.checked })
-                        }
+                        }}
                         className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
                       />
                       <Label htmlFor="porosEnabled" className="mb-0 font-medium">
@@ -2115,11 +2125,15 @@ export default function CreateEventClient({
                         type="checkbox"
                         id="salveCheckinEnabled"
                         checked={formData.salveCheckinEnabled}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          if (e.target.checked && modulesEnabled && !modulesEnabled.salve) {
+                            setBlockedModule('salve')
+                            return
+                          }
                           updateFormData({
                             salveCheckinEnabled: e.target.checked,
                           })
-                        }
+                        }}
                         className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
                       />
                       <Label htmlFor="salveCheckinEnabled" className="mb-0">
@@ -2135,11 +2149,15 @@ export default function CreateEventClient({
                         type="checkbox"
                         id="raphaMedicalEnabled"
                         checked={formData.raphaMedicalEnabled}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          if (e.target.checked && modulesEnabled && !modulesEnabled.rapha) {
+                            setBlockedModule('rapha')
+                            return
+                          }
                           updateFormData({
                             raphaMedicalEnabled: e.target.checked,
                           })
-                        }
+                        }}
                         className="w-4 h-4 text-[#1E3A5F] border-gray-300 rounded"
                       />
                       <Label htmlFor="raphaMedicalEnabled" className="mb-0">
@@ -4460,6 +4478,12 @@ export default function CreateEventClient({
           )}
         </div>
       </div>
+
+      <ModuleNotInPlanDialog
+        module={blockedModule}
+        subscriptionTier={subscriptionTier || ''}
+        onClose={() => setBlockedModule(null)}
+      />
     </div>
   )
 }

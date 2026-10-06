@@ -14,8 +14,13 @@ import CustomQuestionRenderer, {
   type CustomQuestion,
   type CustomAnswersMap,
 } from '@/components/registration/CustomQuestionRenderer'
+import {
+  calculateIndividualPrice,
+  individualAttendanceLines,
+  type IndividualPricing,
+} from '@/lib/individual-registration'
 
-interface EventPricing {
+interface EventPricing extends IndividualPricing {
   youthRegularPrice: number
   chaperoneRegularPrice: number
   onCampusYouthPrice?: number
@@ -24,13 +29,6 @@ interface EventPricing {
   onCampusChaperonePrice?: number
   offCampusChaperonePrice?: number
   dayPassChaperonePrice?: number
-  individualBasePrice?: number
-  individualDayPassPrice?: number
-  singleRoomPrice?: number
-  doubleRoomPrice?: number
-  tripleRoomPrice?: number
-  quadRoomPrice?: number
-  individualOffCampusPrice?: number
 }
 
 interface EventSettings {
@@ -172,48 +170,28 @@ export default function IndividualRegistrationPage() {
     loadQuestions()
   }, [eventId])
 
-  // Calculate pricing based on ticket type and housing
-  const calculatePrice = () => {
-    if (!event) return 0
+  // Housing choices only show for multi-day events with housing turned on;
+  // everyone else is registered as off-campus with no room.
+  const housingOffered = !!event?.settings?.porosHousingEnabled && !event?.isOneDayEvent
+  const effectiveHousingType =
+    formData.ticketType === 'day_pass'
+      ? 'day_pass'
+      : housingOffered && formData.wantsHousing
+        ? formData.housingType
+        : 'off_campus'
+  const effectiveRoomType = effectiveHousingType === 'on_campus' ? formData.roomType : ''
+  const selectedDayPass = formData.ticketType === 'day_pass'
+    ? event?.dayPassOptions?.find(opt => opt.id === formData.dayPassOptionId)
+    : undefined
 
-    const { pricing } = event
-
-    // Day pass ticket type - use day pass option price or legacy day pass price
-    if (formData.ticketType === 'day_pass') {
-      if (formData.dayPassOptionId && event.dayPassOptions) {
-        const selectedOption = event.dayPassOptions.find(opt => opt.id === formData.dayPassOptionId)
-        if (selectedOption) {
-          return selectedOption.price
-        }
-      }
-      // Fallback to legacy day pass price
-      return pricing.individualDayPassPrice || pricing.dayPassYouthPrice || pricing.youthRegularPrice
-    }
-
-    // General admission - base price
-    let basePrice = pricing.individualBasePrice || pricing.youthRegularPrice
-
-    // If wants housing and on-campus, add room price
-    if (formData.wantsHousing && formData.housingType === 'on_campus') {
-      const roomPrices: Record<string, number | undefined> = {
-        single: pricing.singleRoomPrice,
-        double: pricing.doubleRoomPrice,
-        triple: pricing.tripleRoomPrice,
-        quad: pricing.quadRoomPrice,
-      }
-      const roomPrice = roomPrices[formData.roomType] || 0
-      basePrice = basePrice + (roomPrice || 0)
-    } else if (!formData.wantsHousing || formData.housingType === 'off_campus') {
-      // Off-campus or no housing
-      if (pricing.individualOffCampusPrice) {
-        basePrice = pricing.individualOffCampusPrice
-      }
-    }
-
-    return basePrice
-  }
-
-  const totalPrice = calculatePrice()
+  // Same pricing rules as the registration API, so the price shown is the price charged
+  const totalPrice = event
+    ? calculateIndividualPrice(event.pricing, {
+        housingType: effectiveHousingType,
+        roomType: effectiveRoomType,
+        dayPassOptionPrice: selectedDayPass?.price ?? null,
+      })
+    : 0
 
   // Verify coupon code
   const verifyCoupon = async () => {
@@ -267,14 +245,6 @@ export default function IndividualRegistrationPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Determine final housing type based on ticket type and housing preference
-    let finalHousingType = formData.housingType
-    if (formData.ticketType === 'day_pass') {
-      finalHousingType = 'day_pass'
-    } else if (!formData.wantsHousing) {
-      finalHousingType = 'off_campus'
-    }
-
     // Build URL with all form data as query parameters
     const params = new URLSearchParams({
       firstName: formData.firstName,
@@ -290,9 +260,9 @@ export default function IndividualRegistrationPage() {
       gender: formData.gender,
       ticketType: formData.ticketType,
       dayPassOptionId: formData.dayPassOptionId,
-      housingType: finalHousingType,
-      roomType: formData.roomType,
-      preferredRoommate: formData.preferredRoommate,
+      housingType: effectiveHousingType,
+      roomType: effectiveRoomType,
+      preferredRoommate: effectiveHousingType === 'on_campus' ? formData.preferredRoommate : '',
       tShirtSize: formData.tShirtSize,
       dietaryRestrictions: formData.dietaryRestrictions,
       adaAccommodations: formData.adaAccommodations,
@@ -765,7 +735,7 @@ export default function IndividualRegistrationPage() {
                     )}
 
                     {/* Housing Options - Only for General Admission on multi-day events */}
-                    {formData.ticketType === 'general_admission' && event?.settings?.porosHousingEnabled && !event?.isOneDayEvent && (
+                    {formData.ticketType === 'general_admission' && housingOffered && (
                       <div className="border-t pt-4 mt-4">
                         <label className="block text-sm font-medium text-navy mb-3">
                           Housing Preference
@@ -1135,20 +1105,18 @@ export default function IndividualRegistrationPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Housing Type:</span>
-                      <span className="font-medium text-navy capitalize">
-                        {formData.housingType.replace('_', ' ')}
-                      </span>
-                    </div>
-                    {formData.housingType === 'on_campus' && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Room Type:</span>
-                        <span className="font-medium text-navy capitalize">
-                          {formData.roomType}
-                        </span>
+                    {individualAttendanceLines({
+                      ticketType: formData.ticketType,
+                      housingType: effectiveHousingType,
+                      roomType: effectiveRoomType,
+                      housingOffered,
+                      dayPassName: selectedDayPass?.name,
+                    }).map(line => (
+                      <div key={line.label} className="flex justify-between text-sm">
+                        <span className="text-gray-600">{line.label}:</span>
+                        <span className="font-medium text-navy text-right">{line.value}</span>
                       </div>
-                    )}
+                    ))}
                   </div>
 
                   <div className="border-t border-gray-200 pt-4">

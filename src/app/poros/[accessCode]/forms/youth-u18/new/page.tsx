@@ -114,8 +114,9 @@ export default function YouthU18InitialForm() {
 
     // Validate age
     const age = parseInt(formData.age)
-    if (age < 12 || age > 17) {
-      setError('Age must be between 12 and 17 for Youth Under 18 forms')
+    // No lower limit: events like first Communion retreats include young children
+    if (!(age >= 1 && age <= 17)) {
+      setError('Age must be under 18 for Youth Under 18 forms')
       return
     }
 
@@ -486,13 +487,13 @@ export default function YouthU18InitialForm() {
                   <input
                     type="number"
                     required
-                    min="12"
+                    min="1"
                     max="17"
                     value={formData.age}
                     onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gold focus:border-gold"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Must be 12-17</p>
+                  <p className="text-xs text-gray-500 mt-1">Must be under 18</p>
                 </div>
               </div>
 

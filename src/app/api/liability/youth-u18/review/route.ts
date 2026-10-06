@@ -37,13 +37,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get group registration to get group name
-    const groupRegistration = await prisma.groupRegistration.findFirst({
-      where: {
-        eventId: liabilityForm.eventId,
-        organizationId: liabilityForm.organizationId,
-      },
-    })
+    // Group name for group forms; individual registrations have no group
+    const groupRegistration = liabilityForm.groupRegistrationId
+      ? await prisma.groupRegistration.findUnique({
+          where: { id: liabilityForm.groupRegistrationId },
+          select: { groupName: true },
+        })
+      : null
 
     // Return form data for review
     return NextResponse.json({
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         signatureData: liabilityForm.signatureData,
         completedAt: liabilityForm.completedAt?.toISOString(),
         eventName: liabilityForm.event.name,
-        groupName: groupRegistration?.groupName || 'Unknown Group',
+        groupName: groupRegistration?.groupName ?? null,
       },
     })
   } catch (error) {

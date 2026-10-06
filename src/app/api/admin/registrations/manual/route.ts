@@ -8,6 +8,15 @@ import { isAdminRole } from '@/lib/permissions'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { decrementOptionCapacity, type HousingType, type RoomType } from '@/lib/option-capacity'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { randomUUID } from 'crypto'
+import {
+  calculateIndividualPrice,
+  eventOffersHousing,
+  individualAttendanceLines,
+  individualLiabilityEmailBlock,
+  individualLiabilityFormUrl,
+  individualParentTokenExpiry,
+} from '@/lib/individual-registration'
 // UserRole type is handled by isAdminRole function
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -43,7 +52,9 @@ export async function POST(request: NextRequest) {
       include: {
         pricing: true,
         organization: { select: { contactEmail: true } },
-        settings: { select: { contactEmail: true } },
+        settings: {
+          select: { contactEmail: true, porosHousingEnabled: true, liabilityFormsRequiredIndividual: true },
+        },
       },
     })
 
@@ -135,7 +146,8 @@ export async function POST(request: NextRequest) {
           state: fields.state || null,
           zip: fields.zip || null,
           housingType: fields.housingType || 'on_campus',
-          roomType: fields.roomType || 'double',
+          // Room type only applies to on-campus housing
+          roomType: (fields.housingType || 'on_campus') === 'on_campus' ? fields.roomType || 'double' : null,
           preferredRoommate: fields.preferredRoommate || null,
           tShirtSize: fields.tShirtSize || null,
           dietaryRestrictions: fields.dietaryRestrictions || null,
@@ -151,14 +163,67 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Calculate price based on housing type
-      let price = event.pricing?.youthRegularPrice || 0
-      if (fields.housingType === 'on_campus' && event.pricing?.onCampusYouthPrice) {
-        price = event.pricing.onCampusYouthPrice
-      } else if (fields.housingType === 'off_campus' && event.pricing?.offCampusYouthPrice) {
-        price = event.pricing.offCampusYouthPrice
-      } else if (fields.housingType === 'day_pass' && event.pricing?.dayPassYouthPrice) {
-        price = event.pricing.dayPassYouthPrice
+      // Individual pricing, the same rules as public individual registration
+      const toPrice = (value: unknown) => (value == null ? null : Number(value))
+      const price = event.pricing
+        ? calculateIndividualPrice(
+            {
+              individualBasePrice: toPrice(event.pricing.individualBasePrice),
+              individualEarlyBirdPrice: toPrice(event.pricing.individualEarlyBirdPrice),
+              individualOffCampusPrice: toPrice(event.pricing.individualOffCampusPrice),
+              individualDayPassPrice: toPrice(event.pricing.individualDayPassPrice),
+              youthRegularPrice: toPrice(event.pricing.youthRegularPrice),
+              singleRoomPrice: toPrice(event.pricing.singleRoomPrice),
+              doubleRoomPrice: toPrice(event.pricing.doubleRoomPrice),
+              tripleRoomPrice: toPrice(event.pricing.tripleRoomPrice),
+              quadRoomPrice: toPrice(event.pricing.quadRoomPrice),
+              earlyBirdDeadline: event.pricing.earlyBirdDeadline,
+            },
+            { housingType: registration.housingType || 'on_campus', roomType: registration.roomType }
+          )
+        : 0
+
+      // Youth events need a liability form, same as public individual
+      // registration: adults complete their own, a minor's parent completes
+      // step 2 from the link in the email below.
+      const liabilityFormsRequired = !!event.settings?.liabilityFormsRequiredIndividual
+      const isMinor = registration.age != null && registration.age < 18
+      const parentToken = liabilityFormsRequired && isMinor ? randomUUID() : null
+      if (liabilityFormsRequired) {
+        await prisma.liabilityForm.create({
+          data: {
+            organizationId,
+            eventId,
+            individualRegistrationId: registration.id,
+            formType: isMinor ? 'youth_u18' : 'youth_o18_chaperone',
+            participantFirstName: registration.firstName,
+            participantLastName: registration.lastName,
+            participantPreferredName: registration.preferredName,
+            participantAge: registration.age,
+            participantGender: registration.gender,
+            participantEmail: registration.email,
+            participantPhone: registration.phone,
+            tShirtSize: registration.tShirtSize,
+            dietaryRestrictions: registration.dietaryRestrictions,
+            adaAccommodations: registration.adaAccommodations,
+            signatureData: {},
+            completed: false,
+            ...(isMinor
+              ? {
+                  participantType: 'youth_u18' as const,
+                  parentEmail: registration.email,
+                  parentToken,
+                  parentTokenExpiresAt: individualParentTokenExpiry(event.endDate),
+                  emergencyContact1Name: registration.emergencyContact1Name,
+                  emergencyContact1Phone: registration.emergencyContact1Phone,
+                  emergencyContact1Relation: registration.emergencyContact1Relation,
+                  emergencyContact2Name: registration.emergencyContact2Name,
+                  emergencyContact2Phone: registration.emergencyContact2Phone,
+                  emergencyContact2Relation: registration.emergencyContact2Relation,
+                }
+              : {}),
+          },
+        })
       }
 
       // Create payment balance
@@ -208,7 +273,13 @@ export async function POST(request: NextRequest) {
 
       // Send email notification if email is provided and not a placeholder
       if (fields.email && !fields.email.includes('placeholder.com')) {
-        const emailSubject = `Manual Registration Created - ${event.name}`
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+        const attendanceLines = individualAttendanceLines({
+          housingType: registration.housingType,
+          roomType: registration.roomType,
+          housingOffered: eventOffersHousing(event.settings, event.startDate, event.endDate),
+        })
+        const emailSubject = `You're Registered - ${event.name}`
         const emailHtml = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <!-- ChiRho Events Logo Header -->
@@ -217,9 +288,9 @@ export async function POST(request: NextRequest) {
             </div>
 
             <div style="padding: 30px 20px;">
-              <h1 style="color: #1E3A5F; margin-top: 0;">Registration Created</h1>
+              <h1 style="color: #1E3A5F; margin-top: 0;">You're Registered</h1>
 
-              <p>A manual registration has been created for you for <strong>${event.name}</strong>.</p>
+              <p>The event organizer has registered ${fields.firstName} for <strong>${event.name}</strong>.</p>
 
               <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #1E3A5F;">
                 <h2 style="color: #1E3A5F; margin-top: 0;">Your Confirmation Code</h2>
@@ -237,15 +308,24 @@ export async function POST(request: NextRequest) {
                 ${fields.preferredName ? `<p style="margin: 5px 0;"><strong>Preferred Name:</strong> ${fields.preferredName}</p>` : ''}
                 <p style="margin: 5px 0;"><strong>Email:</strong> ${fields.email}</p>
                 <p style="margin: 5px 0;"><strong>Phone:</strong> ${fields.phone || 'N/A'}</p>
-                <p style="margin: 5px 0;"><strong>Housing Type:</strong> ${(fields.housingType || 'on_campus').replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+                ${attendanceLines.map(line => `<p style="margin: 5px 0;"><strong>${line.label}:</strong> ${line.value}</p>`).join('')}
                 <p style="margin: 5px 0;"><strong>Total Amount Due:</strong> $${price.toFixed(2)}</p>
               </div>
 
               <h3 style="color: #1E3A5F;">Next Steps:</h3>
               <ol>
                 <li><strong>Payment:</strong> Contact the event organizer regarding payment arrangements.</li>
+                ${liabilityFormsRequired ? `
+                <li><strong>${isMinor ? 'Parent/Guardian Completes the Liability Form' : 'Complete Your Liability Form'}:</strong> Use the button below${isMinor ? ` — a parent or guardian must fill out and sign ${fields.firstName}'s form` : ''}.</li>
+                ` : ''}
                 <li><strong>Check-In:</strong> Bring a photo ID to check in at the event.</li>
               </ol>
+
+              ${liabilityFormsRequired ? individualLiabilityEmailBlock({
+                url: individualLiabilityFormUrl(appUrl, confirmationCode, parentToken),
+                isMinor,
+                participantFirstName: fields.firstName,
+              }) : ''}
 
               <p>Questions? Reply to this email or contact the event organizer.</p>
 

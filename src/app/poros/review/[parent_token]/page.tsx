@@ -33,7 +33,7 @@ interface FormData {
   }
   completedAt: string
   eventName: string
-  groupName: string
+  groupName: string | null
 }
 
 export default function ReviewSubmittedForm() {
@@ -169,8 +169,8 @@ export default function ReviewSubmittedForm() {
               <p className="text-gray-900">{formData.eventName}</p>
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-600">Group</p>
-              <p className="text-gray-900">{formData.groupName}</p>
+              <p className="text-sm font-semibold text-gray-600">{formData.groupName ? 'Group' : 'Registration'}</p>
+              <p className="text-gray-900">{formData.groupName ?? 'Individual'}</p>
             </div>
           </div>
         </div>

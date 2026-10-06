@@ -67,6 +67,7 @@ export default function ParentCompletionForm() {
         if (data.eventId) setEventId(data.eventId)
         if (data.eventName) setEventName(data.eventName)
         if (data.participantType) setParticipantType(data.participantType)
+        if (data.prefill) setDynValues(prev => ({ ...prev, ...data.prefill }))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load form')
       } finally {
@@ -202,7 +203,7 @@ export default function ParentCompletionForm() {
           <h2 className="text-2xl font-bold text-navy mb-2">Invalid or Expired Link</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <p className="text-sm text-gray-500">
-            This link may have expired. Please contact your group leader for assistance.
+            This link may have expired. Please contact your group leader or the event organizer for assistance.
           </p>
         </div>
       </div>

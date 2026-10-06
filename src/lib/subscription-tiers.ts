@@ -295,6 +295,36 @@ export function resolveModuleAccess(
   return result;
 }
 
+export const MODULE_LABELS: Record<ModuleKey, string> = {
+  poros: 'Poros Portal',
+  salve: 'SALVE Check-In',
+  rapha: 'Rapha Medical',
+};
+
+/**
+ * Names of the public tiers that include a module by default, cheapest first.
+ */
+export function tiersIncludingModule(module: ModuleKey): string[] {
+  return getPublicTiers()
+    .filter(tier => tier.features[module])
+    .map(tier => tier.name);
+}
+
+/**
+ * Message shown when an org tries to turn on a module its plan doesn't include.
+ */
+export function moduleNotInPlanMessage(module: ModuleKey, tierKey: string): string {
+  // The plan includes it but it was switched off for this org (master admin override)
+  if (tierHasFeature(tierKey, module)) {
+    return `${MODULE_LABELS[module]} isn't turned on for your organization. Contact support to turn it on.`;
+  }
+  const tiers = tiersIncludingModule(module);
+  const available = tiers.length > 1
+    ? `${tiers.slice(0, -1).join(', ')} and ${tiers[tiers.length - 1]}`
+    : tiers[0];
+  return `${MODULE_LABELS[module]} isn't included in the ${getTierDisplayName(tierKey)} plan. It's available on the ${available} plans.`;
+}
+
 /**
  * Get the price for a tier based on billing cycle
  */

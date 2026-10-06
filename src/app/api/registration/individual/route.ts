@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 import { Resend } from '@/lib/resend'
 import QRCode from 'qrcode'
+import { randomUUID } from 'crypto'
 import { calculatePlatformFeeCents } from '@/lib/stripe-fees'
 import { CARD_PAYMENT_DISABLED_MESSAGE, CARD_PAYMENT_DISABLED_TITLE } from '@/lib/event-card-payment-disabled'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
@@ -21,6 +22,15 @@ import {
   markWaitlistAsRegisteredByToken,
   validateWaitlistToken,
 } from '@/lib/waitlist-utils'
+import {
+  calculateIndividualPrice,
+  eventOffersHousing,
+  individualAttendanceLines,
+  individualLiabilityEmailBlock,
+  individualLiabilityFormUrl,
+  individualParentTokenExpiry,
+  organizerMessageBlock,
+} from '@/lib/individual-registration'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -239,58 +249,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate price for individual registration based on housing type, early bird, and add-ons
-    let totalAmount = 0
-
-    // Check for early bird pricing
-    const now = new Date()
-    const earlyBirdDeadline = event.pricing.earlyBirdDeadline ? new Date(event.pricing.earlyBirdDeadline) : null
-    const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
-
-    // Base price by housing type (with early bird support for default)
-    if (housingType === 'on_campus' && event.pricing.individualBasePrice) {
-      // For on-campus, use individual base price (early bird is typically for base registration)
-      totalAmount = isEarlyBird
-        ? Number(event.pricing.individualEarlyBirdPrice || event.pricing.individualBasePrice)
-        : Number(event.pricing.individualBasePrice)
-    } else if (housingType === 'off_campus' && event.pricing.individualOffCampusPrice) {
-      totalAmount = Number(event.pricing.individualOffCampusPrice)
-    } else if (housingType === 'day_pass') {
-      // FIX 4.8: Use DayPassOption.price when a specific option is selected;
-      // fall back to the legacy flat event.pricing.individualDayPassPrice
-      if (body.dayPassOptionId) {
-        const dayPassOpt = await prisma.dayPassOption.findUnique({
+    // Price for this registration (same rules the form and review page show)
+    const dayPassOption = housingType === 'day_pass' && body.dayPassOptionId
+      ? await prisma.dayPassOption.findUnique({
           where: { id: body.dayPassOptionId },
-          select: { price: true },
+          select: { price: true, name: true },
         })
-        if (dayPassOpt) {
-          totalAmount = Number(dayPassOpt.price)
-        } else if (event.pricing.individualDayPassPrice) {
-          totalAmount = Number(event.pricing.individualDayPassPrice)
-        }
-      } else if (event.pricing.individualDayPassPrice) {
-        totalAmount = Number(event.pricing.individualDayPassPrice)
+      : null
+    const toPrice = (value: unknown) => (value == null ? null : Number(value))
+    let totalAmount = calculateIndividualPrice(
+      {
+        individualBasePrice: toPrice(event.pricing.individualBasePrice),
+        individualEarlyBirdPrice: toPrice(event.pricing.individualEarlyBirdPrice),
+        individualOffCampusPrice: toPrice(event.pricing.individualOffCampusPrice),
+        individualDayPassPrice: toPrice(event.pricing.individualDayPassPrice),
+        youthRegularPrice: toPrice(event.pricing.youthRegularPrice),
+        singleRoomPrice: toPrice(event.pricing.singleRoomPrice),
+        doubleRoomPrice: toPrice(event.pricing.doubleRoomPrice),
+        tripleRoomPrice: toPrice(event.pricing.tripleRoomPrice),
+        quadRoomPrice: toPrice(event.pricing.quadRoomPrice),
+        earlyBirdDeadline: event.pricing.earlyBirdDeadline,
+      },
+      {
+        housingType,
+        roomType: body.roomType || null,
+        dayPassOptionPrice: dayPassOption ? Number(dayPassOption.price) : null,
       }
-    } else {
-      // Fallback to early bird price if applicable, then individual base price or youth price
-      totalAmount = isEarlyBird
-        ? Number(event.pricing.individualEarlyBirdPrice || event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
-        : Number(event.pricing.individualBasePrice || event.pricing.youthRegularPrice)
-    }
-
-    // Add room type pricing (for on-campus housing)
-    if (housingType === 'on_campus' && body.roomType) {
-      const roomType = body.roomType as string
-      if (roomType === 'single' && event.pricing.singleRoomPrice) {
-        totalAmount += Number(event.pricing.singleRoomPrice)
-      } else if (roomType === 'double' && event.pricing.doubleRoomPrice) {
-        totalAmount += Number(event.pricing.doubleRoomPrice)
-      } else if (roomType === 'triple' && event.pricing.tripleRoomPrice) {
-        totalAmount += Number(event.pricing.tripleRoomPrice)
-      } else if (roomType === 'quad' && event.pricing.quadRoomPrice) {
-        totalAmount += Number(event.pricing.quadRoomPrice)
-      }
-    }
+    )
 
     // Add meal package if included
     if (body.includeMealPackage && event.pricing.individualMealPackagePrice) {
@@ -453,21 +438,23 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create liability form if required for individuals
+    // Create liability form if required for individuals (youth events)
     const liabilityFormsRequired = event.settings?.liabilityFormsRequiredIndividual ?? false
+    const isMinor = !!body.age && Number(body.age) < 18
+    let parentToken: string | null = null
     if (liabilityFormsRequired) {
-      // Determine form type based on age (if provided)
-      let formType: 'youth_u18' | 'youth_o18_chaperone' | 'clergy' = 'youth_o18_chaperone' // Default for adults
-      if (body.age && body.age < 18) {
-        formType = 'youth_u18'
-      }
+      // Adults complete the 18+ form themselves from their confirmation email.
+      // For a minor, this registration is step 1 of the youth form: their
+      // details are copied over and the confirmation email takes a parent
+      // straight to step 2 (medical, insurance, signature).
+      parentToken = isMinor ? randomUUID() : null
 
       await prisma.liabilityForm.create({
         data: {
           organizationId: event.organizationId,
           eventId: event.id,
           individualRegistrationId: registration.id,
-          formType: formType,
+          formType: isMinor ? 'youth_u18' : 'youth_o18_chaperone',
           participantFirstName: firstName,
           participantLastName: lastName,
           participantPreferredName: body.preferredName || null,
@@ -480,6 +467,20 @@ export async function POST(request: NextRequest) {
           adaAccommodations: body.adaAccommodations || null,
           signatureData: {},
           completed: false,
+          ...(isMinor
+            ? {
+                participantType: 'youth_u18' as const,
+                parentEmail: email,
+                parentToken,
+                parentTokenExpiresAt: individualParentTokenExpiry(event.endDate),
+                emergencyContact1Name,
+                emergencyContact1Phone,
+                emergencyContact1Relation,
+                emergencyContact2Name: body.emergencyContact2Name || null,
+                emergencyContact2Phone: body.emergencyContact2Phone || null,
+                emergencyContact2Relation: body.emergencyContact2Relation || null,
+              }
+            : {}),
         },
       })
     }
@@ -563,6 +564,14 @@ export async function POST(request: NextRequest) {
       })
 
       // Prepare email content
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+      const attendanceLines = individualAttendanceLines({
+        ticketType: body.ticketType,
+        housingType,
+        roomType: body.roomType,
+        housingOffered: eventOffersHousing(event.settings, event.startDate, event.endDate),
+        dayPassName: dayPassOption?.name,
+      })
       const emailSubject = `Registration Received - ${event.name}`
       const emailHtml = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -576,6 +585,8 @@ export async function POST(request: NextRequest) {
 
               <p>Thank you for registering for ${event.name}, ${firstName}!</p>
 
+              ${organizerMessageBlock(eventSettings?.confirmationEmailMessage)}
+
               <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #1E3A5F;">
                 <h2 style="color: #1E3A5F; margin-top: 0;">Your Confirmation Code</h2>
                 <div style="background-color: white; padding: 15px; border-radius: 5px; display: inline-block; margin: 10px 0;">
@@ -587,8 +598,11 @@ export async function POST(request: NextRequest) {
               </div>
 
               <div style="background-color: #F5F1E8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-                <h2 style="color: #9C8466; margin-top: 0;">Your QR Code</h2>
-                <img src="${qrCodeDataUrl}" alt="Registration QR Code" style="max-width: 200px; height: auto;" />
+                <h2 style="color: #9C8466; margin-top: 0;">Your Check-In QR Code</h2>
+                <a href="${appUrl}/registration/confirmation/individual/${registration.id}"
+                   style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">
+                  View My QR Code
+                </a>
                 <p style="font-size: 14px; color: #666; margin-top: 10px;">
                   Save this QR code! You'll need it for check-in at the event.
                 </p>
@@ -619,8 +633,7 @@ export async function POST(request: NextRequest) {
               <h3 style="color: #1E3A5F;">Registration Summary</h3>
               <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
                 <p style="margin: 5px 0;"><strong>Name:</strong> ${firstName} ${lastName}</p>
-                <p style="margin: 5px 0;"><strong>Housing Type:</strong> ${housingType.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
-                ${body.roomType ? `<p style="margin: 5px 0;"><strong>Room Type:</strong> ${body.roomType}</p>` : ''}
+                ${attendanceLines.map(line => `<p style="margin: 5px 0;"><strong>${line.label}:</strong> ${line.value}</p>`).join('')}
                 <p style="margin: 5px 0;"><strong>Total Cost:</strong> $${totalAmount.toFixed(2)}</p>
                 <p style="margin: 5px 0;"><strong>Payment Method:</strong> Check (Pending)</p>
               </div>
@@ -629,31 +642,17 @@ export async function POST(request: NextRequest) {
               <ol>
                 <li><strong>Mail Your Check:</strong> Send your check using the instructions above.</li>
                 ${liabilityFormsRequired ? `
-                <li><strong>Complete Your Liability Form:</strong> Click the button below to complete your required liability form.</li>
+                <li><strong>${isMinor ? 'Parent/Guardian Completes the Liability Form' : 'Complete Your Liability Form'}:</strong> Use the button below${isMinor ? ` — a parent or guardian must fill out and sign ${firstName}'s form` : ''}.</li>
                 ` : ''}
-                <li><strong>Wait for Confirmation:</strong> We'll email you once your check is received and processed.</li>
-                <li><strong>Check-In:</strong> Bring your QR code (save this email or download the QR code) to check in at the event.</li>
+                <li><strong>Payment Confirmed:</strong> Your registration is confirmed once the organizer receives your check.</li>
+                <li><strong>Check-In:</strong> Bring your QR code (on your phone or printed) to check in at the event.</li>
               </ol>
 
-              ${liabilityFormsRequired ? `
-              <div style="background-color: #FEF3C7; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #F59E0B;">
-                <h3 style="color: #92400E; margin-top: 0;">📋 Liability Form Required</h3>
-                <p style="color: #92400E; margin-bottom: 15px;">
-                  ${body.age && body.age < 18
-                    ? 'Since you are under 18, click below to enter your parent or guardian\'s email address. They will then receive their own separate email with a link to complete and sign the liability form on your behalf.'
-                    : 'Please complete your liability form before the event.'}
-                </p>
-                <div style="text-align: center;">
-                  <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${confirmationCode}"
-                     style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                    Complete Liability Form
-                  </a>
-                </div>
-                <p style="color: #78716C; font-size: 12px; margin-top: 15px; text-align: center;">
-                  Or copy this link: ${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${confirmationCode}
-                </p>
-              </div>
-              ` : ''}
+              ${liabilityFormsRequired ? individualLiabilityEmailBlock({
+                url: individualLiabilityFormUrl(appUrl, confirmationCode, parentToken),
+                isMinor,
+                participantFirstName: firstName,
+              }) : ''}
 
               ${eventSettings?.registrationInstructions ? `
                 <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">
