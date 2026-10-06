@@ -33,6 +33,8 @@ interface EventPricing extends IndividualPricing {
 
 interface EventSettings {
   couponsEnabled?: boolean
+  individualRegistrationEnabled?: boolean
+  liabilityFormsRequiredIndividual?: boolean
   allowDayPass?: boolean
   allowOnCampus?: boolean
   allowOffCampus?: boolean
@@ -42,6 +44,23 @@ interface EventSettings {
   allowTripleRoom?: boolean
   allowQuadRoom?: boolean
 }
+
+// Details a family shares, carried over when registering another family
+// member in the same tab. The attendee's own details are never carried over.
+const HOUSEHOLD_FIELDS = [
+  'email',
+  'phone',
+  'street',
+  'city',
+  'state',
+  'zip',
+  'emergencyContact1Name',
+  'emergencyContact1Phone',
+  'emergencyContact1Relation',
+  'emergencyContact2Name',
+  'emergencyContact2Phone',
+  'emergencyContact2Relation',
+] as const
 
 interface DayPassOption {
   id: string
@@ -73,6 +92,8 @@ export default function IndividualRegistrationPage() {
   const searchParams = useSearchParams()
   const eventId = params.eventId as string
   const waitlistToken = searchParams?.get('waitlist') || ''
+  const registeringAnother = searchParams?.get('another') === '1'
+  const householdKey = `chirho_household_${eventId}`
 
   // Queue management
   const {
@@ -132,6 +153,28 @@ export default function IndividualRegistrationPage() {
     couponCode: '',
   })
 
+  // "Register another family member": start from the household details of
+  // the registration just made in this tab, then drop the flag from the URL so
+  // coming Back from the review page doesn't overwrite edits
+  const [prefilledFromHousehold, setPrefilledFromHousehold] = useState(false)
+  useEffect(() => {
+    if (!draftRestored || !registeringAnother) return
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(householdKey) || 'null')
+      if (saved && typeof saved === 'object') {
+        const household = Object.fromEntries(
+          HOUSEHOLD_FIELDS.filter(field => typeof saved[field] === 'string').map(field => [field, saved[field]])
+        )
+        setFormData(prev => ({ ...prev, ...household }))
+        setPrefilledFromHousehold(true)
+      }
+    } catch {
+      // Nothing saved or storage unavailable: start blank
+    }
+    router.replace(`/events/${eventId}/register-individual`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, right after the draft is restored
+  }, [draftRestored])
+
   const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([])
   const [customAnswers, setCustomAnswers] = useSessionDraft<CustomAnswersMap>(
     `chirho_custom_answers_${eventId}`,
@@ -173,6 +216,8 @@ export default function IndividualRegistrationPage() {
   // Housing choices only show for multi-day events with housing turned on;
   // everyone else is registered as off-campus with no room.
   const housingOffered = !!event?.settings?.porosHousingEnabled && !event?.isOneDayEvent
+  // Youth event: under-18 attendees need a parent-signed liability form
+  const isYouthEvent = !!event?.settings?.liabilityFormsRequiredIndividual
   const effectiveHousingType =
     formData.ticketType === 'day_pass'
       ? 'day_pass'
@@ -276,6 +321,16 @@ export default function IndividualRegistrationPage() {
       ...(waitlistToken ? { waitlist: waitlistToken } : {}),
     })
 
+    // Remember the household details for "Register another family member"
+    try {
+      sessionStorage.setItem(
+        householdKey,
+        JSON.stringify(Object.fromEntries(HOUSEHOLD_FIELDS.map(field => [field, formData[field]])))
+      )
+    } catch {
+      // Non-fatal: the next family member just starts from a blank form
+    }
+
     // Persist custom answers in sessionStorage so the review page can include them
     sessionStorage.setItem(
       `chirho_custom_answers_${eventId}`,
@@ -296,6 +351,25 @@ export default function IndividualRegistrationPage() {
           <CardContent className="p-8 text-center">
             <p className="text-red-600 mb-4">{error}</p>
             <Button onClick={() => router.push('/')}>Return Home</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (event && event.settings?.individualRegistrationEnabled === false && !waitlistToken) {
+    return (
+      <div className="min-h-screen bg-beige flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-navy mb-2">Individual Registration Not Available</h2>
+            <p className="text-gray-600 mb-4">
+              {event.name} doesn&apos;t accept individual registrations. Please contact the event organizer.
+            </p>
+            <Button onClick={() => router.push(`/events/${eventId}`)} className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+              Back to Event
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -395,10 +469,20 @@ export default function IndividualRegistrationPage() {
                 {/* Personal Information */}
                 <Card className="mb-6">
                   <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
-                    <CardDescription>Tell us about yourself</CardDescription>
+                    <CardTitle>Attendee Information</CardTitle>
+                    <CardDescription>
+                      {isYouthEvent
+                        ? "Enter the details of the person attending. Registering your child? Enter your child's name, age and details, and use your own email and phone so we can reach you."
+                        : 'Enter the details of the person attending.'}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {prefilledFromHousehold && (
+                      <div className="bg-green-50 border border-green-200 rounded-md p-3 text-sm text-green-800">
+                        We filled in the email, phone, address and emergency contacts from your last registration.
+                        Check them, then enter this attendee&apos;s own details.
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
@@ -455,6 +539,11 @@ export default function IndividualRegistrationPage() {
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           placeholder="john@example.com"
                         />
+                        {isYouthEvent && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            For a child, use a parent&apos;s email. The confirmation and the parent liability form link are sent here.
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -596,7 +685,7 @@ export default function IndividualRegistrationPage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.age}
                           onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                          placeholder="25"
+                          placeholder={isYouthEvent ? "Attendee's age" : '25'}
                         />
                       </div>
 

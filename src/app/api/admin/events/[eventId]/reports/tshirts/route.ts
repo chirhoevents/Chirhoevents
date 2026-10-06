@@ -41,9 +41,13 @@ export async function GET(
       },
     })
 
-    // Get individual registrations
+    // Get individual registrations, leaving out card checkouts that were
+    // never paid (still open, expired or failed)
     const individualRegs = await prisma.individualRegistration.findMany({
-      where: { eventId },
+      where: {
+        eventId,
+        registrationStatus: { notIn: ['incomplete', 'expired', 'payment_failed'] },
+      },
       select: {
         id: true,
         firstName: true,

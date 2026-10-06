@@ -297,8 +297,10 @@ export default function IndividualInvoiceReviewPage() {
     registrationData.city,
     [registrationData.state, registrationData.zip].filter(Boolean).join(' '),
   ].filter(Boolean).join(', ')
+  // Nothing to pay (free event or a full coupon): no card or check needed
+  const isFree = !!event && pricing.total <= 0
   // Events with card payments turned off take check payments only
-  const cardBlocked = !!event?.settings.cardPaymentDisabled
+  const cardBlocked = !isFree && !!event?.settings.cardPaymentDisabled
 
   // Handle credit card payment
   const handleCreditCardPayment = async () => {
@@ -443,7 +445,7 @@ export default function IndividualInvoiceReviewPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <User className="h-5 w-5" />
-                    Personal Information
+                    Attendee Information
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -656,7 +658,7 @@ export default function IndividualInvoiceReviewPage() {
                       <span className="text-gold">${pricing.total.toFixed(2)}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      Full payment required for individual registrations
+                      {isFree ? 'No payment required' : 'Full payment required for individual registrations'}
                     </p>
                   </div>
 
@@ -669,7 +671,25 @@ export default function IndividualInvoiceReviewPage() {
 
                   {/* Payment Buttons */}
                   <div className="space-y-3">
-                    {cardBlocked ? (
+                    {isFree ? (
+                      <Button
+                        onClick={handleCreditCardPayment}
+                        disabled={submitting}
+                        className="w-full bg-navy hover:bg-navy/90 !text-white"
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Complete Registration
+                          </>
+                        )}
+                      </Button>
+                    ) : cardBlocked ? (
                       <Button
                         onClick={() => setShowCheckModal(true)}
                         disabled={submitting}
@@ -699,7 +719,7 @@ export default function IndividualInvoiceReviewPage() {
                     )}
                   </div>
 
-                  {!cardBlocked && (
+                  {!cardBlocked && !isFree && (
                     <div className="bg-beige p-4 rounded-md text-xs text-gray-600">
                       <p className="font-semibold mb-1">Secure Payment</p>
                       <p>Your payment is processed securely through Stripe. We never store your credit card information.</p>

@@ -63,6 +63,7 @@ export async function GET(
 
     return NextResponse.json({
       id: registration.id,
+      eventId: registration.eventId,
       firstName: registration.firstName,
       lastName: registration.lastName,
       email: registration.email,

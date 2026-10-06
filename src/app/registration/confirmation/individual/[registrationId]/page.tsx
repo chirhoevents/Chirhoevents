@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Download, QrCode, Loader2, FileText } from 'lucide-react'
+import Link from 'next/link'
+import { CheckCircle, Download, QrCode, Loader2, FileText, UserPlus } from 'lucide-react'
 import LoadingScreen from '@/components/LoadingScreen'
 import { individualAttendanceLines } from '@/lib/individual-registration'
 
 interface RegistrationData {
   id: string
+  eventId: string
   firstName: string
   lastName: string
   email: string
@@ -57,25 +59,46 @@ export default function IndividualConfirmationPage() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
+    async function fetchRegistration() {
+      const response = await fetch(`/api/registration/individual/${registrationId}`)
+      if (!response.ok) throw new Error('Registration not found')
+      const data = await response.json()
+
+      // Convert totalAmount to number (comes from database as string/Decimal)
+      if (data.totalAmount) {
+        data.totalAmount = Number(data.totalAmount)
+      }
+      return data
+    }
+
     async function loadRegistration() {
       try {
-        const response = await fetch(`/api/registration/individual/${registrationId}`)
-        if (!response.ok) throw new Error('Registration not found')
-        const data = await response.json()
-
-        // Convert totalAmount to number (comes from database as string/Decimal)
-        if (data.totalAmount) {
-          data.totalAmount = Number(data.totalAmount)
-        }
-
+        let data = await fetchRegistration()
+        if (cancelled) return
         setRegistration(data)
-      } catch (err: any) {
-        setError(err.message || 'Failed to load registration')
-      } finally {
         setLoading(false)
+
+        // Stripe sends people back here a moment before its payment
+        // confirmation reaches us; keep checking for up to ~30 seconds
+        for (let attempt = 0; attempt < 15 && data.registrationStatus === 'incomplete'; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          if (cancelled) return
+          data = await fetchRegistration()
+          if (cancelled) return
+          setRegistration(data)
+        }
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || 'Failed to load registration')
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
     loadRegistration()
+    return () => {
+      cancelled = true
+    }
   }, [registrationId, sessionId])
 
   const handleDownloadQR = () => {
@@ -114,6 +137,9 @@ export default function IndividualConfirmationPage() {
                     (registration.paymentStatus === 'pending_check_payment' ||
                      registration.registrationStatus === 'pending_payment')
   const isMinor = registration.age != null && registration.age < 18
+  // Card payment not confirmed by Stripe yet
+  const isProcessing = registration.registrationStatus === 'incomplete'
+  const isFree = isPaid && Number(registration.totalAmount) === 0
 
   return (
     <div className="min-h-screen bg-beige py-12">
@@ -136,15 +162,34 @@ export default function IndividualConfirmationPage() {
           {/* Success Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-              <CheckCircle className="h-10 w-10 text-green-600" />
+              {isProcessing ? (
+                <Loader2 className="h-10 w-10 text-green-600 animate-spin" />
+              ) : (
+                <CheckCircle className="h-10 w-10 text-green-600" />
+              )}
             </div>
             <h1 className="text-4xl font-bold text-navy mb-2">
-              Registration {isPending ? 'Received' : 'Complete'}!
+              {isProcessing ? 'Confirming Your Payment…' : `Registration ${isPending ? 'Received' : 'Complete'}!`}
             </h1>
             <p className="text-xl text-gray-600">
               Thank you for registering for {registration.eventName}
             </p>
           </div>
+
+          {/* Card payment still being confirmed by Stripe */}
+          {isProcessing && (
+            <Card className="mb-6 bg-blue-50 border-2 border-blue-300">
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-blue-900 mb-1">Almost done</h3>
+                <p className="text-blue-800 text-sm">
+                  We&apos;re confirming your payment with our payment processor. This usually takes a few
+                  seconds. Once it&apos;s confirmed, a confirmation email will be sent to{' '}
+                  <strong>{registration.email}</strong>. If this page doesn&apos;t update in a minute, check
+                  your email or contact the event organizer.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Pending Payment Warning */}
           {isPending && (
@@ -243,9 +288,9 @@ export default function IndividualConfirmationPage() {
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-gray-600">Payment Status:</span>
                   <span className={`font-medium ${
-                    isPending ? 'text-yellow-600' : 'text-green-600'
+                    isPending || isProcessing ? 'text-yellow-600' : 'text-green-600'
                   }`}>
-                    {isPending ? 'Pending (Check)' : 'Paid'}
+                    {isProcessing ? 'Processing' : isPending ? 'Pending (Check)' : isFree ? 'No payment required' : 'Paid'}
                   </span>
                 </div>
               </div>
@@ -324,6 +369,26 @@ export default function IndividualConfirmationPage() {
               </ol>
             </CardContent>
           </Card>
+
+          {/* Families register one person at a time; carry the household details over */}
+          {!isProcessing && (
+            <Card className="mb-6">
+              <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-navy">Registering someone else in your family?</p>
+                  <p className="text-sm text-gray-600">
+                    Start their registration with your email, phone, address and emergency contacts already filled in.
+                  </p>
+                </div>
+                <Link href={`/events/${registration.eventId}/register-individual?another=1`}>
+                  <Button variant="outline" className="whitespace-nowrap">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Register Another Person
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
           {/* FIX 3.14 — Org Contact Info Box */}
           <Card className="bg-blue-50 border-blue-200">
