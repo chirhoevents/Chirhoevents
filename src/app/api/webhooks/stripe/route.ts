@@ -7,6 +7,13 @@ import QRCode from 'qrcode'
 import { generateGroupRegistrationConfirmationEmail, wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { markWaitlistAsRegistered } from '@/lib/waitlist-utils'
+import {
+  eventOffersHousing,
+  individualAttendanceLines,
+  individualLiabilityEmailBlock,
+  individualLiabilityFormUrl,
+  organizerMessageBlock,
+} from '@/lib/individual-registration'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -477,7 +484,24 @@ export async function POST(request: NextRequest) {
                 organization: true,
               },
             },
+            dayPassOption: { select: { name: true } },
+            liabilityForms: { select: { parentToken: true } },
           },
+        })
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+        const liabilityRequired = !!registration.event.settings?.liabilityFormsRequiredIndividual
+        const isMinor = registration.age != null && registration.age < 18
+        const attendanceLines = individualAttendanceLines({
+          ticketType: registration.ticketType,
+          housingType: registration.housingType,
+          roomType: registration.roomType,
+          housingOffered: eventOffersHousing(
+            registration.event.settings,
+            registration.event.startDate,
+            registration.event.endDate
+          ),
+          dayPassName: registration.dayPassOption?.name,
         })
 
         // Update payment balance with the actual amount Stripe collected
@@ -524,6 +548,8 @@ export async function POST(request: NextRequest) {
 
                 <p>Thank you for registering for <strong>${registration.event.name}</strong>! Your payment has been received and your registration is complete.</p>
 
+                ${organizerMessageBlock(registration.event.settings?.confirmationEmailMessage)}
+
                 <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #1E3A5F;">
                   <h2 style="color: #1E3A5F; margin-top: 0;">Your Confirmation Code</h2>
                   <div style="background-color: white; padding: 15px; border-radius: 5px; display: inline-block; margin: 10px 0;">
@@ -559,39 +585,28 @@ export async function POST(request: NextRequest) {
                 <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
                   <p style="margin: 5px 0;"><strong>Name:</strong> ${registration.firstName} ${registration.lastName}</p>
                   <p style="margin: 5px 0;"><strong>Email:</strong> ${registration.email}</p>
-                  <p style="margin: 5px 0;"><strong>Housing:</strong> ${registration.housingType?.replace('_', ' ')}</p>
-                  ${registration.roomType ? `<p style="margin: 5px 0;"><strong>Room Type:</strong> ${registration.roomType}</p>` : ''}
+                  ${attendanceLines.map(line => `<p style="margin: 5px 0;"><strong>${line.label}:</strong> ${line.value}</p>`).join('')}
                 </div>
 
                 <h3 style="color: #1E3A5F;">Next Steps:</h3>
                 <ol>
                   <li><strong>Save Your QR Code:</strong> Visit your confirmation page to download your QR code for check-in.</li>
-                  ${registration.event.settings?.liabilityFormsRequiredIndividual ? `
-                  <li><strong>Complete Your Liability Form:</strong> Click the button below to complete your required liability form.</li>
+                  ${liabilityRequired ? `
+                  <li><strong>${isMinor ? 'Parent/Guardian Completes the Liability Form' : 'Complete Your Liability Form'}:</strong> Use the button below${isMinor ? ` — a parent or guardian must fill out and sign ${registration.firstName}'s form` : ''}.</li>
                   ` : ''}
                   <li><strong>Check-In:</strong> Bring your QR code (on your phone or printed) to check in at the event.</li>
                   <li><strong>Prepare:</strong> Review your confirmation details and pack accordingly.</li>
                 </ol>
 
-                ${registration.event.settings?.liabilityFormsRequiredIndividual ? `
-                <div style="background-color: #FEF3C7; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #F59E0B;">
-                  <h3 style="color: #92400E; margin-top: 0;">📋 Liability Form Required</h3>
-                  <p style="color: #92400E; margin-bottom: 15px;">
-                    ${registration.age && registration.age < 18
-                      ? 'Since you are under 18, click below to enter your parent or guardian\'s email address. They will then receive their own separate email with a link to complete and sign the liability form on your behalf.'
-                      : 'Please complete your liability form before the event.'}
-                  </p>
-                  <div style="text-align: center;">
-                    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${registration.confirmationCode}"
-                       style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                      Complete Liability Form
-                    </a>
-                  </div>
-                  <p style="color: #78716C; font-size: 12px; margin-top: 15px; text-align: center;">
-                    Or copy this link: ${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/poros/${registration.confirmationCode}
-                  </p>
-                </div>
-                ` : ''}
+                ${liabilityRequired ? individualLiabilityEmailBlock({
+                  url: individualLiabilityFormUrl(
+                    appUrl,
+                    registration.confirmationCode,
+                    isMinor ? registration.liabilityForms[0]?.parentToken : null
+                  ),
+                  isMinor,
+                  participantFirstName: registration.firstName,
+                }) : ''}
 
                 ${registration.event.settings?.registrationInstructions ? `
                   <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">

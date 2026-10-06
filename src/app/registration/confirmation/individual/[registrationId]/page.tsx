@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Download, QrCode, Loader2, FileText } from 'lucide-react'
 import LoadingScreen from '@/components/LoadingScreen'
+import { individualAttendanceLines } from '@/lib/individual-registration'
 
 interface RegistrationData {
   id: string
@@ -14,8 +15,11 @@ interface RegistrationData {
   email: string
   age?: number | null
   qrCode: string
+  ticketType?: string | null
   housingType: string
   roomType?: string
+  housingOffered?: boolean
+  dayPassName?: string | null
   eventName: string
   totalAmount: number
   paymentStatus: string
@@ -103,8 +107,12 @@ export default function IndividualConfirmationPage() {
     )
   }
 
-  const isPending = registration.paymentStatus === 'pending_check_payment' ||
-                    registration.registrationStatus === 'pending_payment'
+  // Recording a check updates the balance but not registrationStatus, so a
+  // paid-in-full balance wins
+  const isPaid = registration.paymentStatus === 'paid_full' || registration.paymentStatus === 'overpaid'
+  const isPending = !isPaid &&
+                    (registration.paymentStatus === 'pending_check_payment' ||
+                     registration.registrationStatus === 'pending_payment')
   const isMinor = registration.age != null && registration.age < 18
 
   return (
@@ -211,20 +219,18 @@ export default function IndividualConfirmationPage() {
                   <span className="text-gray-600">Email:</span>
                   <p className="font-medium text-navy">{registration.email}</p>
                 </div>
-                <div>
-                  <span className="text-gray-600">Housing Type:</span>
-                  <p className="font-medium text-navy capitalize">
-                    {registration.housingType.replace('_', ' ')}
-                  </p>
-                </div>
-                {registration.roomType && (
-                  <div>
-                    <span className="text-gray-600">Room Type:</span>
-                    <p className="font-medium text-navy capitalize">
-                      {registration.roomType}
-                    </p>
+                {individualAttendanceLines({
+                  ticketType: registration.ticketType,
+                  housingType: registration.housingType,
+                  roomType: registration.roomType,
+                  housingOffered: !!registration.housingOffered,
+                  dayPassName: registration.dayPassName,
+                }).map(line => (
+                  <div key={line.label}>
+                    <span className="text-gray-600">{line.label}:</span>
+                    <p className="font-medium text-navy">{line.value}</p>
                   </div>
-                )}
+                ))}
               </div>
 
               <div className="border-t border-gray-200 pt-3 mt-3">
@@ -286,16 +292,18 @@ export default function IndividualConfirmationPage() {
                       {isPending ? '3' : '2'}
                     </span>
                     <div>
-                      <p className="font-semibold text-navy">Complete Your Liability Form</p>
+                      <p className="font-semibold text-navy">
+                        {isMinor ? 'Parent/Guardian Completes the Liability Form' : 'Complete Your Liability Form'}
+                      </p>
                       {isMinor ? (
                         <p className="text-gray-600">
-                          Since you&apos;re under 18, the confirmation email includes a link where you&apos;ll enter your
-                          parent or guardian&apos;s email address. They&apos;ll then receive their own separate email
-                          with a link to complete and sign the liability form on your behalf. This is required before the event.
+                          Because {registration.firstName} is under 18, a parent or guardian must fill out the medical,
+                          insurance and emergency contact information and sign the liability form, using the link in the
+                          confirmation email sent to <strong>{registration.email}</strong>. This is required before the event.
                         </p>
                       ) : (
                         <p className="text-gray-600">
-                          You&apos;ll receive a separate email with instructions to complete your liability form.
+                          Use the link in your confirmation email to complete and sign your liability form.
                           This is required before the event.
                         </p>
                       )}

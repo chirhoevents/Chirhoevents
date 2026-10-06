@@ -8,29 +8,30 @@ import { Loader2, CreditCard, FileText, ArrowLeft, CheckCircle, User, Home, Mail
 import { useRegistrationQueue } from '@/hooks/useRegistrationQueue'
 import RegistrationTimer from '@/components/RegistrationTimer'
 import LoadingScreen from '@/components/LoadingScreen'
+import {
+  calculateIndividualPrice,
+  individualAttendanceLines,
+  type IndividualPricing,
+} from '@/lib/individual-registration'
+import { CARD_PAYMENT_DISABLED_MESSAGE, CARD_PAYMENT_DISABLED_TITLE } from '@/lib/event-card-payment-disabled'
 
 interface EventData {
   id: string
   name: string
   startDate: string
   endDate: string
-  pricing: {
-    youthRegularPrice: number
-    onCampusYouthPrice?: number
-    offCampusYouthPrice?: number
-    dayPassYouthPrice?: number
-    // Early bird pricing
-    earlyBirdDeadline?: string
-    individualEarlyBirdPrice?: number
-    individualBasePrice?: number
-  }
+  isOneDayEvent?: boolean
+  pricing: IndividualPricing
   settings: {
     registrationInstructions: string | null
     checkPaymentEnabled: boolean
     checkPaymentPayableTo: string | null
     checkPaymentAddress: string | null
     couponsEnabled?: boolean
+    porosHousingEnabled?: boolean
+    cardPaymentDisabled?: boolean
   }
+  dayPassOptions?: Array<{ id: string; name: string; price: number }>
 }
 
 interface CouponData {
@@ -47,7 +48,10 @@ interface RegistrationData {
   preferredName: string
   email: string
   phone: string
-  address: string
+  street: string
+  city: string
+  state: string
+  zip: string
   age: string
   gender: string
   ticketType: string
@@ -158,13 +162,16 @@ export default function IndividualInvoiceReviewPage() {
     preferredName: searchParams.get('preferredName') || '',
     email: searchParams.get('email') || '',
     phone: searchParams.get('phone') || '',
-    address: searchParams.get('address') || '',
+    street: searchParams.get('street') || '',
+    city: searchParams.get('city') || '',
+    state: searchParams.get('state') || '',
+    zip: searchParams.get('zip') || '',
     age: searchParams.get('age') || '',
     gender: searchParams.get('gender') || '',
     ticketType: searchParams.get('ticketType') || 'general_admission',
     dayPassOptionId: searchParams.get('dayPassOptionId') || '',
     housingType: searchParams.get('housingType') || 'on_campus',
-    roomType: searchParams.get('roomType') || 'double',
+    roomType: searchParams.get('roomType') || '',
     preferredRoommate: searchParams.get('preferredRoommate') || '',
     tShirtSize: searchParams.get('tShirtSize') || '',
     dietaryRestrictions: searchParams.get('dietaryRestrictions') || '',
@@ -249,30 +256,17 @@ export default function IndividualInvoiceReviewPage() {
     }
   }, [event, eventId, registrationData.couponCode, registrationData.email])
 
-  // Calculate pricing based on housing type and early bird
+  const selectedDayPass = event?.dayPassOptions?.find(opt => opt.id === registrationData.dayPassOptionId)
+
+  // Same pricing rules as the registration API, so the total shown is the amount charged
   const calculatePricing = () => {
-    if (!event) return { subtotal: 0, couponDiscount: 0, total: 0, isEarlyBird: false }
+    if (!event) return { subtotal: 0, couponDiscount: 0, total: 0 }
 
-    const { pricing } = event
-
-    // Check for early bird pricing
-    const now = new Date()
-    const earlyBirdDeadline = pricing.earlyBirdDeadline ? new Date(pricing.earlyBirdDeadline) : null
-    const isEarlyBird = earlyBirdDeadline && now <= earlyBirdDeadline
-
-    // Determine base price - use individual early bird price if applicable, with fallback
-    let subtotal = isEarlyBird
-      ? Number(pricing.individualEarlyBirdPrice || pricing.individualBasePrice || pricing.youthRegularPrice)
-      : Number(pricing.individualBasePrice || pricing.youthRegularPrice)
-
-    // Adjust based on housing type (housing-specific pricing overrides early bird)
-    if (registrationData.housingType === 'on_campus' && pricing.onCampusYouthPrice) {
-      subtotal = Number(pricing.onCampusYouthPrice)
-    } else if (registrationData.housingType === 'off_campus' && pricing.offCampusYouthPrice) {
-      subtotal = Number(pricing.offCampusYouthPrice)
-    } else if (registrationData.housingType === 'day_pass' && pricing.dayPassYouthPrice) {
-      subtotal = Number(pricing.dayPassYouthPrice)
-    }
+    const subtotal = calculateIndividualPrice(event.pricing, {
+      housingType: registrationData.housingType,
+      roomType: registrationData.roomType,
+      dayPassOptionPrice: selectedDayPass?.price ?? null,
+    })
 
     // Calculate coupon discount
     let couponDiscount = 0
@@ -286,10 +280,25 @@ export default function IndividualInvoiceReviewPage() {
 
     const total = Math.max(0, subtotal - couponDiscount)
 
-    return { subtotal, couponDiscount, total, isEarlyBird }
+    return { subtotal, couponDiscount, total }
   }
 
   const pricing = calculatePricing()
+  const attendanceLines = individualAttendanceLines({
+    ticketType: registrationData.ticketType,
+    housingType: registrationData.housingType,
+    roomType: registrationData.roomType,
+    housingOffered: !!event?.settings.porosHousingEnabled && !event?.isOneDayEvent,
+    dayPassName: selectedDayPass?.name,
+  })
+  // e.g. "123 Main St, Springfield, IL 12345"
+  const address = [
+    registrationData.street,
+    registrationData.city,
+    [registrationData.state, registrationData.zip].filter(Boolean).join(' '),
+  ].filter(Boolean).join(', ')
+  // Events with card payments turned off take check payments only
+  const cardBlocked = !!event?.settings.cardPaymentDisabled
 
   // Handle credit card payment
   const handleCreditCardPayment = async () => {
@@ -314,7 +323,7 @@ export default function IndividualInvoiceReviewPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
+        throw new Error(errorData.error || errorData.message || 'Registration failed')
       }
 
       const result = await response.json()
@@ -371,7 +380,7 @@ export default function IndividualInvoiceReviewPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
+        throw new Error(errorData.error || errorData.message || 'Registration failed')
       }
 
       const result = await response.json()
@@ -454,10 +463,10 @@ export default function IndividualInvoiceReviewPage() {
                       <span className="text-gray-600">Phone:</span>
                       <p className="font-medium text-navy">{registrationData.phone}</p>
                     </div>
-                    {registrationData.address && (
+                    {address && (
                       <div>
                         <span className="text-gray-600">Address:</span>
-                        <p className="font-medium text-navy">{registrationData.address}</p>
+                        <p className="font-medium text-navy">{address}</p>
                       </div>
                     )}
                     {registrationData.age && (
@@ -487,30 +496,22 @@ export default function IndividualInvoiceReviewPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Home className="h-5 w-5" />
-                    Housing & Room
+                    Ticket & Accommodations
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Housing Type:</span>
-                      <p className="font-medium text-navy capitalize">
-                        {registrationData.housingType.replace('_', ' ')}
-                      </p>
-                    </div>
-                    {registrationData.housingType === 'on_campus' && (
-                      <>
-                        <div>
-                          <span className="text-gray-600">Room Type:</span>
-                          <p className="font-medium text-navy capitalize">{registrationData.roomType}</p>
-                        </div>
-                        {registrationData.preferredRoommate && (
-                          <div className="col-span-2">
-                            <span className="text-gray-600">Preferred Roommate:</span>
-                            <p className="font-medium text-navy">{registrationData.preferredRoommate}</p>
-                          </div>
-                        )}
-                      </>
+                    {attendanceLines.map(line => (
+                      <div key={line.label}>
+                        <span className="text-gray-600">{line.label}:</span>
+                        <p className="font-medium text-navy">{line.value}</p>
+                      </div>
+                    ))}
+                    {registrationData.housingType === 'on_campus' && registrationData.preferredRoommate && (
+                      <div className="col-span-2">
+                        <span className="text-gray-600">Preferred Roommate:</span>
+                        <p className="font-medium text-navy">{registrationData.preferredRoommate}</p>
+                      </div>
                     )}
                   </div>
 
@@ -634,10 +635,6 @@ export default function IndividualInvoiceReviewPage() {
                       <span className="text-gray-600">Individual Registration:</span>
                       <span className="font-medium text-navy">${pricing.subtotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Housing Type:</span>
-                      <span className="text-navy capitalize">{registrationData.housingType.replace('_', ' ')}</span>
-                    </div>
 
                     {validatedCoupon && pricing.couponDiscount > 0 && (
                       <div className="flex justify-between text-sm text-green-600">
@@ -655,7 +652,7 @@ export default function IndividualInvoiceReviewPage() {
 
                   <div className="border-t border-gray-200 pt-4">
                     <div className="flex justify-between text-lg font-bold text-navy">
-                      <span>Total Due Today:</span>
+                      <span>{cardBlocked ? 'Total Due:' : 'Total Due Today:'}</span>
                       <span className="text-gold">${pricing.total.toFixed(2)}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
@@ -663,31 +660,51 @@ export default function IndividualInvoiceReviewPage() {
                     </p>
                   </div>
 
+                  {cardBlocked && (
+                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-md text-sm text-amber-900">
+                      <p className="font-semibold mb-1">{CARD_PAYMENT_DISABLED_TITLE}</p>
+                      <p>{CARD_PAYMENT_DISABLED_MESSAGE}</p>
+                    </div>
+                  )}
+
                   {/* Payment Buttons */}
                   <div className="space-y-3">
-                    <Button
-                      onClick={handleCreditCardPayment}
-                      disabled={submitting}
-                      className="w-full bg-navy hover:bg-navy/90 !text-white"
-                    >
-                      {submitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Pay with Credit Card
-                        </>
-                      )}
-                    </Button>
+                    {cardBlocked ? (
+                      <Button
+                        onClick={() => setShowCheckModal(true)}
+                        disabled={submitting}
+                        className="w-full bg-navy hover:bg-navy/90 !text-white"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Register &amp; Pay by Check
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleCreditCardPayment}
+                        disabled={submitting}
+                        className="w-full bg-navy hover:bg-navy/90 !text-white"
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Pay with Credit Card
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
 
-                  <div className="bg-beige p-4 rounded-md text-xs text-gray-600">
-                    <p className="font-semibold mb-1">Secure Payment</p>
-                    <p>Your payment is processed securely through Stripe. We never store your credit card information.</p>
-                  </div>
+                  {!cardBlocked && (
+                    <div className="bg-beige p-4 rounded-md text-xs text-gray-600">
+                      <p className="font-semibold mb-1">Secure Payment</p>
+                      <p>Your payment is processed securely through Stripe. We never store your credit card information.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

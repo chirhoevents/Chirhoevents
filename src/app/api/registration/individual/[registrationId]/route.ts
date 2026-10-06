@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { eventOffersHousing } from '@/lib/individual-registration'
 
 export async function GET(
   request: NextRequest,
@@ -20,6 +21,7 @@ export async function GET(
             settings: {
               select: {
                 liabilityFormsRequiredIndividual: true,
+                porosHousingEnabled: true,
                 contactEmail: true,
                 contactPhone: true,
               },
@@ -35,6 +37,7 @@ export async function GET(
             },
           },
         },
+        dayPassOption: { select: { name: true } },
       },
     })
 
@@ -65,8 +68,15 @@ export async function GET(
       email: registration.email,
       age: registration.age,
       qrCode: registration.qrCode,
+      ticketType: registration.ticketType,
       housingType: registration.housingType,
       roomType: registration.roomType,
+      housingOffered: eventOffersHousing(
+        registration.event.settings,
+        registration.event.startDate,
+        registration.event.endDate
+      ),
+      dayPassName: registration.dayPassOption?.name ?? null,
       eventName: registration.event.name,
       totalAmount: paymentBalance?.totalAmountDue || 0,
       amountPaid: paymentBalance?.amountPaid || 0,

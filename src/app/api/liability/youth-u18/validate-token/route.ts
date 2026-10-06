@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Check if token has expired
     if (liabilityForm.parentTokenExpiresAt && new Date() > liabilityForm.parentTokenExpiresAt) {
       return NextResponse.json(
-        { error: 'This link has expired. Please contact your group leader to resend the form.' },
+        { error: 'This link has expired. Please contact your group leader or the event organizer to resend the form.' },
         { status: 410 }
       )
     }
@@ -42,8 +42,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Anything already collected (e.g. emergency contacts and dietary needs
+    // from an individual registration) pre-fills the parent's form
+    const prefillFields = {
+      dietaryRestrictions: liabilityForm.dietaryRestrictions,
+      adaAccommodations: liabilityForm.adaAccommodations,
+      emergencyContact1Name: liabilityForm.emergencyContact1Name,
+      emergencyContact1Phone: liabilityForm.emergencyContact1Phone,
+      emergencyContact1Relation: liabilityForm.emergencyContact1Relation,
+      emergencyContact2Name: liabilityForm.emergencyContact2Name,
+      emergencyContact2Phone: liabilityForm.emergencyContact2Phone,
+      emergencyContact2Relation: liabilityForm.emergencyContact2Relation,
+    }
+    const prefill = Object.fromEntries(
+      Object.entries(prefillFields).filter(([, value]) => value)
+    )
+
     // Return youth info and event context for dynamic form config
     return NextResponse.json({
+      prefill,
       success: true,
       eventId: liabilityForm.eventId,
       eventName: liabilityForm.event?.name ?? null,

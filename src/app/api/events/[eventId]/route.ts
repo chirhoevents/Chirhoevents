@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+const optionalPrice = (value: unknown) => (value == null ? null : Number(value))
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
@@ -80,6 +82,17 @@ export async function GET(
         onCampusChaperonePrice: event.pricing?.onCampusChaperonePrice ? Number(event.pricing.onCampusChaperonePrice) : undefined,
         offCampusChaperonePrice: event.pricing?.offCampusChaperonePrice ? Number(event.pricing.offCampusChaperonePrice) : undefined,
         dayPassChaperonePrice: event.pricing?.dayPassChaperonePrice ? Number(event.pricing.dayPassChaperonePrice) : undefined,
+        // Individual registration prices: null = not set, 0 = free. The
+        // individual form and review page price with these, the same way the
+        // registration API does, so what people see is what they're charged.
+        individualBasePrice: optionalPrice(event.pricing?.individualBasePrice),
+        individualEarlyBirdPrice: optionalPrice(event.pricing?.individualEarlyBirdPrice),
+        individualOffCampusPrice: optionalPrice(event.pricing?.individualOffCampusPrice),
+        individualDayPassPrice: optionalPrice(event.pricing?.individualDayPassPrice),
+        singleRoomPrice: optionalPrice(event.pricing?.singleRoomPrice),
+        doubleRoomPrice: optionalPrice(event.pricing?.doubleRoomPrice),
+        tripleRoomPrice: optionalPrice(event.pricing?.tripleRoomPrice),
+        quadRoomPrice: optionalPrice(event.pricing?.quadRoomPrice),
       },
       settings: event.settings,
       dayPassOptions: event.dayPassOptions?.map(opt => ({

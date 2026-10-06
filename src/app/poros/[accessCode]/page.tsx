@@ -51,6 +51,7 @@ export default function PorosRoleSelection() {
 
   useEffect(() => {
     async function validateAccessCode() {
+      let redirecting = false
       try {
         const response = await fetch('/api/portal/login', {
           method: 'POST',
@@ -69,6 +70,14 @@ export default function PorosRoleSelection() {
           if (data.formCompleted) {
             setError('Your liability form has already been completed.')
             setLoading(false)
+            return
+          }
+
+          // Under 18: registration already covered step 1, so go straight to
+          // the parent/guardian part of the form
+          if (data.parentToken) {
+            redirecting = true
+            router.replace(`/poros/parent/${data.parentToken}`)
             return
           }
 
@@ -115,20 +124,21 @@ export default function PorosRoleSelection() {
       } catch (err: any) {
         setError(err.message || 'Invalid or expired access code')
       } finally {
-        setLoading(false)
+        // Keep the spinner up while redirecting to the parent form
+        if (!redirecting) setLoading(false)
       }
     }
 
     if (accessCode) {
       validateAccessCode()
     }
-  }, [accessCode])
+  }, [accessCode, router])
 
   const roles = [
     {
       type: 'youth-u18',
       title: 'Youth Under 18',
-      description: 'Ages 12-17',
+      description: 'Under age 18',
       details: 'Parent consent required',
       icon: (
         <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -541,7 +551,7 @@ export default function PorosRoleSelection() {
               <div className="ml-4">
                 <h3 className="text-lg font-semibold text-navy mb-2">Need Help Choosing?</h3>
                 <ul className="space-y-2 text-sm text-gray-700">
-                  <li><strong>Youth Under 18:</strong> If the participant is between ages 12-17, select this option. A parent will need to complete and sign the form.</li>
+                  <li><strong>Youth Under 18:</strong> If the participant is under 18, select this option. A parent will need to complete and sign the form.</li>
                   <li><strong>Youth 18+ or Chaperone:</strong> If the participant is 18 or older (including adult chaperones), select this option. The participant can complete the form themselves.</li>
                   <li><strong>Clergy &amp; Religious:</strong> For priests, deacons, seminarians, sisters, or brothers attending the event. This form has specialized fields for clergy and religious information.</li>
                 </ul>
