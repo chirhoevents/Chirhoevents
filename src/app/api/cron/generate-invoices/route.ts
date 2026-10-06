@@ -14,8 +14,9 @@ function generatePaymentToken(): string {
 // Verify cron secret or master admin auth
 async function verifyCronAuth(request: NextRequest): Promise<boolean> {
   // Check for cron secret (from Vercel Cron)
+  // (only when CRON_SECRET is set, or "Bearer undefined" would match)
   const authHeader = request.headers.get('authorization')
-  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+  if (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) {
     return true
   }
 
@@ -418,9 +419,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET endpoint for checking status / diagnostic info
-export async function GET() {
+// GET endpoint for checking status / diagnostic info (every org's billing
+// details, so cron secret or master admin only)
+export async function GET(request: NextRequest) {
   try {
+    if (!(await verifyCronAuth(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     // Get ALL active organizations with their billing info for diagnostics
     const allActiveOrgs = await prisma.organization.findMany({
       where: {

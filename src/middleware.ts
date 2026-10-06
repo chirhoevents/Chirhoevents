@@ -101,6 +101,18 @@ export default clerkMiddleware((auth, request) => {
     return NextResponse.redirect(url)
   }
 
+  // Vercel Cron calls /api/cron/* with no login session, so let it through
+  // when it carries CRON_SECRET (Vercel sends it automatically once that env
+  // var is set; each cron route checks it again)
+  const cronSecret = process.env.CRON_SECRET
+  if (
+    pathname.startsWith('/api/cron/') &&
+    cronSecret &&
+    request.headers.get('authorization') === `Bearer ${cronSecret}`
+  ) {
+    return
+  }
+
   if (!isPublicRoute(request)) {
     auth().protect()
   }
