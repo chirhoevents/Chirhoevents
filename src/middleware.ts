@@ -59,6 +59,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/stripe(.*)',  // Stripe APIs - handle their own auth
   '/api/onboarding-requests(.*)',  // Public onboarding form submission
   '/api/queue(.*)',  // Queue APIs - must be public for registration flow
+  '/api/cron/release-abandoned-checkouts',  // Vercel Cron (no session) - checks CRON_SECRET itself
 ])
 
 export default clerkMiddleware((auth, request) => {

@@ -40,7 +40,15 @@ export type AbandonCheckoutResult =
  */
 export async function abandonUnpaidCheckout(
   type: RegistrationKind,
-  registrationId: string
+  registrationId: string,
+  options: {
+    /**
+     * Also release an unpaid registration that never got a Stripe checkout
+     * (no payment rows at all), e.g. one left behind when creating the
+     * checkout failed. Only the stale-checkout sweep sets this.
+     */
+    releaseWithoutCheckout?: boolean
+  } = {}
 ): Promise<AbandonCheckoutResult> {
   const registration =
     type === 'group'
@@ -99,7 +107,9 @@ export async function abandonUnpaidCheckout(
   const sessionId = payments.find(
     p => p.paymentMethod === 'card' && p.stripePaymentIntentId?.startsWith('cs_')
   )?.stripePaymentIntentId
-  if (!sessionId) return { status: 'skipped', reason: 'no_checkout_session' }
+  if (!sessionId && !(options.releaseWithoutCheckout && payments.length === 0)) {
+    return { status: 'skipped', reason: 'no_checkout_session' }
+  }
 
   // Claim the registration first (incomplete → expired) so a concurrent
   // call, or Stripe's checkout.session.expired webhook (which skips
@@ -122,27 +132,29 @@ export async function abandonUnpaidCheckout(
 
   // Close the Stripe checkout so the old link can't be paid later. If it
   // turns out it was paid in the meantime, leave the registration alone.
-  let session: Stripe.Checkout.Session
-  try {
-    session = await stripe.checkout.sessions.retrieve(sessionId)
-    if (session.status === 'open') {
-      try {
-        session = await stripe.checkout.sessions.expire(sessionId)
-      } catch {
-        session = await stripe.checkout.sessions.retrieve(sessionId)
+  if (sessionId) {
+    let session: Stripe.Checkout.Session
+    try {
+      session = await stripe.checkout.sessions.retrieve(sessionId)
+      if (session.status === 'open') {
+        try {
+          session = await stripe.checkout.sessions.expire(sessionId)
+        } catch {
+          session = await stripe.checkout.sessions.retrieve(sessionId)
+        }
       }
+    } catch (error) {
+      await unclaim()
+      throw error
     }
-  } catch (error) {
-    await unclaim()
-    throw error
-  }
-  if (session.status === 'complete' || session.payment_status === 'paid') {
-    await unclaim()
-    return { status: 'paid' }
-  }
-  if (session.status !== 'expired') {
-    await unclaim()
-    return { status: 'skipped', reason: `session_${session.status}` }
+    if (session.status === 'complete' || session.payment_status === 'paid') {
+      await unclaim()
+      return { status: 'paid' }
+    }
+    if (session.status !== 'expired') {
+      await unclaim()
+      return { status: 'skipped', reason: `session_${session.status}` }
+    }
   }
 
   // Give back what the registration route took, mirroring its decrements.
@@ -173,4 +185,42 @@ export async function abandonUnpaidCheckout(
   await deleteRegistrationPermanently(type, registrationId)
 
   return { status: 'released' }
+}
+
+/**
+ * Release individual card registrations still unpaid long after their Stripe
+ * checkout should have expired. Stripe's checkout.session.expired webhook
+ * normally does this; the sweep catches anything it missed (a webhook not
+ * delivered, or not subscribed in the Stripe dashboard) and registrations left
+ * behind before individual checkouts were released at all. Anything Stripe
+ * says was paid is left alone and reported so it can be recovered by hand.
+ */
+export async function releaseStaleIndividualCheckouts({
+  olderThanMinutes = 120,
+  limit = 50,
+}: { olderThanMinutes?: number; limit?: number } = {}) {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60 * 1000)
+  const stale = await prisma.individualRegistration.findMany({
+    where: { registrationStatus: 'incomplete', cancelledAt: null, createdAt: { lt: cutoff } },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+    take: limit,
+  })
+
+  const summary = { checked: stale.length, released: 0, paid: [] as string[], skipped: 0, failed: 0 }
+  for (const { id } of stale) {
+    try {
+      const result = await abandonUnpaidCheckout('individual', id, { releaseWithoutCheckout: true })
+      if (result.status === 'released') summary.released++
+      else if (result.status === 'paid') summary.paid.push(id)
+      else summary.skipped++
+    } catch (error) {
+      summary.failed++
+      console.error(`[Stale checkouts] Failed to release individual registration ${id}:`, error)
+    }
+  }
+  if (summary.paid.length > 0) {
+    console.error('[Stale checkouts] Paid in Stripe but still incomplete (webhook missed?):', summary.paid)
+  }
+  return summary
 }
