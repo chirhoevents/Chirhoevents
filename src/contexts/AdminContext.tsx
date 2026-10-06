@@ -2,6 +2,7 @@
 
 import { createContext, useContext, ReactNode } from 'react'
 import { type UserRole } from '@/lib/permissions'
+import { type ModuleAccess } from '@/lib/subscription-tiers'
 
 interface AdminContextValue {
   userRole: UserRole | null
@@ -9,6 +10,9 @@ interface AdminContextValue {
   organizationName: string | null
   isImpersonating: boolean
   impersonatedOrgId: string | null
+  // Optional: only the real admin layout knows the org's plan
+  modulesEnabled?: ModuleAccess | null
+  subscriptionTier?: string | null
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null)

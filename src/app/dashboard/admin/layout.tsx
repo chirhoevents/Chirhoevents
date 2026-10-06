@@ -47,6 +47,7 @@ interface UserInfo {
     salve: boolean
     rapha: boolean
   }
+  subscriptionTier?: string | null
   primaryColor?: string
   secondaryColor?: string
   isImpersonating?: boolean
@@ -183,6 +184,7 @@ export default function AdminLayout({
             permissions: retryData.permissions,
             logoUrl: retryData.logoUrl,
             modulesEnabled: retryData.modulesEnabled,
+            subscriptionTier: retryData.subscriptionTier || null,
             primaryColor: retryData.primaryColor || '#1E3A5F',
             secondaryColor: retryData.secondaryColor || '#9C8466',
             isImpersonating: retryData.isImpersonating || false,
@@ -212,6 +214,7 @@ export default function AdminLayout({
           permissions: data.permissions,
           logoUrl: data.logoUrl,
           modulesEnabled: data.modulesEnabled,
+          subscriptionTier: data.subscriptionTier || null,
           primaryColor: data.primaryColor || '#1E3A5F',
           secondaryColor: data.secondaryColor || '#9C8466',
           isImpersonating: data.isImpersonating || false,
@@ -524,6 +527,8 @@ export default function AdminLayout({
               organizationName: userInfo?.organizationName || null,
               isImpersonating: userInfo?.isImpersonating || false,
               impersonatedOrgId: userInfo?.impersonatedOrgId || null,
+              modulesEnabled: userInfo?.modulesEnabled || null,
+              subscriptionTier: userInfo?.subscriptionTier || null,
             }}
           >
             {children}

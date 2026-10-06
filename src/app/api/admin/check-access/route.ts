@@ -110,6 +110,7 @@ export async function GET(request: NextRequest) {
         organization?.modulesEnabled,
         organization?.subscriptionTier || ''
       ),
+      subscriptionTier: organization?.subscriptionTier || null,
       primaryColor: organization?.primaryColor || '#1E3A5F',
       secondaryColor: organization?.secondaryColor || '#9C8466',
       isImpersonating: isImpersonating,
