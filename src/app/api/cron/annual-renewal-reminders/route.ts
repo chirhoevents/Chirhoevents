@@ -29,8 +29,9 @@ function formatBillingAddress(address: JsonValue | null): string | null {
 // Verify cron secret or master admin auth
 async function verifyCronAuth(request: NextRequest): Promise<boolean> {
   // Check for cron secret (from Vercel Cron)
+  // (only when CRON_SECRET is set, or "Bearer undefined" would match)
   const authHeader = request.headers.get('authorization')
-  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+  if (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) {
     return true
   }
 

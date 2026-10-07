@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 export type HousingType = 'on_campus' | 'off_campus' | 'day_pass'
@@ -218,6 +219,50 @@ export async function decrementOptionCapacity(
   }
 }
 
+// event_settings columns for each option's remaining/capacity pair
+const HOUSING_COLUMNS: Record<HousingType, string> = {
+  on_campus: 'on_campus',
+  off_campus: 'off_campus',
+  day_pass: 'day_pass',
+}
+const ROOM_COLUMNS: Record<RoomType, string> = {
+  single: 'single_room',
+  double: 'double_room',
+  triple: 'triple_room',
+  quad: 'quad_room',
+}
+
+/**
+ * Take housing/room capacity in one atomic step, only if it's still there.
+ * Unlike checkOptionCapacity() followed by decrementOptionCapacity(), two
+ * people registering at the same moment can't both get the last spot.
+ * Options with no capacity set are unlimited. Returns false if a limited
+ * option ran out.
+ */
+export async function reserveOptionCapacity(
+  eventId: string,
+  housingType: HousingType,
+  roomType: RoomType | null,
+  partySize: number = 1
+): Promise<boolean> {
+  const columns = [HOUSING_COLUMNS[housingType]]
+  if (roomType && housingType === 'on_campus' && ROOM_COLUMNS[roomType]) {
+    columns.push(ROOM_COLUMNS[roomType])
+  }
+
+  const sets = columns.map(c => Prisma.sql`${Prisma.raw(`${c}_remaining`)} = ${Prisma.raw(`${c}_remaining`)} - ${partySize}`)
+  const conditions = columns.map(c =>
+    Prisma.sql`(${Prisma.raw(`${c}_capacity`)} IS NULL OR ${Prisma.raw(`${c}_remaining`)} IS NULL OR ${Prisma.raw(`${c}_remaining`)} >= ${partySize})`
+  )
+
+  const updated = await prisma.$executeRaw`
+    UPDATE event_settings
+    SET ${Prisma.join(sets, ', ')}
+    WHERE event_id = ${eventId}::uuid AND ${Prisma.join(conditions, ' AND ')}
+  `
+  return updated > 0
+}
+
 /**
  * Increment option capacity (e.g., when a registration is cancelled)
  * This function caps the remaining value at the capacity to prevent invalid states.
@@ -424,6 +469,25 @@ export async function decrementDayPassOptionCapacity(
       remaining: { decrement: partySize },
     },
   })
+}
+
+/**
+ * Take a day pass spot in one atomic step, only if it's still available.
+ * Capacity 0 means unlimited. Returns false if the option is sold out or
+ * no longer active.
+ */
+export async function reserveDayPassOptionCapacity(
+  dayPassOptionId: string,
+  partySize: number = 1
+): Promise<boolean> {
+  const updated = await prisma.$executeRaw`
+    UPDATE day_pass_options
+    SET remaining = remaining - ${partySize}
+    WHERE id = ${dayPassOptionId}::uuid
+      AND is_active = true
+      AND (capacity = 0 OR remaining >= ${partySize})
+  `
+  return updated > 0
 }
 
 /**

@@ -11,6 +11,7 @@ import LoadingScreen from '@/components/LoadingScreen'
 import {
   calculateIndividualPrice,
   individualAttendanceLines,
+  type IndividualHousingSettings,
   type IndividualPricing,
 } from '@/lib/individual-registration'
 import { CARD_PAYMENT_DISABLED_MESSAGE, CARD_PAYMENT_DISABLED_TITLE } from '@/lib/event-card-payment-disabled'
@@ -22,7 +23,8 @@ interface EventData {
   endDate: string
   isOneDayEvent?: boolean
   pricing: IndividualPricing
-  settings: {
+  settings: IndividualHousingSettings & {
+    individualMealsEnabled?: boolean
     registrationInstructions: string | null
     checkPaymentEnabled: boolean
     checkPaymentPayableTo: string | null
@@ -77,14 +79,15 @@ export default function IndividualInvoiceReviewPage() {
   const searchParams = useSearchParams()
   const eventId = params.eventId as string
 
-  // Queue management
+  // Queue management. A waitlist invitation skips the queue, same as on the
+  // form page; otherwise invitees get sent back to the waiting room here.
   const {
     loading: queueLoading,
     queueActive,
     expiresAt,
     extensionAllowed,
     markComplete,
-  } = useRegistrationQueue(eventId, 'individual')
+  } = useRegistrationQueue(eventId, 'individual', { skip: !!searchParams.get('waitlist') })
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -257,6 +260,11 @@ export default function IndividualInvoiceReviewPage() {
   }, [event, eventId, registrationData.couponCode, registrationData.email])
 
   const selectedDayPass = event?.dayPassOptions?.find(opt => opt.id === registrationData.dayPassOptionId)
+  // Meal package add-on chosen on the form (only if the event still offers it)
+  const includeMealPackage =
+    searchParams.get('mealPackage') === '1' &&
+    !!event?.settings.individualMealsEnabled &&
+    event?.pricing.individualMealPackagePrice != null
 
   // Same pricing rules as the registration API, so the total shown is the amount charged
   const calculatePricing = () => {
@@ -266,6 +274,7 @@ export default function IndividualInvoiceReviewPage() {
       housingType: registrationData.housingType,
       roomType: registrationData.roomType,
       dayPassOptionPrice: selectedDayPass?.price ?? null,
+      includeMealPackage,
     })
 
     // Calculate coupon discount
@@ -290,6 +299,8 @@ export default function IndividualInvoiceReviewPage() {
     roomType: registrationData.roomType,
     housingOffered: !!event?.settings.porosHousingEnabled && !event?.isOneDayEvent,
     dayPassName: selectedDayPass?.name,
+    settings: event?.settings,
+    includesMealPackage: includeMealPackage,
   })
   // e.g. "123 Main St, Springfield, IL 12345"
   const address = [
@@ -297,8 +308,10 @@ export default function IndividualInvoiceReviewPage() {
     registrationData.city,
     [registrationData.state, registrationData.zip].filter(Boolean).join(' '),
   ].filter(Boolean).join(', ')
+  // Nothing to pay (free event or a full coupon): no card or check needed
+  const isFree = !!event && pricing.total <= 0
   // Events with card payments turned off take check payments only
-  const cardBlocked = !!event?.settings.cardPaymentDisabled
+  const cardBlocked = !isFree && !!event?.settings.cardPaymentDisabled
 
   // Handle credit card payment
   const handleCreditCardPayment = async () => {
@@ -317,6 +330,7 @@ export default function IndividualInvoiceReviewPage() {
           ...(waitlistToken ? { waitlistToken } : {}),
           age: registrationData.age ? parseInt(registrationData.age) : null,
           paymentMethod: 'card',
+          includeMealPackage,
           customAnswers,
         }),
       })
@@ -374,6 +388,7 @@ export default function IndividualInvoiceReviewPage() {
           ...(waitlistToken ? { waitlistToken } : {}),
           age: registrationData.age ? parseInt(registrationData.age) : null,
           paymentMethod: 'check',
+          includeMealPackage,
           customAnswers,
         }),
       })
@@ -443,7 +458,7 @@ export default function IndividualInvoiceReviewPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <User className="h-5 w-5" />
-                    Personal Information
+                    Attendee Information
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -656,7 +671,7 @@ export default function IndividualInvoiceReviewPage() {
                       <span className="text-gold">${pricing.total.toFixed(2)}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      Full payment required for individual registrations
+                      {isFree ? 'No payment required' : 'Full payment required for individual registrations'}
                     </p>
                   </div>
 
@@ -669,7 +684,25 @@ export default function IndividualInvoiceReviewPage() {
 
                   {/* Payment Buttons */}
                   <div className="space-y-3">
-                    {cardBlocked ? (
+                    {isFree ? (
+                      <Button
+                        onClick={handleCreditCardPayment}
+                        disabled={submitting}
+                        className="w-full bg-navy hover:bg-navy/90 !text-white"
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Complete Registration
+                          </>
+                        )}
+                      </Button>
+                    ) : cardBlocked ? (
                       <Button
                         onClick={() => setShowCheckModal(true)}
                         disabled={submitting}
@@ -699,7 +732,7 @@ export default function IndividualInvoiceReviewPage() {
                     )}
                   </div>
 
-                  {!cardBlocked && (
+                  {!cardBlocked && !isFree && (
                     <div className="bg-beige p-4 rounded-md text-xs text-gray-600">
                       <p className="font-semibold mb-1">Secure Payment</p>
                       <p>Your payment is processed securely through Stripe. We never store your credit card information.</p>

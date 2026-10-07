@@ -619,6 +619,7 @@ model IndividualRegistration {
   // Housing fields (only relevant for general_admission ticket type with housing)
   housingType               HousingType? @map("housing_type")
   roomType                  RoomType? @map("room_type")
+  includesMealPackage       Boolean  @default(false) @map("includes_meal_package")
   preferredRoommate         String?  @map("preferred_roommate") @db.Text
   tShirtSize                String?  @map("t_shirt_size") @db.VarChar(10)
   dietaryRestrictions       String?  @map("dietary_restrictions") @db.Text

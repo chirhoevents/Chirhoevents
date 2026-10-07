@@ -24,6 +24,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import RecordAdditionalPaymentModal from '@/components/admin/RecordAdditionalPaymentModal'
 import { usePermissions } from '@/hooks/usePermissions'
+import { calculateIndividualPrice, type IndividualPricing } from '@/lib/individual-registration'
 
 interface Event {
   id: string
@@ -39,7 +40,7 @@ interface Event {
     onCampusChaperonePrice?: number | null
     offCampusChaperonePrice?: number | null
     dayPassChaperonePrice?: number | null
-  } | null
+  } & IndividualPricing | null
 }
 
 interface IndividualRegistration {
@@ -168,30 +169,36 @@ export default function RegistrationDetailClient({
     return {}
   })
 
-  // Calculate price based on housing type
+  // Preview of the new total after a housing/room change. Same rule the save
+  // uses: add the difference between the old and new option (individual
+  // prices as of when they registered), so coupons and add-ons are kept.
+  const originalPrice = paymentBalance?.totalAmountDue || 0
   const calculatePrice = () => {
-    if (registration.type !== 'individual') return paymentBalance?.totalAmountDue || 0
-    if (!event.pricing) return paymentBalance?.totalAmountDue || 0
+    if (registration.type !== 'individual' || !event.pricing) return originalPrice
 
-    const housingType = formData.housingType
+    const roomFor = (housing: string | null | undefined, room: string | null | undefined) =>
+      housing === 'on_campus' ? room || null : null
+    const oldHousing = registration.housingType
+    const oldRoom = roomFor(oldHousing, registration.roomType)
+    const newHousing = formData.housingType || oldHousing
+    const newRoom = roomFor(newHousing, formData.roomType)
+    if (newHousing === oldHousing && newRoom === oldRoom) return originalPrice
 
-    // Default to youth regular price
-    let basePrice = Number(event.pricing.youthRegularPrice)
-
-    // Adjust based on housing type
-    if (housingType === 'on_campus' && event.pricing.onCampusYouthPrice) {
-      basePrice = Number(event.pricing.onCampusYouthPrice)
-    } else if (housingType === 'off_campus' && event.pricing.offCampusYouthPrice) {
-      basePrice = Number(event.pricing.offCampusYouthPrice)
-    } else if (housingType === 'day_pass' && event.pricing.dayPassYouthPrice) {
-      basePrice = Number(event.pricing.dayPassYouthPrice)
-    }
-
-    return basePrice
+    const priceFor = (housing: string | null, room: string | null) =>
+      calculateIndividualPrice(
+        event.pricing as IndividualPricing,
+        {
+          housingType: housing || 'off_campus',
+          roomType: room,
+          dayPassOptionPrice: registration.dayPassOptionPrice ?? null,
+        },
+        new Date(registration.registeredAt)
+      )
+    const difference = priceFor(newHousing, newRoom) - priceFor(oldHousing, oldRoom)
+    return Math.max(0, Math.round((originalPrice + difference) * 100) / 100)
   }
 
   const currentPrice = calculatePrice()
-  const originalPrice = paymentBalance?.totalAmountDue || 0
   const priceDifference = currentPrice - originalPrice
 
   const handleInputChange = (field: string, value: any) => {
@@ -216,35 +223,18 @@ export default function RegistrationDetailClient({
       )
 
       if (!response.ok) {
-        throw new Error('Failed to update registration')
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to update registration. Please try again.')
       }
 
-      // If price changed, update payment balance
-      if (priceDifference !== 0) {
-        const updateBalanceResponse = await fetch(
-          `/api/admin/registrations/${registration.id}/payment-balance`,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              registrationType: registration.type,
-              newTotalDue: currentPrice,
-            }),
-          }
-        )
-
-        if (!updateBalanceResponse.ok) {
-          throw new Error('Failed to update payment balance')
-        }
-      }
+      // The save also updates the balance when housing or room changed (and
+      // moves the room spot), so there's no separate balance update here
 
       alert('Registration updated successfully!')
       router.refresh()
     } catch (error) {
       console.error('Error updating registration:', error)
-      alert('Failed to update registration. Please try again.')
+      alert(error instanceof Error ? error.message : 'Failed to update registration. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -911,6 +901,12 @@ export default function RegistrationDetailClient({
                         placeholder="Jane Smith"
                       />
                     </div>
+                  )}
+
+                  {registration.includesMealPackage && (
+                    <p className="text-sm text-gray-700">
+                      <strong>Meal package:</strong> Included
+                    </p>
                   )}
                 </CardContent>
               </Card>

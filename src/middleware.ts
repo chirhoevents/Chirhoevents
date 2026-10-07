@@ -59,6 +59,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/stripe(.*)',  // Stripe APIs - handle their own auth
   '/api/onboarding-requests(.*)',  // Public onboarding form submission
   '/api/queue(.*)',  // Queue APIs - must be public for registration flow
+  '/api/cron/release-abandoned-checkouts',  // Vercel Cron (no session) - checks CRON_SECRET itself
 ])
 
 export default clerkMiddleware((auth, request) => {
@@ -98,6 +99,18 @@ export default clerkMiddleware((auth, request) => {
     const url = request.nextUrl.clone()
     url.pathname = `/invite/${inviteId}`
     return NextResponse.redirect(url)
+  }
+
+  // Vercel Cron calls /api/cron/* with no login session, so let it through
+  // when it carries CRON_SECRET (Vercel sends it automatically once that env
+  // var is set; each cron route checks it again)
+  const cronSecret = process.env.CRON_SECRET
+  if (
+    pathname.startsWith('/api/cron/') &&
+    cronSecret &&
+    request.headers.get('authorization') === `Bearer ${cronSecret}`
+  ) {
+    return
   }
 
   if (!isPublicRoute(request)) {

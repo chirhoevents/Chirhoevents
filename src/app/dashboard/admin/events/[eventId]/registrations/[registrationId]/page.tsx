@@ -37,6 +37,15 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           onCampusChaperonePrice: true,
           offCampusChaperonePrice: true,
           dayPassChaperonePrice: true,
+          individualBasePrice: true,
+          individualEarlyBirdPrice: true,
+          individualOffCampusPrice: true,
+          individualDayPassPrice: true,
+          singleRoomPrice: true,
+          doubleRoomPrice: true,
+          tripleRoomPrice: true,
+          quadRoomPrice: true,
+          earlyBirdDeadline: true,
         },
       },
     },
@@ -83,6 +92,16 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
     // Exclude non-serializable Date fields
     const { createdAt, updatedAt, ...registrationData } = individualRegistration
 
+    // Day pass price, so a housing change can be previewed with the same
+    // pricing rules the save uses
+    const dayPassOption = individualRegistration.dayPassOptionId
+      ? await prisma.dayPassOption.findUnique({
+          where: { id: individualRegistration.dayPassOptionId },
+          select: { price: true },
+        })
+      : null
+    const optionalPrice = (value: unknown) => (value == null ? null : Number(value))
+
     return (
       <RegistrationDetailClient
         event={{
@@ -98,10 +117,20 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
             onCampusChaperonePrice: event.pricing.onCampusChaperonePrice ? Number(event.pricing.onCampusChaperonePrice) : null,
             offCampusChaperonePrice: event.pricing.offCampusChaperonePrice ? Number(event.pricing.offCampusChaperonePrice) : null,
             dayPassChaperonePrice: event.pricing.dayPassChaperonePrice ? Number(event.pricing.dayPassChaperonePrice) : null,
+            individualBasePrice: optionalPrice(event.pricing.individualBasePrice),
+            individualEarlyBirdPrice: optionalPrice(event.pricing.individualEarlyBirdPrice),
+            individualOffCampusPrice: optionalPrice(event.pricing.individualOffCampusPrice),
+            individualDayPassPrice: optionalPrice(event.pricing.individualDayPassPrice),
+            singleRoomPrice: optionalPrice(event.pricing.singleRoomPrice),
+            doubleRoomPrice: optionalPrice(event.pricing.doubleRoomPrice),
+            tripleRoomPrice: optionalPrice(event.pricing.tripleRoomPrice),
+            quadRoomPrice: optionalPrice(event.pricing.quadRoomPrice),
+            earlyBirdDeadline: event.pricing.earlyBirdDeadline?.toISOString() ?? null,
           } : null,
         }}
         registration={{
           ...registrationData,
+          dayPassOptionPrice: dayPassOption ? Number(dayPassOption.price) : null,
           type: 'individual' as const,
         }}
         paymentBalance={paymentBalance ? {

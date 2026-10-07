@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
+import { CANCELLED_REGISTRATION_FORM_MESSAGE, isLiabilityFormRegistrationCancelled } from '@/lib/liability-form-registration'
 import { Resend } from '@/lib/resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
@@ -77,6 +78,10 @@ export async function POST(request: NextRequest) {
         { error: 'This form has already been completed' },
         { status: 400 }
       )
+    }
+
+    if (await isLiabilityFormRegistrationCancelled(liabilityForm)) {
+      return NextResponse.json({ error: CANCELLED_REGISTRATION_FORM_MESSAGE }, { status: 410 })
     }
 
     // Get group registration for group leader email

@@ -17,6 +17,8 @@ import CustomQuestionRenderer, {
 import {
   calculateIndividualPrice,
   individualAttendanceLines,
+  individualHousingOptions,
+  type IndividualHousingSettings,
   type IndividualPricing,
 } from '@/lib/individual-registration'
 
@@ -31,8 +33,11 @@ interface EventPricing extends IndividualPricing {
   dayPassChaperonePrice?: number
 }
 
-interface EventSettings {
+interface EventSettings extends IndividualHousingSettings {
   couponsEnabled?: boolean
+  individualMealsEnabled?: boolean
+  individualRegistrationEnabled?: boolean
+  liabilityFormsRequiredIndividual?: boolean
   allowDayPass?: boolean
   allowOnCampus?: boolean
   allowOffCampus?: boolean
@@ -42,6 +47,23 @@ interface EventSettings {
   allowTripleRoom?: boolean
   allowQuadRoom?: boolean
 }
+
+// Details a family shares, carried over when registering another family
+// member in the same tab. The attendee's own details are never carried over.
+const HOUSEHOLD_FIELDS = [
+  'email',
+  'phone',
+  'street',
+  'city',
+  'state',
+  'zip',
+  'emergencyContact1Name',
+  'emergencyContact1Phone',
+  'emergencyContact1Relation',
+  'emergencyContact2Name',
+  'emergencyContact2Phone',
+  'emergencyContact2Relation',
+] as const
 
 interface DayPassOption {
   id: string
@@ -73,6 +95,8 @@ export default function IndividualRegistrationPage() {
   const searchParams = useSearchParams()
   const eventId = params.eventId as string
   const waitlistToken = searchParams?.get('waitlist') || ''
+  const registeringAnother = searchParams?.get('another') === '1'
+  const householdKey = `chirho_household_${eventId}`
 
   // Queue management
   const {
@@ -116,6 +140,7 @@ export default function IndividualRegistrationPage() {
     housingType: 'on_campus',
     roomType: 'double',
     preferredRoommate: '',
+    includeMealPackage: false,
     tShirtSize: '',
     dietaryRestrictions: '',
     adaAccommodations: '',
@@ -131,6 +156,28 @@ export default function IndividualRegistrationPage() {
     zip: '',
     couponCode: '',
   })
+
+  // "Register another family member": start from the household details of
+  // the registration just made in this tab, then drop the flag from the URL so
+  // coming Back from the review page doesn't overwrite edits
+  const [prefilledFromHousehold, setPrefilledFromHousehold] = useState(false)
+  useEffect(() => {
+    if (!draftRestored || !registeringAnother) return
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(householdKey) || 'null')
+      if (saved && typeof saved === 'object') {
+        const household = Object.fromEntries(
+          HOUSEHOLD_FIELDS.filter(field => typeof saved[field] === 'string').map(field => [field, saved[field]])
+        )
+        setFormData(prev => ({ ...prev, ...household }))
+        setPrefilledFromHousehold(true)
+      }
+    } catch {
+      // Nothing saved or storage unavailable: start blank
+    }
+    router.replace(`/events/${eventId}/register-individual`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once, right after the draft is restored
+  }, [draftRestored])
 
   const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([])
   const [customAnswers, setCustomAnswers] = useSessionDraft<CustomAnswersMap>(
@@ -173,13 +220,38 @@ export default function IndividualRegistrationPage() {
   // Housing choices only show for multi-day events with housing turned on;
   // everyone else is registered as off-campus with no room.
   const housingOffered = !!event?.settings?.porosHousingEnabled && !event?.isOneDayEvent
+  // Youth event: under-18 attendees need a parent-signed liability form
+  const isYouthEvent = !!event?.settings?.liabilityFormsRequiredIndividual
+  // What the organizer allows: on-campus and/or off-campus, which room types,
+  // and which are already full
+  const housingOptions = individualHousingOptions(event?.settings)
+  const availableRooms = housingOptions.rooms.filter(room => !room.full)
+  const onCampusAvailable =
+    housingOptions.onCampusAllowed && !housingOptions.onCampusFull && availableRooms.length > 0
+  // Off-campus not allowed: on-campus housing is required, not optional
+  const housingRequired = !housingOptions.offCampusAllowed
   const effectiveHousingType =
     formData.ticketType === 'day_pass'
       ? 'day_pass'
-      : housingOffered && formData.wantsHousing
-        ? formData.housingType
+      : housingOffered && onCampusAvailable && (formData.wantsHousing || housingRequired)
+        ? 'on_campus'
         : 'off_campus'
-  const effectiveRoomType = effectiveHousingType === 'on_campus' ? formData.roomType : ''
+  const chosenRoomAvailable = availableRooms.some(room => room.value === formData.roomType)
+  const effectiveRoomType = effectiveHousingType === 'on_campus'
+    ? (chosenRoomAvailable ? formData.roomType : availableRooms[0]?.value ?? '')
+    : ''
+  // Keep the room picker on a room type that's still open
+  useEffect(() => {
+    if (event && availableRooms.length > 0 && !chosenRoomAvailable) {
+      setFormData(prev => ({ ...prev, roomType: availableRooms[0].value }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- availableRooms is derived from event
+  }, [event, chosenRoomAvailable])
+
+  // Optional meal package add-on, when the organizer offers one
+  const mealPackageOffered =
+    !!event?.settings?.individualMealsEnabled && event?.pricing?.individualMealPackagePrice != null
+  const includeMealPackage = mealPackageOffered && !!formData.includeMealPackage
   const selectedDayPass = formData.ticketType === 'day_pass'
     ? event?.dayPassOptions?.find(opt => opt.id === formData.dayPassOptionId)
     : undefined
@@ -190,6 +262,7 @@ export default function IndividualRegistrationPage() {
         housingType: effectiveHousingType,
         roomType: effectiveRoomType,
         dayPassOptionPrice: selectedDayPass?.price ?? null,
+        includeMealPackage,
       })
     : 0
 
@@ -263,6 +336,7 @@ export default function IndividualRegistrationPage() {
       housingType: effectiveHousingType,
       roomType: effectiveRoomType,
       preferredRoommate: effectiveHousingType === 'on_campus' ? formData.preferredRoommate : '',
+      ...(includeMealPackage ? { mealPackage: '1' } : {}),
       tShirtSize: formData.tShirtSize,
       dietaryRestrictions: formData.dietaryRestrictions,
       adaAccommodations: formData.adaAccommodations,
@@ -275,6 +349,16 @@ export default function IndividualRegistrationPage() {
       couponCode: formData.couponCode,
       ...(waitlistToken ? { waitlist: waitlistToken } : {}),
     })
+
+    // Remember the household details for "Register another family member"
+    try {
+      sessionStorage.setItem(
+        householdKey,
+        JSON.stringify(Object.fromEntries(HOUSEHOLD_FIELDS.map(field => [field, formData[field]])))
+      )
+    } catch {
+      // Non-fatal: the next family member just starts from a blank form
+    }
 
     // Persist custom answers in sessionStorage so the review page can include them
     sessionStorage.setItem(
@@ -296,6 +380,25 @@ export default function IndividualRegistrationPage() {
           <CardContent className="p-8 text-center">
             <p className="text-red-600 mb-4">{error}</p>
             <Button onClick={() => router.push('/')}>Return Home</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (event && event.settings?.individualRegistrationEnabled === false && !waitlistToken) {
+    return (
+      <div className="min-h-screen bg-beige flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-navy mb-2">Individual Registration Not Available</h2>
+            <p className="text-gray-600 mb-4">
+              {event.name} doesn&apos;t accept individual registrations. Please contact the event organizer.
+            </p>
+            <Button onClick={() => router.push(`/events/${eventId}`)} className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+              Back to Event
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -395,10 +498,20 @@ export default function IndividualRegistrationPage() {
                 {/* Personal Information */}
                 <Card className="mb-6">
                   <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
-                    <CardDescription>Tell us about yourself</CardDescription>
+                    <CardTitle>Attendee Information</CardTitle>
+                    <CardDescription>
+                      {isYouthEvent
+                        ? "Enter the details of the person attending. Registering your child? Enter your child's name, age and details, and use your own email and phone so we can reach you."
+                        : 'Enter the details of the person attending.'}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {prefilledFromHousehold && (
+                      <div className="bg-green-50 border border-green-200 rounded-md p-3 text-sm text-green-800">
+                        We filled in the email, phone, address and emergency contacts from your last registration.
+                        Check them, then enter this attendee&apos;s own details.
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-navy mb-2">
@@ -455,6 +568,11 @@ export default function IndividualRegistrationPage() {
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           placeholder="john@example.com"
                         />
+                        {isYouthEvent && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            For a child, use a parent&apos;s email. The confirmation and the parent liability form link are sent here.
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -596,7 +714,7 @@ export default function IndividualRegistrationPage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                           value={formData.age}
                           onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                          placeholder="25"
+                          placeholder={isYouthEvent ? "Attendee's age" : '25'}
                         />
                       </div>
 
@@ -741,26 +859,33 @@ export default function IndividualRegistrationPage() {
                           Housing Preference
                         </label>
 
-                        {/* Housing toggle */}
-                        <div className="flex items-center space-x-3 mb-4">
-                          <input
-                            type="checkbox"
-                            id="wantsHousing"
-                            checked={formData.wantsHousing}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              wantsHousing: e.target.checked,
-                              housingType: e.target.checked ? 'on_campus' : 'off_campus'
-                            })}
-                            className="w-4 h-4 text-gold border-gray-300 rounded"
-                          />
-                          <label htmlFor="wantsHousing" className="text-sm text-gray-700">
-                            I need on-campus housing
-                          </label>
-                        </div>
+                        {/* Housing toggle: hidden when on-campus isn't possible or is required */}
+                        {onCampusAvailable && !housingRequired && (
+                          <div className="flex items-center space-x-3 mb-4">
+                            <input
+                              type="checkbox"
+                              id="wantsHousing"
+                              checked={formData.wantsHousing}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                wantsHousing: e.target.checked,
+                                housingType: e.target.checked ? 'on_campus' : 'off_campus'
+                              })}
+                              className="w-4 h-4 text-gold border-gray-300 rounded"
+                            />
+                            <label htmlFor="wantsHousing" className="text-sm text-gray-700">
+                              I need on-campus housing
+                            </label>
+                          </div>
+                        )}
+                        {onCampusAvailable && housingRequired && (
+                          <p className="text-sm text-gray-700 mb-4">
+                            On-campus housing is required for this event. Choose your room type:
+                          </p>
+                        )}
 
-                        {/* Room Type Selection - Only if wants housing */}
-                        {formData.wantsHousing && (
+                        {/* Room Type Selection - Only if staying on campus */}
+                        {effectiveHousingType === 'on_campus' && (
                           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-4">
                             <div>
                               <label className="block text-sm font-medium text-navy mb-2">
@@ -769,21 +894,17 @@ export default function IndividualRegistrationPage() {
                               <select
                                 required
                                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
-                                value={formData.roomType}
+                                value={effectiveRoomType}
                                 onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
                               >
-                                {event?.settings?.allowSingleRoom !== false && (
-                                  <option value="single">Single Room {event?.pricing?.singleRoomPrice ? `(+$${event.pricing.singleRoomPrice})` : ''}</option>
-                                )}
-                                {event?.settings?.allowDoubleRoom !== false && (
-                                  <option value="double">Double Room {event?.pricing?.doubleRoomPrice ? `(+$${event.pricing.doubleRoomPrice})` : ''}</option>
-                                )}
-                                {event?.settings?.allowTripleRoom !== false && (
-                                  <option value="triple">Triple Room {event?.pricing?.tripleRoomPrice ? `(+$${event.pricing.tripleRoomPrice})` : ''}</option>
-                                )}
-                                {event?.settings?.allowQuadRoom !== false && (
-                                  <option value="quad">Quad Room {event?.pricing?.quadRoomPrice ? `(+$${event.pricing.quadRoomPrice})` : ''}</option>
-                                )}
+                                {housingOptions.rooms.map(room => {
+                                  const price = event?.pricing?.[`${room.value}RoomPrice` as 'singleRoomPrice']
+                                  return (
+                                    <option key={room.value} value={room.value} disabled={room.full}>
+                                      {room.label}{price ? ` (+$${price})` : ''}{room.full ? ' — Full' : ''}
+                                    </option>
+                                  )
+                                })}
                               </select>
                             </div>
 
@@ -805,11 +926,33 @@ export default function IndividualRegistrationPage() {
                           </div>
                         )}
 
-                        {!formData.wantsHousing && (
+                        {effectiveHousingType !== 'on_campus' && (
                           <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                            You will arrange your own accommodations off-campus.
+                            {!onCampusAvailable && housingOptions.onCampusAllowed
+                              ? 'On-campus housing is full. '
+                              : ''}
+                            {housingRequired && !onCampusAvailable
+                              ? 'Please contact the event organizer about housing before registering.'
+                              : 'You will arrange your own accommodations off-campus.'}
                           </p>
                         )}
+                      </div>
+                    )}
+
+                    {/* Meal package add-on */}
+                    {mealPackageOffered && (
+                      <div className="border-t pt-4 mt-4 flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          id="includeMealPackage"
+                          checked={!!formData.includeMealPackage}
+                          onChange={(e) => setFormData({ ...formData, includeMealPackage: e.target.checked })}
+                          className="w-4 h-4 mt-1 text-gold border-gray-300 rounded"
+                        />
+                        <label htmlFor="includeMealPackage" className="text-sm text-gray-700">
+                          <span className="font-medium text-navy">Add the meal package</span>{' '}
+                          (+${Number(event?.pricing?.individualMealPackagePrice ?? 0).toFixed(2)}) — all event meals
+                        </label>
                       </div>
                     )}
                   </CardContent>
@@ -1111,6 +1254,8 @@ export default function IndividualRegistrationPage() {
                       roomType: effectiveRoomType,
                       housingOffered,
                       dayPassName: selectedDayPass?.name,
+                      settings: event?.settings,
+                      includesMealPackage: includeMealPackage,
                     }).map(line => (
                       <div key={line.label} className="flex justify-between text-sm">
                         <span className="text-gray-600">{line.label}:</span>

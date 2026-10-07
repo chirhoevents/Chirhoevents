@@ -135,6 +135,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='external_balance_payment_url') THEN
     RAISE EXCEPTION 'Schema drift after db push: event_settings.external_balance_payment_url is missing';
   END IF;
+  -- Individual meal package add-on (every individual registration query selects it)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='individual_registrations' AND column_name='includes_meal_package') THEN
+    RAISE EXCEPTION 'Schema drift after db push: individual_registrations.includes_meal_package is missing';
+  END IF;
   -- Pre-checkout acknowledgment checklist
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='registration_acknowledgment_items') THEN
     RAISE EXCEPTION 'Schema drift after db push: event_settings.registration_acknowledgment_items is missing';

@@ -7,13 +7,8 @@ import QRCode from 'qrcode'
 import { generateGroupRegistrationConfirmationEmail, wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { markWaitlistAsRegistered } from '@/lib/waitlist-utils'
-import {
-  eventOffersHousing,
-  individualAttendanceLines,
-  individualLiabilityEmailBlock,
-  individualLiabilityFormUrl,
-  organizerMessageBlock,
-} from '@/lib/individual-registration'
+import { buildIndividualConfirmedEmail } from '@/lib/individual-confirmation-email'
+import { abandonUnpaidCheckout } from '@/lib/abandoned-checkout'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -489,21 +484,6 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
-        const liabilityRequired = !!registration.event.settings?.liabilityFormsRequiredIndividual
-        const isMinor = registration.age != null && registration.age < 18
-        const attendanceLines = individualAttendanceLines({
-          ticketType: registration.ticketType,
-          housingType: registration.housingType,
-          roomType: registration.roomType,
-          housingOffered: eventOffersHousing(
-            registration.event.settings,
-            registration.event.startDate,
-            registration.event.endDate
-          ),
-          dayPassName: registration.dayPassOption?.name,
-        })
-
         // Update payment balance with the actual amount Stripe collected
         const actualAmountPaid = session.amount_total! / 100
         const existingBalance = await prisma.paymentBalance.findFirst({
@@ -527,120 +507,32 @@ export async function POST(request: NextRequest) {
         })
 
         // Send confirmation email with QR code
+        const confirmedEmail = buildIndividualConfirmedEmail({
+          registration: {
+            ...registration,
+            dayPassName: registration.dayPassOption?.name,
+            parentToken: registration.liabilityForms[0]?.parentToken,
+          },
+          event: registration.event,
+          payment: { method: 'card', receiptUrl: chargeReceiptUrl },
+        })
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
           reply_to: resolveReplyTo(registration.event.settings, registration.event.organization),
           to: registration.email,
-          subject: `Registration Confirmed - ${registration.event.name}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-                ${registration.event.organization.logoUrl
-                  ? `<img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal-white.png" alt="${registration.event.organization.name}" style="max-height: 80px; max-width: 300px;" />`
-                  : `<h1 style="color: white; margin: 0;">${registration.event.organization.name}</h1>`
-                }
-              </div>
-
-              <div style="padding: 30px 20px;">
-                <h1 style="color: #1E3A5F; margin-top: 0;">✅ Registration Confirmed!</h1>
-
-                <p>Dear ${registration.firstName},</p>
-
-                <p>Thank you for registering for <strong>${registration.event.name}</strong>! Your payment has been received and your registration is complete.</p>
-
-                ${organizerMessageBlock(registration.event.settings?.confirmationEmailMessage)}
-
-                <div style="background-color: #E8F4F8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #1E3A5F;">
-                  <h2 style="color: #1E3A5F; margin-top: 0;">Your Confirmation Code</h2>
-                  <div style="background-color: white; padding: 15px; border-radius: 5px; display: inline-block; margin: 10px 0;">
-                    <span style="font-size: 28px; font-weight: bold; color: #1E3A5F; letter-spacing: 2px; font-family: 'Courier New', monospace;">${registration.confirmationCode || 'N/A'}</span>
-                  </div>
-                  <p style="font-size: 14px; color: #666; margin-top: 10px;">
-                    Keep this code safe! You'll need it for payments and to look up your registration.
-                  </p>
-                </div>
-
-                <div style="background-color: #D4EDDA; padding: 20px; border-left: 4px solid #28A745; margin: 20px 0;">
-                  <h3 style="color: #155724; margin-top: 0;">✓ Payment Confirmed</h3>
-                  <p style="margin: 5px 0; color: #155724;"><strong>Status:</strong> Paid in Full</p>
-                  <p style="margin: 5px 0; color: #155724;"><strong>Payment Method:</strong> Credit Card</p>
-                  ${chargeReceiptUrl ? `<p style="margin: 5px 0; color: #155724;"><a href="${chargeReceiptUrl}" style="color: #1E3A5F; font-weight: bold;">View Stripe Receipt</a></p>` : ''}
-                </div>
-
-                <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                  <h3 style="color: #1E3A5F; margin-top: 0;">Your Check-In QR Code</h3>
-                  <p style="font-size: 16px; color: #1E3A5F; margin: 15px 0;">
-                    <strong>View and download your QR code on your confirmation page:</strong>
-                  </p>
-                  <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/registration/confirmation/individual/${registration.id}"
-                     style="display: inline-block; background-color: #1E3A5F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0;">
-                    View My QR Code
-                  </a>
-                  <p style="font-size: 14px; color: #666; margin-top: 15px;">
-                    <strong>Save this QR code!</strong> You'll need it for check-in at the event.
-                  </p>
-                </div>
-
-                <h3 style="color: #1E3A5F;">Registration Summary</h3>
-                <div style="background-color: #F5F5F5; padding: 15px; border-radius: 8px;">
-                  <p style="margin: 5px 0;"><strong>Name:</strong> ${registration.firstName} ${registration.lastName}</p>
-                  <p style="margin: 5px 0;"><strong>Email:</strong> ${registration.email}</p>
-                  ${attendanceLines.map(line => `<p style="margin: 5px 0;"><strong>${line.label}:</strong> ${line.value}</p>`).join('')}
-                </div>
-
-                <h3 style="color: #1E3A5F;">Next Steps:</h3>
-                <ol>
-                  <li><strong>Save Your QR Code:</strong> Visit your confirmation page to download your QR code for check-in.</li>
-                  ${liabilityRequired ? `
-                  <li><strong>${isMinor ? 'Parent/Guardian Completes the Liability Form' : 'Complete Your Liability Form'}:</strong> Use the button below${isMinor ? ` — a parent or guardian must fill out and sign ${registration.firstName}'s form` : ''}.</li>
-                  ` : ''}
-                  <li><strong>Check-In:</strong> Bring your QR code (on your phone or printed) to check in at the event.</li>
-                  <li><strong>Prepare:</strong> Review your confirmation details and pack accordingly.</li>
-                </ol>
-
-                ${liabilityRequired ? individualLiabilityEmailBlock({
-                  url: individualLiabilityFormUrl(
-                    appUrl,
-                    registration.confirmationCode,
-                    isMinor ? registration.liabilityForms[0]?.parentToken : null
-                  ),
-                  isMinor,
-                  participantFirstName: registration.firstName,
-                }) : ''}
-
-                ${registration.event.settings?.registrationInstructions ? `
-                  <div style="background-color: #F0F8FF; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="color: #1E3A5F; margin-top: 0;">Important Information</h3>
-                    <p style="white-space: pre-line;">${registration.event.settings.registrationInstructions}</p>
-                  </div>
-                ` : ''}
-
-                <p>We can't wait to see you at ${registration.event.name}!</p>
-
-                <!-- FIX 3.14: Org contact info -->
-                <div style="background-color: #E8F4FD; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1E3A5F;">
-                  <h3 style="color: #1E3A5F; margin-top: 0;">Need to Make Changes?</h3>
-                  <p style="color: #333; margin-bottom: 8px;">
-                    Individual registrations are managed by <strong>${registration.event.organization.name}</strong>.
-                    Please contact the organizer directly:
-                  </p>
-                  ${registration.event.organization.contactEmail ? `<p style="margin: 4px 0;">📧 <a href="mailto:${registration.event.organization.contactEmail}" style="color: #1E3A5F;">${registration.event.organization.contactEmail}</a></p>` : ''}
-                  ${registration.event.organization.contactPhone ? `<p style="margin: 4px 0;">📞 <a href="tel:${registration.event.organization.contactPhone}" style="color: #1E3A5F;">${registration.event.organization.contactPhone}</a></p>` : ''}
-                  ${registration.event.organization.website ? `<p style="margin: 4px 0;">🌐 <a href="${registration.event.organization.website}" style="color: #1E3A5F;">${registration.event.organization.website}</a></p>` : ''}
-                </div>
-
-                <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                  © ${new Date().getFullYear()} ${registration.event.organization.name}. All rights reserved.
-                </p>
-              </div>
-            </div>
-          `,
+          subject: confirmedEmail.subject,
+          html: confirmedEmail.html,
         })
 
         console.log('✅ Individual registration confirmed and email sent to:', registration.email)
 
-        // FIX 2.6: Increment coupon usage after confirmed payment
-        if (session.metadata?.couponId) {
+        // FIX 2.6: Increment coupon usage after confirmed payment — only for
+        // registrations made before uses were claimed at registration time
+        // (those have a CouponRedemption row and are already counted)
+        const alreadyCounted = session.metadata?.couponId
+          ? await prisma.couponRedemption.count({ where: { registrationId, registrationType: 'individual' } })
+          : 0
+        if (session.metadata?.couponId && alreadyCounted === 0) {
           await prisma.coupon.update({
             where: { id: session.metadata.couponId },
             data: { usageCount: { increment: 1 } },
@@ -1273,6 +1165,20 @@ export async function POST(request: NextRequest) {
     const registrationId = session.metadata?.registrationId
     if (!registrationId) {
       console.log('⚠️ checkout.session.expired: no registrationId in metadata, skipping')
+      return NextResponse.json({ received: true })
+    }
+
+    // Individual checkouts that were never paid: remove the registration and
+    // give back its spots (same cleanup as when someone backs out of Stripe).
+    // abandonUnpaidCheckout re-checks Stripe and leaves anything paid alone.
+    if (session.metadata?.registrationType === 'individual') {
+      try {
+        const result = await abandonUnpaidCheckout('individual', registrationId)
+        console.log(`✅ checkout.session.expired: individual ${registrationId} →`, result)
+      } catch (error) {
+        console.error('❌ Error releasing expired individual checkout:', error)
+        return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
+      }
       return NextResponse.json({ received: true })
     }
 

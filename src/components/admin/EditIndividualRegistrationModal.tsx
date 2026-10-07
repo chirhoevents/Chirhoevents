@@ -180,14 +180,15 @@ export default function EditIndividualRegistrationModal({
       )
 
       if (!response.ok) {
-        throw new Error('Failed to update registration')
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to update registration. Please try again.')
       }
 
       onUpdate?.()
       onClose()
     } catch (error) {
       console.error('Error updating registration:', error)
-      alert('Failed to update registration. Please try again.')
+      alert(error instanceof Error ? error.message : 'Failed to update registration. Please try again.')
     } finally {
       setSaving(false)
     }

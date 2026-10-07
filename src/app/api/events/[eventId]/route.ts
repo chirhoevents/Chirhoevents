@@ -93,6 +93,7 @@ export async function GET(
         doubleRoomPrice: optionalPrice(event.pricing?.doubleRoomPrice),
         tripleRoomPrice: optionalPrice(event.pricing?.tripleRoomPrice),
         quadRoomPrice: optionalPrice(event.pricing?.quadRoomPrice),
+        individualMealPackagePrice: optionalPrice(event.pricing?.individualMealPackagePrice),
       },
       settings: event.settings,
       dayPassOptions: event.dayPassOptions?.map(opt => ({
