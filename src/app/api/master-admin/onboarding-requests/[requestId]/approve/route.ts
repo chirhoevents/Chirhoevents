@@ -5,7 +5,7 @@ import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import Stripe from 'stripe'
 import crypto from 'crypto'
 import { SUBSCRIPTION_TIERS, getTier } from '@/lib/subscription-tiers'
-import { ONBOARDING_SUPPORT_EMAIL, generateOrgAdminOnboardingEmail, type OnboardingBilling } from '@/emails/org-admin-onboarding'
+import { generateOrgAdminOnboardingEmail, type OnboardingBilling } from '@/emails/org-admin-onboarding'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
@@ -297,7 +297,7 @@ export async function POST(
     try {
       const { error } = await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-        reply_to: ONBOARDING_SUPPORT_EMAIL,
+        reply_to: 'support@chirhoevents.com',
         to: orgAdminUser.email,
         subject: `Welcome to ChiRho Events: ${organization.name} is approved`,
         html: welcomeEmailHtml,
