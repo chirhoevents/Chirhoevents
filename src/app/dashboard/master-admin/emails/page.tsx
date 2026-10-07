@@ -118,6 +118,8 @@ export default function EmailsPage() {
   const { getToken } = useAuth()
   const searchParamsHook = useSearchParams()
   const ticketQuery = searchParamsHook?.get('ticket')
+  const emailQuery = searchParamsHook?.get('email')
+  const openReplyFromLink = searchParamsHook?.get('reply') === '1'
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received')
   const [receivedEmails, setReceivedEmails] = useState<ReceivedEmail[]>([])
   const [sentEmails, setSentEmails] = useState<SentEmail[]>([])
@@ -250,6 +252,32 @@ export default function EmailsPage() {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     }
   }
+
+  useEffect(() => {
+    // New-email notifications link here with ?email=<id>&reply=1 so the
+    // message opens with the reply box ready.
+    if (!emailQuery) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const response = await fetch(`/api/master-admin/emails/received/${emailQuery}`, {
+          headers: await authHeaders(),
+        })
+        if (!response.ok) return
+        const data = await response.json()
+        if (cancelled || !data.email) return
+        setActiveTab('received')
+        openEmailPreview(data.email)
+        if (openReplyFromLink) setMode('reply')
+      } catch (error) {
+        console.error('Failed to open linked email:', error)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailQuery])
 
   const openForward = async (email: ReceivedEmail) => {
     setMode('forward')

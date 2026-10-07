@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import {
+  getMasterAdminNotifyEmails,
   isLikelySpamInbound,
   renderMasterAdminNotificationHtml,
   sendMasterAdminNotification,
@@ -258,6 +259,19 @@ async function handleInboundEmail(emailData: any) {
           data: { processed: true, processedAt: new Date() },
         })
 
+        if (!isAutoReply(emailData.subject, headers)) {
+          await notifyAdminOfInboundEmail({
+            receivedEmailId: receivedEmail.id,
+            emailData,
+            textBody,
+            htmlBody,
+            title: `New reply on ticket #${existingTicket.ticketNumber}`,
+            intro: 'Someone replied to an existing support conversation.',
+            subjectPrefix: 'New reply:',
+            extraRows: [{ label: 'Ticket', value: `#${existingTicket.ticketNumber}` }],
+          })
+        }
+
         console.log('[Resend Webhook] Reply threaded into ticket #', referencedTicketNumber)
         return
       }
@@ -316,31 +330,45 @@ async function handleInboundEmail(emailData: any) {
         await sendDefaultAutoReply(emailData, ticket.ticketNumber)
       }
 
-      // Notify master-admin recipients about the new ticket unless it
-      // trips the spam heuristic — the whole point of the notification
-      // is that the admin does NOT have to open the dashboard to find
-      // out about real inbound support, so junk must be filtered out
-      // before we forward it.
-      const flaggedSpam = isLikelySpamInbound({
-        subject: ticket.subject,
-        message: ticket.message,
-        fromEmail: ticket.fromEmail,
-      })
-      if (flaggedSpam) {
-        console.log(
-          '[Resend Webhook] Skipping master-admin notification for likely-spam ticket #',
-          ticket.ticketNumber,
-        )
-      } else {
-        await sendInboundTicketAdminNotification(ticket)
+      if (!isAutoReply(emailData.subject, headers)) {
+        await notifyAdminOfInboundEmail({
+          receivedEmailId: receivedEmail.id,
+          emailData,
+          textBody,
+          htmlBody,
+          title: `New support ticket #${ticket.ticketNumber}`,
+          intro: `A new message came in to ${toAddress || 'the support inbox'}.`,
+          subjectPrefix: `[Ticket #${ticket.ticketNumber}]`,
+          extraRows: [
+            { label: 'Ticket', value: `#${ticket.ticketNumber}` },
+            { label: 'Category', value: ticket.category ?? 'general' },
+          ],
+        })
       }
     } else {
       console.log('[Resend Webhook] No ticket created — address not configured for tickets:', toAddress)
     }
 
     // 6. Forward email if configured
-    if (forwardConfig?.forwardTo && forwardConfig.forwardTo.length > 0) {
-      await forwardEmail(emailData, ticket, forwardConfig.forwardTo)
+    const forwardTo = forwardConfig?.forwardTo ?? []
+    if (forwardTo.length > 0) {
+      await forwardEmail(emailData, ticket, forwardTo)
+    }
+
+    // Mail that didn't open a ticket still lands in the Emails inbox, so let
+    // the master admin know it's there — unless it was just forwarded to them.
+    const notifyRecipients = getMasterAdminNotifyEmails().map((e) => e.toLowerCase())
+    const alreadyForwardedToAdmin = forwardTo.some((e) => notifyRecipients.includes(e.trim().toLowerCase()))
+    if (!ticket && !alreadyForwardedToAdmin && !isAutoReply(emailData.subject, headers)) {
+      await notifyAdminOfInboundEmail({
+        receivedEmailId: receivedEmail.id,
+        emailData,
+        textBody,
+        htmlBody,
+        title: 'New email',
+        intro: `A message came in to ${toAddress || 'a ChiRho Events address'}.`,
+        subjectPrefix: 'New email:',
+      })
     }
 
     // 7. Mark email as processed
@@ -561,7 +589,7 @@ async function forwardEmail(emailData: any, ticket: any, forwardTo: string[]) {
           ${ticket ? `
             <p style="margin-top: 20px; font-size: 12px; color: #666;">
               View in admin dashboard:
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/dashboard/master-admin/inbound-tickets/${ticket.id}">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/dashboard/master-admin/emails?email=${ticket.receivedEmailId}&amp;reply=1">
                 Open Ticket #${ticket.ticketNumber}
               </a>
             </p>
@@ -577,40 +605,66 @@ async function forwardEmail(emailData: any, ticket: any, forwardTo: string[]) {
   }
 }
 
-async function sendInboundTicketAdminNotification(ticket: {
-  id: string
-  ticketNumber: number
-  fromName: string | null
-  fromEmail: string
-  subject: string
-  message: string
-  category: string | null
-  priority: string
-}) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
-  const senderLabel = ticket.fromName
-    ? `${ticket.fromName} <${ticket.fromEmail}>`
-    : ticket.fromEmail
+const NOTIFICATION_MESSAGE_LIMIT = 3000
 
+/**
+ * Email the master-admin notification list (chirhoevents@gmail.com by
+ * default) that a real message needs a reply. The button opens it in the
+ * Emails page, where replies go out as ChiRho Events Support rather than
+ * from a personal inbox. Obvious junk is skipped.
+ */
+async function notifyAdminOfInboundEmail(args: {
+  receivedEmailId: string
+  emailData: any
+  textBody: string | null
+  htmlBody: string | null
+  title: string
+  intro: string
+  subjectPrefix: string
+  extraRows?: { label: string; value: string }[]
+}) {
+  const subject = args.emailData.subject || '(No Subject)'
+  const fromMatch = (args.emailData.from || '').match(/^(.*?)\s*<(.+?)>$/)
+  const fromName = fromMatch ? fromMatch[1].trim().replace(/^"|"$/g, '') : ''
+  const fromEmail = fromMatch ? fromMatch[2].trim() : (args.emailData.from || 'unknown sender')
+
+  let message = args.textBody?.trim() || ''
+  if (!message && args.htmlBody) {
+    message = args.htmlBody
+      .replace(/<(style|script)[\s\S]*?<\/\1>/gi, '')
+      .replace(/<br\s*\/?>|<\/(p|div|li|tr)>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  }
+  if (message.length > NOTIFICATION_MESSAGE_LIMIT) {
+    message = `${message.slice(0, NOTIFICATION_MESSAGE_LIMIT)}\n\n… (open it in the dashboard to read the rest)`
+  }
+
+  if (isLikelySpamInbound({ subject, message, fromEmail })) {
+    console.log('[Resend Webhook] Skipping master-admin notification for likely spam from', fromEmail)
+    return
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
   await sendMasterAdminNotification({
-    subject: `[Ticket #${ticket.ticketNumber}] ${ticket.subject}`,
-    replyTo: ticket.fromEmail,
+    subject: `${args.subjectPrefix} ${subject}`,
+    replyTo: fromEmail,
     html: renderMasterAdminNotificationHtml({
-      title: 'New inbound support ticket',
-      intro: 'A message just came in to the support inbox.',
+      title: args.title,
+      intro: args.intro,
       rows: [
-        { label: 'Ticket', value: `#${ticket.ticketNumber}` },
-        { label: 'From', value: senderLabel },
-        { label: 'Subject', value: ticket.subject },
-        { label: 'Category', value: ticket.category ?? 'general' },
-        { label: 'Priority', value: ticket.priority },
+        { label: 'From', value: fromName ? `${fromName} <${fromEmail}>` : fromEmail },
+        { label: 'Subject', value: subject },
+        ...(args.extraRows ?? []),
       ],
       bodyLabel: 'Message',
-      bodyText: ticket.message,
-      ctaLabel: 'Open ticket',
-      ctaUrl: `${appUrl}/dashboard/master-admin/inbound-tickets/${ticket.id}`,
+      bodyText: message || '(No message body)',
+      ctaLabel: 'Reply in ChiRho Events',
+      ctaUrl: `${appUrl}/dashboard/master-admin/emails?email=${args.receivedEmailId}&reply=1`,
       footerNote:
-        'Replying directly to this email goes to the sender. Obvious junk is auto-skipped from these notifications and only shown in the dashboard.',
+        'Use the button to answer from the Emails page, so your reply goes out as ChiRho Events Support. Replying to this notification directly would answer from this inbox instead.',
     }),
   })
 }

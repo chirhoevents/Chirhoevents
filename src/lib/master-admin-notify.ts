@@ -43,13 +43,15 @@ export async function sendMasterAdminNotification(args: {
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'
 
   try {
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: `ChiRho Events <${fromEmail}>`,
       to: recipients,
       reply_to: args.replyTo,
       subject: args.subject,
       html: args.html,
     })
+    // The Resend SDK reports most failures here rather than throwing
+    if (error) console.error('[master-admin-notify] send failed', error)
   } catch (err) {
     console.error('[master-admin-notify] send failed', err)
   }
