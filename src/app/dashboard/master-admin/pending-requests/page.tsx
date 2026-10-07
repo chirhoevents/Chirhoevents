@@ -167,9 +167,18 @@ export default function PendingRequestsPage() {
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        setApproveError(data.error || 'Failed to approve this request')
+        setApproveError(
+          data.details
+            ? `${data.error || 'Failed to approve this request'}: ${data.details}`
+            : data.error || 'Failed to approve this request'
+        )
         return
       }
+      const notes = [
+        data.usedExistingLogin && 'They already had a ChiRho login, so the email asks them to sign in.',
+        data.reusedOrganization &&
+          `It used the empty copy of ${request.organizationName} left by an earlier failed approval, so there's no duplicate.`,
+      ].filter(Boolean).join(' ')
       setRequests(reqs => reqs.filter(r => r.id !== request.id))
       setSelectedRequest(null)
       setShowApproveModal(false)
@@ -177,12 +186,12 @@ export default function PendingRequestsPage() {
         data.emailSent
           ? {
               kind: 'success',
-              message: `${request.organizationName} is approved. The welcome email with their setup checklist was sent to ${data.sentTo}.`,
+              message: `${request.organizationName} is approved. The welcome email with their setup checklist was sent to ${data.sentTo}.${notes ? ` ${notes}` : ''}`,
               organizationId: data.organization.id,
             }
           : {
               kind: 'warning',
-              message: `${request.organizationName} is approved, but the welcome email didn't send${data.emailError ? ` (${data.emailError})` : ''}. Open the organization and use Resend Onboarding Email to try again.`,
+              message: `${request.organizationName} is approved, but the welcome email didn't send${data.emailError ? ` (${data.emailError})` : ''}. Open the organization and use Resend Onboarding Email to try again.${notes ? ` ${notes}` : ''}`,
               organizationId: data.organization.id,
             }
       )
