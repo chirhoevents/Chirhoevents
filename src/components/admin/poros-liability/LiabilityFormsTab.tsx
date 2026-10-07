@@ -27,7 +27,8 @@ import {
   Mail,
   Trash2,
   RefreshCw,
-  Send
+  Send,
+  Shield
 } from 'lucide-react'
 import { hasAnyMedicalInfo, hasRealMedicalText } from '@/lib/medical-info'
 import { liabilityFormNeedsApproval } from '@/lib/liability-form-approval'
@@ -1039,6 +1040,55 @@ function ParticipantRow({
   const [processing, setProcessing] = useState(false)
   const [editingEmail, setEditingEmail] = useState(false)
   const [draftParentEmail, setDraftParentEmail] = useState(participant.parentEmail || '')
+  const [showCertUpload, setShowCertUpload] = useState(false)
+  const [certFile, setCertFile] = useState<File | null>(null)
+  const [certProgram, setCertProgram] = useState('')
+  const [certCompletionDate, setCertCompletionDate] = useState('')
+  const [certExpirationDate, setCertExpirationDate] = useState('')
+  const [certMarkVerified, setCertMarkVerified] = useState(true)
+
+  async function handleUploadCertificate() {
+    if (!participant.formId || !certFile) return
+
+    setProcessing(true)
+    try {
+      const token = await getToken()
+      const body = new FormData()
+      body.append('file', certFile)
+      if (certProgram.trim()) body.append('programName', certProgram.trim())
+      if (certCompletionDate) body.append('completionDate', certCompletionDate)
+      if (certExpirationDate) body.append('expirationDate', certExpirationDate)
+      body.append('markVerified', certMarkVerified ? 'true' : 'false')
+
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/forms/${participant.formId}/certificate`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body,
+        }
+      )
+
+      const data = await response.json().catch(() => ({}))
+      if (response.ok) {
+        alert(`Safe Environment certificate uploaded for ${participant.firstName} ${participant.lastName}.`)
+        setShowCertUpload(false)
+        setCertFile(null)
+        setCertProgram('')
+        setCertCompletionDate('')
+        setCertExpirationDate('')
+        setCertMarkVerified(true)
+        onUpdate()
+      } else {
+        alert(`Failed to upload: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Certificate upload error:', error)
+      alert('Failed to upload certificate')
+    } finally {
+      setProcessing(false)
+    }
+  }
 
   async function handleResendToParent(overrideParentEmail?: string) {
     if (!participant.formId) return
@@ -1386,6 +1436,21 @@ function ParticipantRow({
             <span className="text-xs text-gray-500 px-2">No approval needed</span>
           )}
 
+          {/* Admin upload of a Safe Environment certificate on the adult's behalf */}
+          {!isYouth && participant.formId && participant.formStatus !== 'pending_parent' && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowCertUpload(!showCertUpload)}
+              disabled={processing}
+              title="Upload a Safe Environment certificate on their behalf"
+              className="text-xs border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
+              <Shield className="w-4 h-4 mr-1" />
+              Upload Cert
+            </Button>
+          )}
+
           {participant.formId && participant.formStatus !== 'pending_parent' && (
             <Button
               size="sm"
@@ -1400,6 +1465,84 @@ function ParticipantRow({
           )}
         </div>
       </div>
+
+      {/* Safe Environment Certificate Upload Panel */}
+      {showCertUpload && (
+        <div className="p-4 bg-purple-50 border-t border-purple-200">
+          <h4 className="font-semibold text-purple-900 mb-1 flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Upload Safe Environment Certificate for {participant.firstName} {participant.lastName}
+          </h4>
+          <p className="text-xs text-purple-700 mb-3">
+            Use this when a certificate was sent to you directly (e.g. by email). PDF, PNG, JPG, or WEBP up to 10MB.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div className="md:col-span-2">
+              <label className="text-gray-700 mb-1 block">Certificate file *</label>
+              <Input
+                type="file"
+                accept="application/pdf,image/png,image/jpeg,image/webp"
+                onChange={(e) => setCertFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-gray-700 mb-1 block">Program name (optional)</label>
+              <Input
+                placeholder="e.g. VIRTUS Protecting God's Children"
+                value={certProgram}
+                onChange={(e) => setCertProgram(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-gray-700 mb-1 block">Completion date (optional)</label>
+              <Input
+                type="date"
+                value={certCompletionDate}
+                onChange={(e) => setCertCompletionDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-gray-700 mb-1 block">Expiration date (optional)</label>
+              <Input
+                type="date"
+                value={certExpirationDate}
+                onChange={(e) => setCertExpirationDate(e.target.value)}
+              />
+            </div>
+            <label className="md:col-span-2 flex items-center gap-2 text-gray-700">
+              <input
+                type="checkbox"
+                checked={certMarkVerified}
+                onChange={(e) => setCertMarkVerified(e.target.checked)}
+              />
+              Mark as verified (I&apos;ve reviewed this certificate)
+            </label>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <Button
+              size="sm"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={handleUploadCertificate}
+              disabled={processing || !certFile}
+            >
+              {processing ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Shield className="w-4 h-4 mr-1" />
+              )}
+              {processing ? 'Uploading…' : 'Upload Certificate'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowCertUpload(false)}
+              disabled={processing}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Details Panel */}
       {showDetails && (
