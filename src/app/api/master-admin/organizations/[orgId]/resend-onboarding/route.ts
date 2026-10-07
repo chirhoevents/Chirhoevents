@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
-import { generateOrgAdminOnboardingEmail, type OnboardingBilling } from '@/emails/org-admin-onboarding'
+import { ONBOARDING_SUPPORT_EMAIL, generateOrgAdminOnboardingEmail, type OnboardingBilling } from '@/emails/org-admin-onboarding'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { getTier } from '@/lib/subscription-tiers'
 
@@ -228,7 +228,7 @@ export async function POST(
     // The Resend SDK reports most failures in `error` rather than throwing
     const { error: sendError } = await resend.emails.send({
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-      reply_to: 'support@chirhoevents.com',
+      reply_to: ONBOARDING_SUPPORT_EMAIL,
       to: recipientEmail,
       subject,
       html: emailHtml,

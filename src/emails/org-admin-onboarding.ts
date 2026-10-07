@@ -9,6 +9,12 @@
 
 import { getTier, resolveModuleAccess } from '@/lib/subscription-tiers'
 
+/**
+ * Where onboarding questions go: shown in the email and used as its reply-to,
+ * so new org admins reach the ChiRho team directly.
+ */
+export const ONBOARDING_SUPPORT_EMAIL = 'chirhoevents@gmail.com'
+
 /** How the org's setup / basic access fee is handled in this email. */
 export type OnboardingBilling =
   // A secure link to pay the fee online; the subscription starts after payment
@@ -314,7 +320,7 @@ export function generateOrgAdminOnboardingEmail({
     <div style="background: #FEF3C7; border: 1px solid #FCD34D; padding: 16px 18px; border-radius: 6px; margin: 0 0 30px 0;">
       <p style="margin: 0 0 8px 0; font-weight: bold; color: #92400E;">How support works on the ${tier.name} plan</p>
       <p style="margin: 0 0 8px 0; color: #92400E;">Your plan is self-serve, which is what keeps it affordable. It doesn't include an onboarding call or setup done for you, so this email and the help docs are your guide.</p>
-      <p style="margin: 0 0 8px 0; color: #92400E;">Questions are always welcome. Email <a href="mailto:support@chirhoevents.com" style="color: #92400E;">support@chirhoevents.com</a> or reply to this email any time, and we'll point you in the right direction.</p>
+      <p style="margin: 0 0 8px 0; color: #92400E;">Questions are always welcome. Email <a href="mailto:${ONBOARDING_SUPPORT_EMAIL}" style="color: #92400E;">${ONBOARDING_SUPPORT_EMAIL}</a> or reply to this email any time, and we'll point you in the right direction.</p>
       <p style="margin: 0; color: #92400E;">Want us to set things up for you or train your team? Hands-on help is available at <strong>$90/hour</strong>. Just reply to ask.</p>
     </div>`
   } else if (tier?.includesSetupCall) {
@@ -351,7 +357,7 @@ export function generateOrgAdminOnboardingEmail({
 
     <p>This email is your setup checklist. It covers everything you need to go from here to taking registrations. Each step tells you where to click and links to a detailed guide in our help docs, so keep it handy.</p>
 
-    <p>And if you have any questions along the way, just reply to this email or write to <a href="mailto:support@chirhoevents.com" style="color: #9C8466; font-weight: 600;">support@chirhoevents.com</a>. We're happy to help.</p>
+    <p>And if you have any questions along the way, just reply to this email or write to <a href="mailto:${ONBOARDING_SUPPORT_EMAIL}" style="color: #9C8466; font-weight: 600;">${ONBOARDING_SUPPORT_EMAIL}</a>. We're happy to help.</p>
 
     ${personalNoteHtml}
 
@@ -375,7 +381,7 @@ export function generateOrgAdminOnboardingEmail({
     <div style="margin: 0 0 10px 0;">
       <h2 style="color: #1E3A5F; margin: 0 0 10px 0; font-size: 20px;">Questions? We're here</h2>
       <ul style="margin: 0; padding-left: 22px;">
-        <li style="margin-bottom: 6px;"><strong>Email us:</strong> <a href="mailto:support@chirhoevents.com" style="color: #9C8466;">support@chirhoevents.com</a>, or just reply to this email</li>
+        <li style="margin-bottom: 6px;"><strong>Email us:</strong> <a href="mailto:${ONBOARDING_SUPPORT_EMAIL}" style="color: #9C8466;">${ONBOARDING_SUPPORT_EMAIL}</a>, or just reply to this email</li>
         <li style="margin-bottom: 6px;"><strong>Help docs:</strong> <a href="${appUrl}/docs" style="color: #9C8466;">${appUrl.replace(/^https?:\/\//, '')}/docs</a>, also linked as <strong>Documentation</strong> at the top of our homepage</li>
         <li style="margin-bottom: 6px;"><strong>From your dashboard:</strong> click <strong>Support</strong> in the left sidebar to open a support ticket</li>
       </ul>

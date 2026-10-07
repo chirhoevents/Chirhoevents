@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
-import { generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
+import { ONBOARDING_SUPPORT_EMAIL, generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -148,7 +148,7 @@ export async function POST(
 
         await resend.emails.send({
           from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: 'support@chirhoevents.com',
+          reply_to: ONBOARDING_SUPPORT_EMAIL,
           to: email,
           subject: `Welcome to ChiRho Events - ${organization.name}`,
           html: emailHtml,
