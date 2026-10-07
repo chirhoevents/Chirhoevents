@@ -213,24 +213,10 @@ export default function OrganizationsPage() {
     setOpenDropdown(null)
   }
 
-  const handleResendOnboarding = async (orgId: string) => {
-    try {
-      const token = await getToken()
-      const response = await fetch(`/api/master-admin/organizations/${orgId}/resend-onboarding`, {
-        method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-      })
-      const data = await response.json()
-      if (response.ok) {
-        alert(`Onboarding email sent to ${data.sentTo}`)
-      } else {
-        alert(data.error || 'Failed to resend onboarding email')
-      }
-    } catch (error) {
-      console.error('Failed to resend onboarding:', error)
-      alert('Failed to resend onboarding email')
-    }
+  // Opens the org page's onboarding email dialog (message, billing, preview)
+  const handleResendOnboarding = (orgId: string) => {
     setOpenDropdown(null)
+    router.push(`/dashboard/master-admin/organizations/${orgId}?welcome=1`)
   }
 
   const formatCurrency = (amount: number) => {

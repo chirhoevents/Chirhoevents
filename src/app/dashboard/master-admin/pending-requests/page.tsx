@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useAuth } from '@clerk/nextjs'
+import { useEffect, useMemo, useState } from 'react'
+import { useAuth, useUser } from '@clerk/nextjs'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -17,9 +17,13 @@ import {
   Eye,
   Loader2,
   AlertCircle,
-  Clock
+  Clock,
+  CreditCard,
+  Send,
+  StickyNote,
 } from 'lucide-react'
 import { getTier, SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
+import { generateOrgAdminOnboardingEmail, type OnboardingBilling } from '@/emails/org-admin-onboarding'
 
 interface OnboardingRequest {
   id: string
@@ -32,9 +36,30 @@ interface OnboardingRequest {
   contactPhone: string
   requestedTier: string
   billingCyclePreference: string
+  paymentMethodPreference: string | null
+  additionalNotes: string | null
   estimatedEventsPerYear: number | null
   estimatedRegistrationsPerYear: number | null
   createdAt: string
+}
+
+type BillingCycle = 'monthly' | 'annual'
+
+interface ApproveForm {
+  welcomeMessage: string
+  // 'online' emails a card payment link for the setup fee; 'manual' means
+  // you invoice them yourself (e.g. an annual check) and nothing Stripe is sent
+  billingMode: 'online' | 'manual'
+  billingCycle: BillingCycle
+  subscriptionPrice: string
+  createSetupInvoice: boolean
+  billingNote: string
+}
+
+interface ApproveResult {
+  kind: 'success' | 'warning'
+  message: string
+  organizationId: string
 }
 
 const tierLabels: Record<string, string> = Object.fromEntries(
@@ -48,6 +73,14 @@ const tierPricing: Record<string, { monthly: number; annual: number }> = Object.
   ])
 )
 
+const priceFor = (tierKey: string, cycle: BillingCycle) => {
+  const pricing = tierPricing[tierKey] || tierPricing.cathedral
+  return cycle === 'annual' ? pricing.annual : pricing.monthly
+}
+
+// Billing cycles a card subscription can use for this tier. Manual billing can use either.
+const onlineCycles = (tierKey: string): BillingCycle[] => getTier(tierKey)?.billingOptions ?? ['monthly', 'annual']
+
 export default function PendingRequestsPage() {
   const router = useRouter()
   const { getToken } = useAuth()
@@ -57,6 +90,11 @@ export default function PendingRequestsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const { user } = useUser()
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [approveForm, setApproveForm] = useState<ApproveForm | null>(null)
+  const [approveError, setApproveError] = useState<string | null>(null)
+  const [approveResult, setApproveResult] = useState<ApproveResult | null>(null)
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -79,20 +117,78 @@ export default function PendingRequestsPage() {
     fetchRequests()
   }, [getToken])
 
-  const handleApprove = async (requestId: string) => {
-    setActionLoading(requestId)
+  const openApproveModal = (request: OnboardingRequest) => {
+    const billingMode = request.paymentMethodPreference === 'check' ? 'manual' : 'online'
+    let billingCycle: BillingCycle = request.billingCyclePreference === 'monthly' ? 'monthly' : 'annual'
+    if (billingMode === 'online' && !onlineCycles(request.requestedTier).includes(billingCycle)) {
+      billingCycle = onlineCycles(request.requestedTier)[0]
+    }
+    setApproveForm({
+      welcomeMessage: '',
+      billingMode,
+      billingCycle,
+      subscriptionPrice: String(priceFor(request.requestedTier, billingCycle)),
+      createSetupInvoice: true,
+      billingNote: '',
+    })
+    setApproveError(null)
+    setShowApproveModal(true)
+  }
+
+  const updateBilling = (request: OnboardingRequest, changes: Partial<ApproveForm>) => {
+    if (!approveForm) return
+    const next = { ...approveForm, ...changes }
+    if (next.billingMode === 'online' && !onlineCycles(request.requestedTier).includes(next.billingCycle)) {
+      next.billingCycle = onlineCycles(request.requestedTier)[0]
+    }
+    // Back to the plan's list price whenever the cycle or mode changes
+    if (next.billingCycle !== approveForm.billingCycle || next.billingMode !== approveForm.billingMode) {
+      next.subscriptionPrice = String(priceFor(request.requestedTier, next.billingCycle))
+    }
+    setApproveForm(next)
+  }
+
+  const handleApprove = async (request: OnboardingRequest) => {
+    if (!approveForm) return
+    setActionLoading(request.id)
+    setApproveError(null)
     try {
       const token = await getToken()
-      const response = await fetch(`/api/master-admin/onboarding-requests/${requestId}/approve`, {
+      const response = await fetch(`/api/master-admin/onboarding-requests/${request.id}/approve`, {
         method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          ...approveForm,
+          subscriptionPrice: approveForm.billingMode === 'manual' ? Number(approveForm.subscriptionPrice) : undefined,
+        }),
       })
-      if (response.ok) {
-        setRequests(reqs => reqs.filter(r => r.id !== requestId))
-        setSelectedRequest(null)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setApproveError(data.error || 'Failed to approve this request')
+        return
       }
+      setRequests(reqs => reqs.filter(r => r.id !== request.id))
+      setSelectedRequest(null)
+      setShowApproveModal(false)
+      setApproveResult(
+        data.emailSent
+          ? {
+              kind: 'success',
+              message: `${request.organizationName} is approved. The welcome email with their setup checklist was sent to ${data.sentTo}.`,
+              organizationId: data.organization.id,
+            }
+          : {
+              kind: 'warning',
+              message: `${request.organizationName} is approved, but the welcome email didn't send${data.emailError ? ` (${data.emailError})` : ''}. Open the organization and use Resend Onboarding Email to try again.`,
+              organizationId: data.organization.id,
+            }
+      )
     } catch (error) {
       console.error('Failed to approve:', error)
+      setApproveError('Failed to approve this request. Check your connection and try again.')
     } finally {
       setActionLoading(null)
     }
@@ -160,6 +256,46 @@ export default function PendingRequestsPage() {
 
   const pendingRequests = requests.filter(r => r.status === 'pending')
 
+  // Live preview of the welcome email, built with the same template the server sends
+  const previewHtml = useMemo(() => {
+    if (!showApproveModal || !selectedRequest || !approveForm) return ''
+    const tier = getTier(selectedRequest.requestedTier)
+    const setupFee = tier?.setupFee ?? 0
+    const billing: OnboardingBilling =
+      approveForm.billingMode === 'manual'
+        ? { mode: 'manual', note: approveForm.billingNote }
+        : setupFee > 0
+          ? { mode: 'online', amount: setupFee, label: tier?.isSelfServe ? 'Basic Access Fee' : 'Setup Fee', payUrl: '#' }
+          : { mode: 'manual', note: approveForm.billingNote || 'Your plan includes custom setup work. Our team will reach out to scope it with you and send your first invoice.' }
+    return generateOrgAdminOnboardingEmail({
+      orgName: selectedRequest.organizationName,
+      orgAdminFirstName: selectedRequest.contactFirstName,
+      orgAdminEmail: selectedRequest.contactEmail,
+      inviteLink: '#',
+      organizationId: '',
+      tierKey: selectedRequest.requestedTier,
+      billingCycle: approveForm.billingCycle,
+      planPrice:
+        approveForm.billingMode === 'manual' && Number(approveForm.subscriptionPrice) > 0
+          ? Number(approveForm.subscriptionPrice)
+          : priceFor(selectedRequest.requestedTier, approveForm.billingCycle),
+      modulesEnabled: {},
+      personalMessage: approveForm.welcomeMessage,
+      personalMessageFrom: user?.fullName,
+      billing,
+    })
+  }, [showApproveModal, selectedRequest, approveForm, user?.fullName])
+
+  const approveTier = selectedRequest ? getTier(selectedRequest.requestedTier) : undefined
+  const approveSetupFee = approveTier?.setupFee ?? 0
+  const approveFeeLabel = approveTier?.isSelfServe ? 'Basic Access Fee' : 'Setup Fee'
+  const approvePrice = approveForm && selectedRequest
+    ? approveForm.billingMode === 'manual'
+      ? Number(approveForm.subscriptionPrice)
+      : priceFor(selectedRequest.requestedTier, approveForm.billingCycle)
+    : 0
+  const approveCycleUnit = approveForm?.billingCycle === 'annual' ? 'year' : 'month'
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -169,6 +305,34 @@ export default function PendingRequestsPage() {
           Total: {pendingRequests.length} pending
         </p>
       </div>
+
+      {approveResult && (
+        <div
+          className={`flex items-start gap-3 rounded-xl border p-4 ${
+            approveResult.kind === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+          }`}
+        >
+          {approveResult.kind === 'success' ? (
+            <Check className="h-5 w-5 flex-shrink-0 mt-0.5" />
+          ) : (
+            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 text-sm">
+            <p>{approveResult.message}</p>
+            <Link
+              href={`/dashboard/master-admin/organizations/${approveResult.organizationId}`}
+              className="inline-block mt-1 font-medium underline"
+            >
+              Open organization &rarr;
+            </Link>
+          </div>
+          <button onClick={() => setApproveResult(null)} className="p-1 rounded hover:bg-black/5" aria-label="Dismiss">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
@@ -279,6 +443,33 @@ export default function PendingRequestsPage() {
                   </div>
                 </div>
 
+                {/* Billing Preferences */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Billing Preferences</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Wants to pay by:</span>
+                      <span className="font-medium">{selectedRequest.paymentMethodPreference === 'check' ? 'Check' : 'Credit card'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Billing cycle:</span>
+                      <span className="font-medium">{selectedRequest.billingCyclePreference === 'monthly' ? 'Monthly' : 'Annual'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedRequest.additionalNotes && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1">
+                      <StickyNote className="h-4 w-4 text-gray-400" />
+                      Notes from the Applicant
+                    </h3>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3">
+                      {selectedRequest.additionalNotes}
+                    </p>
+                  </div>
+                )}
+
                 {/* Revenue Potential */}
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <h3 className="text-sm font-semibold text-green-900 mb-2">Revenue Potential</h3>
@@ -317,16 +508,12 @@ export default function PendingRequestsPage() {
                 {/* Actions */}
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
                   <button
-                    onClick={() => handleApprove(selectedRequest.id)}
+                    onClick={() => openApproveModal(selectedRequest)}
                     disabled={actionLoading !== null}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
                   >
-                    {actionLoading === selectedRequest.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Check className="h-4 w-4" />
-                    )}
-                    Approve
+                    <Check className="h-4 w-4" />
+                    Approve&hellip;
                   </button>
                   <button
                     onClick={() => setShowRejectModal(true)}
@@ -348,6 +535,259 @@ export default function PendingRequestsPage() {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Approve Modal */}
+      {showApproveModal && selectedRequest && approveForm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-6xl max-h-[92vh] flex flex-col">
+            <div className="flex items-start justify-between p-6 border-b border-gray-200">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Approve {selectedRequest.organizationName}</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Add a personal welcome, choose how they&apos;ll be billed, and check the email before it goes out.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowApproveModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+              {/* Options */}
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-1">
+                    Personal welcome message <span className="font-normal text-gray-500">(optional)</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Shown near the top of the email and signed with your name. The full setup checklist and
+                    help-doc links are included either way.
+                  </p>
+                  <textarea
+                    value={approveForm.welcomeMessage}
+                    onChange={e => setApproveForm({ ...approveForm, welcomeMessage: e.target.value })}
+                    rows={5}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                    placeholder={`Welcome, ${selectedRequest.contactFirstName}! We're excited to have ${selectedRequest.organizationName} on ChiRho Events.`}
+                  />
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Billing</h4>
+                  <div className="space-y-2">
+                    <label
+                      className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer ${
+                        approveForm.billingMode === 'online' ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="billingMode"
+                        checked={approveForm.billingMode === 'online'}
+                        onChange={() => updateBilling(selectedRequest, { billingMode: 'online' })}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                          <CreditCard className="h-4 w-4 text-gray-500" />
+                          Card payment link
+                        </p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {approveSetupFee > 0
+                            ? `The email includes a link to pay the ${formatCurrency(approveSetupFee)} ${approveFeeLabel.toLowerCase()} by card. Once it's paid, their subscription starts automatically in Stripe.`
+                            : "This plan's setup fee is custom, so there's no payment link. The email says our team will follow up with their first invoice."}
+                        </p>
+                      </div>
+                    </label>
+                    <label
+                      className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer ${
+                        approveForm.billingMode === 'manual' ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="billingMode"
+                        checked={approveForm.billingMode === 'manual'}
+                        onChange={() => updateBilling(selectedRequest, { billingMode: 'manual' })}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                          <FileText className="h-4 w-4 text-gray-500" />
+                          I&apos;ll invoice them myself (check)
+                        </p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          Nothing goes through Stripe: no payment links, Stripe customer, or automatic subscription.
+                          You create invoices from their organization page and mark them paid when checks arrive.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Billing cycle</label>
+                    <select
+                      value={approveForm.billingCycle}
+                      onChange={e => updateBilling(selectedRequest, { billingCycle: e.target.value as BillingCycle })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                    >
+                      {(approveForm.billingMode === 'online'
+                        ? onlineCycles(selectedRequest.requestedTier)
+                        : (['monthly', 'annual'] as BillingCycle[])
+                      ).map(cycle => (
+                        <option key={cycle} value={cycle}>{cycle === 'annual' ? 'Annual' : 'Monthly'}</option>
+                      ))}
+                    </select>
+                    {approveForm.billingMode === 'online' && onlineCycles(selectedRequest.requestedTier).length === 1 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Card billing for {approveTier?.name ?? 'this plan'} is {onlineCycles(selectedRequest.requestedTier)[0]} only.
+                        To bill another way, choose &ldquo;I&apos;ll invoice them myself&rdquo;.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Price per {approveCycleUnit}</label>
+                    {approveForm.billingMode === 'manual' ? (
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={approveForm.subscriptionPrice}
+                          onChange={e => setApproveForm({ ...approveForm, subscriptionPrice: e.target.value })}
+                          className="w-full border border-gray-300 rounded-lg pl-7 pr-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <p className="py-2 text-sm font-medium text-gray-900">{formatCurrency(approvePrice)}</p>
+                    )}
+                    {approveForm.billingMode === 'manual' && approveForm.billingCycle === 'annual' && approveTier?.annualPrice === null && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {approveTier.name} has no annual list price, so this starts at 12 &times; {formatCurrency(approveTier.monthlyPrice)}.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {approveForm.billingMode === 'manual' && (
+                  <div className="space-y-4">
+                    {approveSetupFee > 0 && (
+                      <label className="flex items-start gap-3 text-sm text-gray-900 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={approveForm.createSetupInvoice}
+                          onChange={e => setApproveForm({ ...approveForm, createSetupInvoice: e.target.checked })}
+                          className="mt-1"
+                        />
+                        <span>
+                          Create the {formatCurrency(approveSetupFee)} {approveFeeLabel.toLowerCase()} invoice now
+                          <span className="block text-xs text-gray-500">
+                            It&apos;s added to their account for your records but not emailed. Send it or mark it paid
+                            from their organization page.
+                          </span>
+                        </span>
+                      </label>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        What the email says about billing <span className="font-normal text-gray-500">(optional)</span>
+                      </label>
+                      <textarea
+                        value={approveForm.billingNote}
+                        onChange={e => setApproveForm({ ...approveForm, billingNote: e.target.value })}
+                        rows={3}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                        placeholder="We'll send your invoice separately, so there's nothing to pay online right now."
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Leave blank to use the text above, or spell out the terms, e.g. &ldquo;We&apos;ll mail your annual
+                        invoice for {formatCurrency(approvePrice || 0)}{approveSetupFee > 0 ? ` plus the ${formatCurrency(approveSetupFee)} ${approveFeeLabel.toLowerCase()}` : ''}, payable by check.&rdquo;
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* What approving does */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">When you approve</h4>
+                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                    <li>
+                      {selectedRequest.organizationName} is created on the {approveTier?.name ?? selectedRequest.requestedTier} plan,
+                      billed {formatCurrency(approvePrice || 0)}/{approveCycleUnit}
+                      {approveForm.billingMode === 'manual' ? ' by check' : ''}.
+                    </li>
+                    <li>{selectedRequest.contactFirstName} {selectedRequest.contactLastName} becomes its administrator.</li>
+                    {approveForm.billingMode === 'online' ? (
+                      approveSetupFee > 0 ? (
+                        <li>A {formatCurrency(approveSetupFee)} {approveFeeLabel.toLowerCase()} invoice is created, and the email links to it for card payment.</li>
+                      ) : (
+                        <li>No setup invoice is created. Send a custom one from their organization page.</li>
+                      )
+                    ) : approveForm.createSetupInvoice && approveSetupFee > 0 ? (
+                      <li>A {formatCurrency(approveSetupFee)} {approveFeeLabel.toLowerCase()} invoice is created but not emailed. Nothing is sent to Stripe.</li>
+                    ) : (
+                      <li>No invoices are created and nothing is sent to Stripe.</li>
+                    )}
+                    <li>The welcome email in the preview goes to <strong>{selectedRequest.contactEmail}</strong>.</li>
+                  </ul>
+                </div>
+
+                {approveError && (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    {approveError}
+                  </div>
+                )}
+              </div>
+
+              {/* Email preview */}
+              <div className="flex flex-col">
+                <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-1 mb-1">
+                  <Eye className="h-4 w-4 text-gray-500" />
+                  Email preview
+                </h4>
+                <p className="text-xs text-gray-500 mb-2">
+                  To: {selectedRequest.contactEmail} &middot; Subject: Welcome to ChiRho Events: {selectedRequest.organizationName} is approved
+                </p>
+                <iframe
+                  title="Welcome email preview"
+                  srcDoc={previewHtml.replace('<head>', '<head><style>a { pointer-events: none; }</style>')}
+                  sandbox=""
+                  className="flex-1 w-full min-h-[500px] border border-gray-200 rounded-lg bg-gray-100"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowApproveModal(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleApprove(selectedRequest)}
+                disabled={actionLoading !== null || (approveForm.billingMode === 'manual' && !(approvePrice > 0))}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+              >
+                {actionLoading === selectedRequest.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Approve &amp; Send Welcome Email
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

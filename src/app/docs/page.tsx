@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { PublicNav } from "@/components/PublicNav"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ const docSections = [
       { id: "subscription-billing", title: "How Subscription Billing Works" },
       { id: "subscription-upgrade", title: "Upgrading or Changing Your Plan" },
       { id: "setup", title: "Setting Up Your Organization" },
+      { id: "stripe-connect", title: "Connecting Stripe to Accept Payments" },
     ]
   },
   {
@@ -328,31 +329,141 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
     title: "Setting Up Your Organization",
     content: (
       <div className="space-y-4">
-        <p>After your account is approved, follow these steps to configure your organization:</p>
+        <p>
+          Once your organization is approved, you&apos;ll get a welcome email with a link to create your
+          login. After that, work through these steps in order. Most organizations finish them in an afternoon.
+        </p>
         <ol className="list-decimal list-inside space-y-4 text-gray-600">
           <li>
+            <strong>Create your login</strong>
+            <p className="ml-6 mt-1">
+              Click <strong>Create My Login</strong> in your welcome email and set your password. The link
+              connects your login to your organization as its administrator. After that, sign in any time
+              at <a href="/sign-in" className="text-navy underline">chirhoevents.com/sign-in</a>.
+            </p>
+          </li>
+          <li>
             <strong>Complete your organization profile</strong>
-            <p className="ml-6 mt-1">Add your logo, contact information, and billing details.</p>
+            <p className="ml-6 mt-1">
+              Go to <strong>Settings &rarr; Organization</strong> and check your organization&apos;s name,
+              contact details, and address. Then open <strong>Settings &rarr; Branding</strong> to upload your
+              logo and choose your colors. They appear on your public registration pages.
+            </p>
           </li>
           <li>
-            <strong>Set up payment processing</strong>
-            <p className="ml-6 mt-1">Connect your Stripe account to receive registration payments.</p>
+            <strong>Connect Stripe</strong>
+            <p className="ml-6 mt-1">
+              Go to <strong>Settings &rarr; Integrations</strong> and click <strong>Connect Stripe</strong> so
+              attendees can pay online. See{" "}
+              <a href="/docs?section=stripe-connect" className="text-navy underline">Connecting Stripe to Accept Payments</a>{" "}
+              for exactly what Stripe asks for.
+            </p>
           </li>
           <li>
-            <strong>Add team members</strong>
-            <p className="ml-6 mt-1">Invite other administrators who will help manage events.</p>
+            <strong>Build your first event</strong>
+            <p className="ml-6 mt-1">
+              Click <strong>Events</strong> in the sidebar, then <strong>Create New Event</strong>. See{" "}
+              <a href="/docs?section=create-event" className="text-navy underline">Creating Your First Event</a>.
+            </p>
           </li>
           <li>
-            <strong>Configure default settings</strong>
-            <p className="ml-6 mt-1">Set up default liability forms, email templates, and notification preferences.</p>
+            <strong>Open registration and share your link</strong>
+            <p className="ml-6 mt-1">
+              Make the event visible, open registration, and share the link. See{" "}
+              <a href="/docs?section=event-visibility" className="text-navy underline">Event Visibility &amp; Registration Status</a>.
+            </p>
+          </li>
+          <li>
+            <strong>Invite your team (optional)</strong>
+            <p className="ml-6 mt-1">
+              Go to <strong>Settings &rarr; Team</strong> and click <strong>Invite Team Member</strong>. See{" "}
+              <a href="/docs?section=team" className="text-navy underline">Managing Your Team</a>.
+            </p>
           </li>
         </ol>
         <div className="bg-beige p-4 rounded-lg mt-6">
           <p className="text-sm">
-            <strong>Tip:</strong> Our onboarding team is available to help you through setup.
-            Email support@chirhoevents.com with any questions.
+            <strong>Tip:</strong> Chapel and Parish plans are self-serve, so these docs are your guide. If
+            something isn&apos;t working the way they describe, email{" "}
+            <a href="mailto:support@chirhoevents.com" className="text-navy underline">support@chirhoevents.com</a>.
+            Hands-on setup help and training are available on any plan at <strong>$90/hour</strong>.
           </p>
         </div>
+      </div>
+    )
+  },
+  "stripe-connect": {
+    title: "Connecting Stripe to Accept Payments",
+    content: (
+      <div className="space-y-4">
+        <p>
+          ChiRho Events uses Stripe to take card payments for your events. Payments go straight from your
+          attendees to your organization&apos;s bank account. ChiRho Events never holds your money. You need
+          to connect Stripe before attendees can pay online.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Before You Start</h3>
+        <p>Stripe will ask for the following, so have it ready:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Your organization&apos;s <strong>legal name and address</strong></li>
+          <li>Your <strong>EIN</strong> (tax ID number). For churches and non-profits, this is your 501(c)(3) number</li>
+          <li>The <strong>routing and account number</strong> of the bank account payouts should go to (use the organization&apos;s account, not a personal one)</li>
+          <li>A <strong>government ID</strong> for the person setting it up, plus their date of birth and the last 4 digits of their SSN</li>
+          <li>Your <strong>website</strong> and a <strong>support phone number and email</strong> attendees can contact about payments</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Connecting Your Account</h3>
+        <ol className="list-decimal list-inside space-y-4 text-gray-600">
+          <li>
+            <strong>Open your integrations</strong>
+            <p className="ml-6 mt-1">From your admin dashboard, go to <strong>Settings &rarr; Integrations</strong>.</p>
+          </li>
+          <li>
+            <strong>Confirm the Stripe account email</strong>
+            <p className="ml-6 mt-1">
+              The <strong>Stripe Account Email</strong> is used to create or sign in to your Stripe account.
+              Change it if the Stripe account should belong to someone else, such as your finance or business manager.
+            </p>
+          </li>
+          <li>
+            <strong>Click Connect Stripe</strong>
+            <p className="ml-6 mt-1">
+              You&apos;re taken to Stripe to enter the information above. If you don&apos;t have a Stripe account
+              yet, Stripe creates one for you as part of this process. It takes about 15 minutes.
+            </p>
+          </li>
+          <li>
+            <strong>Sync your status</strong>
+            <p className="ml-6 mt-1">
+              When Stripe sends you back to ChiRho Events, click <strong>Sync Status from Stripe</strong>. Once
+              Stripe has approved your account (usually within a few minutes), the status shows as connected and
+              you can accept payments.
+            </p>
+          </li>
+        </ol>
+
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Still showing as incomplete?</strong> Stripe sometimes needs one more piece of information.
+            On the Integrations page, open the setup help to see each item Stripe may ask for and where to
+            enter it in your Stripe Dashboard, then click <strong>Sync Status from Stripe</strong> again.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Fees</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Stripe&apos;s processing fee: <strong>2.9% + $0.30</strong> per card payment</li>
+          <li>ChiRho Events platform fee: <strong>1%</strong> per registration payment</li>
+          <li>These apply to each payment you collect and are separate from your subscription</li>
+          <li>Check and cash payments you record in ChiRho Events don&apos;t go through Stripe</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Changing Who Manages Stripe</h3>
+        <p>
+          If the wrong person connected Stripe, or the person who set it up has left, email{" "}
+          <a href="mailto:support@chirhoevents.com" className="text-navy underline">support@chirhoevents.com</a>.
+          We can reset the connection so the right person can connect a different Stripe account.
+        </p>
       </div>
     )
   },
@@ -4375,6 +4486,18 @@ export default function DocsPage() {
   const [activeSection, setActiveSection] = useState("overview")
   const [searchQuery, setSearchQuery] = useState("")
 
+  // Deep links (?section=create-event) let emails and other docs open a
+  // specific guide.
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get("section")
+    if (section && docContent[section]) setActiveSection(section)
+  }, [])
+
+  const showSection = (id: string) => {
+    setActiveSection(id)
+    window.history.replaceState(null, "", `/docs?section=${id}`)
+  }
+
   const query = searchQuery.trim().toLowerCase()
 
   const searchResults = query
@@ -4388,7 +4511,7 @@ export default function DocsPage() {
   const currentDoc = docContent[activeSection] || docContent["overview"]
 
   const handleResultClick = (id: string) => {
-    setActiveSection(id)
+    showSection(id)
     setSearchQuery("")
   }
 
@@ -4441,7 +4564,7 @@ export default function DocsPage() {
                     {section.items.map((item) => (
                       <li key={item.id}>
                         <button
-                          onClick={() => setActiveSection(item.id)}
+                          onClick={() => showSection(item.id)}
                           className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
                             activeSection === item.id
                               ? 'bg-gold/20 text-navy font-medium'

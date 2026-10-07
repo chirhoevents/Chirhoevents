@@ -216,15 +216,16 @@ Located at: `src/lib/email-templates.ts`
 
 #### Org Admin Onboarding
 - **File:** `src/emails/org-admin-onboarding.ts`
-- **Trigger:** Master admin creates organization
+- **Trigger:** Master admin approves an onboarding request (Approve dialog), creates an organization, or clicks Resend Onboarding Email on the organization page
 - **Recipient:** Org admin email
-- **Subject:** `Welcome to ChiRho Events!`
+- **Subject:** `Welcome to ChiRho Events: {org} is approved` (approval), `Welcome to ChiRho Events - {org}` (create/resend)
 - **Content:**
-  - Account creation link
-  - Stripe setup instructions
-  - Event creation guide
-  - Team invitation guide
-  - Platform features overview
+  - Optional personal note from the master admin
+  - Plan at a glance (limits, included modules, support level)
+  - Setup checklist: create login, billing (card payment link or "we'll invoice you"), organization profile, Connect Stripe, first event, open registration, invite team
+  - Each step links to the matching help docs section (`/docs?section=...`)
+  - Help docs index, and support expectations for self-serve plans ($90/hour help)
+- **Preview:** both master admin dialogs show the exact email before sending
 
 #### Team Member Invite
 - **File:** `src/emails/org-admin-onboarding.ts:generateTeamInviteEmail()`

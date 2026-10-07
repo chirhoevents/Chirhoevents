@@ -4,7 +4,8 @@ import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import Stripe from 'stripe'
 import crypto from 'crypto'
-import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
+import { SUBSCRIPTION_TIERS, getTier } from '@/lib/subscription-tiers'
+import { generateOrgAdminOnboardingEmail, type OnboardingBilling } from '@/emails/org-admin-onboarding'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
@@ -32,7 +33,7 @@ export async function POST(
     // Verify master admin
     const masterAdmin = await prisma.user.findFirst({
       where: { clerkUserId },
-      select: { id: true, role: true },
+      select: { id: true, role: true, firstName: true, lastName: true },
     })
 
     if (!masterAdmin || masterAdmin.role !== 'master_admin') {
@@ -40,6 +41,14 @@ export async function POST(
     }
 
     const { requestId } = await params
+
+    // Options chosen in the approval dialog. All optional, so an empty body
+    // approves with the defaults below.
+    const body = await request.json().catch(() => ({}))
+    const welcomeMessage: string | null =
+      typeof body.welcomeMessage === 'string' && body.welcomeMessage.trim() ? body.welcomeMessage.trim() : null
+    const billingNote: string | null =
+      typeof body.billingNote === 'string' && body.billingNote.trim() ? body.billingNote.trim() : null
 
     // Get the onboarding request
     const onboardingRequest = await prisma.organizationOnboardingRequest.findUnique({
@@ -77,25 +86,62 @@ export async function POST(
       )
 
     const requestedTier = onboardingRequest.requestedTier || 'shrine'
-    const pricing = tierPricing[requestedTier] || tierPricing.shrine
-    const billingCycle = onboardingRequest.billingCyclePreference || 'annual'
+    const pricing = { ...(tierPricing[requestedTier] || tierPricing.shrine) }
+
+    // 'online' emails a link to pay the setup fee by card, after which the
+    // Stripe subscription starts on its own. 'manual' means the master admin
+    // invoices this org by hand (e.g. an annual check), so nothing Stripe-related
+    // is created or sent.
+    const billingMode: 'online' | 'manual' =
+      body.billingMode === 'online' || body.billingMode === 'manual'
+        ? body.billingMode
+        : onboardingRequest.paymentMethodPreference === 'check'
+          ? 'manual'
+          : 'online'
+
+    let billingCycle: 'monthly' | 'annual' =
+      body.billingCycle === 'monthly' || body.billingCycle === 'annual'
+        ? body.billingCycle
+        : onboardingRequest.billingCyclePreference || 'annual'
+    // Online payment starts a Stripe subscription, which only exists for the
+    // cycles the tier offers. Manual billing can use either cycle.
+    const tierBillingOptions = getTier(requestedTier)?.billingOptions
+    if (billingMode === 'online' && tierBillingOptions && !tierBillingOptions.includes(billingCycle)) {
+      billingCycle = tierBillingOptions[0]
+    }
+
+    // Manual billing can carry a negotiated price for the chosen cycle
+    const customPrice = Number(body.subscriptionPrice)
+    if (billingMode === 'manual' && Number.isFinite(customPrice) && customPrice > 0) {
+      if (billingCycle === 'annual') pricing.annual = customPrice
+      else pricing.monthly = customPrice
+    }
+
+    // The setup fee invoice is always created for online billing (the email
+    // links to it). For manual billing it's optional and never emailed.
+    const createSetupInvoice = billingMode === 'online' || body.createSetupInvoice !== false
 
     // Self-serve tiers (Chapel, Parish) charge "Basic Access Fee" instead of "Setup Fee"
     const isSelfServeTier = requestedTier === 'chapel' || requestedTier === 'starter' || requestedTier === 'parish'
     const feeLabel = isSelfServeTier ? 'Basic Access Fee' : 'Setup Fee'
 
-    // Create Stripe customer first so we can link it to the org
+    // Create Stripe customer first so we can link it to the org. Manually
+    // billed orgs skip this: invoice checkout falls back to the contact email,
+    // and without a customer the Stripe webhook won't auto-start a card
+    // subscription if they ever pay a setup fee online.
     let stripeCustomerId: string | undefined
-    try {
-      const customer = await stripe.customers.create({
-        email: onboardingRequest.contactEmail,
-        name: onboardingRequest.organizationName,
-        metadata: { contact: `${onboardingRequest.contactFirstName} ${onboardingRequest.contactLastName}` },
-      })
-      stripeCustomerId = customer.id
-    } catch (stripeError) {
-      console.error('Failed to create Stripe customer:', stripeError)
-      // Non-fatal — approval continues without Stripe customer
+    if (billingMode === 'online') {
+      try {
+        const customer = await stripe.customers.create({
+          email: onboardingRequest.contactEmail,
+          name: onboardingRequest.organizationName,
+          metadata: { contact: `${onboardingRequest.contactFirstName} ${onboardingRequest.contactLastName}` },
+        })
+        stripeCustomerId = customer.id
+      } catch (stripeError) {
+        console.error('Failed to create Stripe customer:', stripeError)
+        // Non-fatal — approval continues without Stripe customer
+      }
     }
 
     // Create organization
@@ -119,7 +165,7 @@ export async function POST(
         storageLimitGb: pricing.storageLimit,
         setupFeePaid: false,
         setupFeeAmount: pricing.setupFee,
-        paymentMethodPreference: onboardingRequest.paymentMethodPreference || 'credit_card',
+        paymentMethodPreference: billingMode === 'manual' ? 'check' : onboardingRequest.paymentMethodPreference || 'credit_card',
         legalEntityName: onboardingRequest.legalEntityName,
         taxId: onboardingRequest.taxId,
         website: onboardingRequest.website,
@@ -177,7 +223,7 @@ export async function POST(
       },
     })
 
-    // Display labels for tier keys (used in invoice description and email).
+    // Display labels for tier keys (used in invoice description).
     const tierLabels: Record<string, string> = {
       chapel: 'Chapel',
       starter: 'Chapel', // legacy tier key
@@ -187,133 +233,82 @@ export async function POST(
       basilica: 'Basilica',
     }
 
-    // Generate setup fee invoice with a secure payment token for the direct payment link.
+    // Generate the setup fee invoice. Online billing gets a secure payment
+    // token for the link in the welcome email; manual billing leaves it off
+    // (Send Invoice adds one later if the master admin wants it).
     // Basilica's setup fee is custom (pricing.setupFee falls back to 0 from
     // SUBSCRIPTION_TIERS) — skip auto-invoicing in that case so the master
     // admin can issue a custom invoice manually.
     const setupFeePaymentToken = crypto.randomBytes(32).toString('hex')
     const setupFeeAmount = pricing.setupFee
-    const invoice = setupFeeAmount > 0
+    const invoice = createSetupInvoice && setupFeeAmount > 0
       ? await prisma.invoice.create({
           data: {
             organizationId: organization.id,
             invoiceNumber: await getNextInvoiceNumber(),
             invoiceType: 'setup_fee',
             amount: setupFeeAmount,
-            description: `One-time setup fee for ChiRho Events platform (${tierLabels[requestedTier] || requestedTier})`,
+            description: `One-time ${feeLabel.toLowerCase()} for ChiRho Events platform (${tierLabels[requestedTier] || requestedTier})`,
             status: 'pending',
             dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-            paymentToken: setupFeePaymentToken,
+            paymentToken: billingMode === 'online' ? setupFeePaymentToken : null,
+            createdByUserId: masterAdmin.id,
           },
         })
       : null
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
-    const setupFeePaymentUrl = `${appUrl}/pay/invoice/${setupFeePaymentToken}`
 
-    const welcomeEmailHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #1E3A5F; margin: 0; padding: 0; }
-            .container { max-width: 600px; margin: 0 auto; }
-            .header { background: #1E3A5F; color: white; padding: 30px; text-align: center; }
-            .header h1 { margin: 0; font-size: 28px; }
-            .content { padding: 30px; background: #F5F5F5; }
-            .welcome-box { background: white; border: 2px solid #9C8466; border-radius: 8px; padding: 25px; margin: 20px 0; }
-            .cta-button { display: inline-block; background: #9C8466; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0; }
-            .info-row { padding: 10px 0; border-bottom: 1px solid #E5E7EB; }
-            .info-row:last-child { border-bottom: none; }
-            .footer { text-align: center; padding: 20px; color: #6B7280; font-size: 12px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <img src="${appUrl}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
-              <h1>Welcome to ChiRho Events!</h1>
-            </div>
+    let billing: OnboardingBilling
+    if (billingMode === 'online' && invoice) {
+      billing = {
+        mode: 'online',
+        amount: setupFeeAmount,
+        label: feeLabel,
+        payUrl: `${appUrl}/pay/invoice/${setupFeePaymentToken}`,
+      }
+    } else if (billingMode === 'online') {
+      billing = {
+        mode: 'manual',
+        note: billingNote ?? 'Your plan includes custom setup work. Our team will reach out to scope it with you and send your first invoice.',
+      }
+    } else {
+      billing = { mode: 'manual', note: billingNote }
+    }
 
-            <div class="content">
-              <p>Dear ${onboardingRequest.contactFirstName},</p>
+    const welcomeEmailHtml = generateOrgAdminOnboardingEmail({
+      orgName: organization.name,
+      orgAdminFirstName: orgAdminUser.firstName,
+      orgAdminEmail: orgAdminUser.email,
+      inviteLink: `${appUrl}/invite/${orgAdminUser.id}`,
+      organizationId: organization.id,
+      tierKey: requestedTier,
+      billingCycle,
+      planPrice: billingCycle === 'annual' ? pricing.annual : pricing.monthly,
+      modulesEnabled: organization.modulesEnabled,
+      personalMessage: welcomeMessage,
+      personalMessageFrom: `${masterAdmin.firstName} ${masterAdmin.lastName}`.trim(),
+      billing,
+    })
 
-              <p>Great news! Your organization <strong>${organization.name}</strong> has been approved and your ChiRho Events account is now active.</p>
-
-              <div class="welcome-box">
-                <h2 style="color: #1E3A5F; margin-top: 0;">Your Account Details</h2>
-
-                <div class="info-row">
-                  <strong>Organization:</strong> ${organization.name}
-                </div>
-                <div class="info-row">
-                  <strong>Subscription Plan:</strong> ${tierLabels[requestedTier] || requestedTier}
-                </div>
-                <div class="info-row">
-                  <strong>Billing Cycle:</strong> ${billingCycle === 'annual' ? 'Annual' : 'Monthly'}
-                </div>
-                <div class="info-row">
-                  <strong>Admin Email:</strong> ${onboardingRequest.contactEmail}
-                </div>
-              </div>
-
-              <h3 style="color: #1E3A5F;">Next Steps:</h3>
-              <ol>
-                ${invoice ? `<li><strong>Pay your setup fee:</strong> Click the button below to pay the one-time $${setupFeeAmount} setup fee. Your monthly subscription will start automatically after payment.</li>` : `<li><strong>Custom setup:</strong> A member of our team will reach out shortly to walk through your custom setup and send your first invoice.</li>`}
-                <li><strong>Set up your password:</strong> Sign in to create your account password and access your dashboard.</li>
-                <li><strong>Connect Stripe:</strong> Set up your payment processing to accept registrations.</li>
-                <li><strong>Create your first event:</strong> Start building your event and accepting registrations!</li>
-              </ol>
-
-              <div style="background: #FEF3C7; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                ${invoice
-                  ? `<strong>Setup Fee:</strong> A $${setupFeeAmount} one-time setup fee is due within 30 days. After you pay, your ${tierLabels[requestedTier] || requestedTier} subscription ($${pricing.monthly}/month) will begin automatically — no further action needed.`
-                  : `<strong>Custom Setup:</strong> Your ${tierLabels[requestedTier] || requestedTier} plan includes custom setup work. Our team will follow up to scope your setup and send a tailored invoice.`}
-                <br><br>
-                <em>Need extra help, training, or custom configuration beyond what's included? We're available at <strong>$90/hour</strong>.</em>
-              </div>
-
-              ${invoice ? `<div style="text-align: center; margin: 30px 0;">
-                <a href="${setupFeePaymentUrl}" class="cta-button">
-                  Pay $${setupFeeAmount} Setup Fee
-                </a>
-              </div>` : ''}
-
-              <div style="text-align: center; margin: 10px 0;">
-                <a href="${appUrl}/sign-in" style="color: #1E3A5F; font-size: 14px;">
-                  Or sign in to your dashboard →
-                </a>
-              </div>
-
-              <p>If you have any questions, our support team is here to help. Just reply to this email or submit a support ticket from your dashboard.</p>
-
-              <p>
-                Welcome aboard!<br>
-                <strong>The ChiRho Events Team</strong>
-              </p>
-            </div>
-
-            <div class="footer">
-              <p>ChiRho Events - Event Management for Faith Communities</p>
-              <p>www.chirhoevents.com | support@chirhoevents.com</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
-
+    // The Resend SDK reports most failures in `error` rather than throwing,
+    // so check both and tell the master admin what happened.
+    let emailError: string | null = null
     try {
-      await resend.emails.send({
+      const { error } = await resend.emails.send({
         from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
         reply_to: 'support@chirhoevents.com',
-        to: onboardingRequest.contactEmail,
-        subject: `Welcome to ChiRho Events - ${organization.name} Account Approved!`,
+        to: orgAdminUser.email,
+        subject: `Welcome to ChiRho Events: ${organization.name} is approved`,
         html: welcomeEmailHtml,
       })
-    } catch (emailError) {
+      if (error) emailError = error.message
+    } catch (sendError) {
+      emailError = sendError instanceof Error ? sendError.message : 'Unknown error'
+    }
+    if (emailError) {
       console.error('Failed to send welcome email:', emailError)
-      // Don't fail the approval if email fails
+      // Don't fail the approval if email fails; it can be resent from the org page
     }
 
     return NextResponse.json({
@@ -332,6 +327,9 @@ export async function POST(
             invoiceNumber: invoice.invoiceNumber,
           }
         : null,
+      emailSent: !emailError,
+      emailError,
+      sentTo: orgAdminUser.email,
     })
   } catch (error) {
     console.error('Approve request error:', error)
