@@ -21,21 +21,11 @@ export async function GET(
     )
     if (error) return error
 
-    // Build search filter for groups
-    const groupSearchFilter = searchTerm
-      ? {
-          OR: [
-            { groupName: { contains: searchTerm, mode: 'insensitive' as const } },
-            { parishName: { contains: searchTerm, mode: 'insensitive' as const } },
-          ],
-        }
-      : {}
-
-    // Get all group registrations for this event
+    // Get all group registrations for this event. Search is applied after
+    // formatting so it can match participant names, not just group/parish.
     const groups = await prisma.groupRegistration.findMany({
       where: {
         eventId,
-        ...groupSearchFilter,
       },
       include: {
         liabilityForms: {
@@ -189,10 +179,29 @@ export async function GET(
     })
 
     // Filter out groups with no matching forms when status filter is applied
-    const filteredGroups =
+    const statusFilteredGroups =
       status !== 'all'
         ? formattedGroups.filter((g: { participants: unknown[] }) => g.participants.length > 0)
         : formattedGroups
+
+    // Search: a group matching by name/parish shows all its forms; otherwise
+    // the group is kept only if a participant's name matches, and its list is
+    // narrowed to those participants (counts stay group-wide).
+    const term = searchTerm.trim().toLowerCase()
+    const filteredGroups = term
+      ? statusFilteredGroups.flatMap((g) => {
+          const groupMatches =
+            g.groupName.toLowerCase().includes(term) ||
+            (g.parishName || '').toLowerCase().includes(term)
+          if (groupMatches) return [{ ...g, participantMatch: false }]
+          const matching = g.participants.filter((p) =>
+            `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase().includes(term)
+          )
+          return matching.length > 0
+            ? [{ ...g, participants: matching, participantMatch: true }]
+            : []
+        })
+      : statusFilteredGroups
 
     return NextResponse.json(filteredGroups)
   } catch (error) {

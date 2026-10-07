@@ -71,6 +71,7 @@ interface Group {
   pendingCount: number
   deniedCount: number
   pendingParentCount: number
+  participantMatch?: boolean
   isAtCapacity: boolean
   isOverCapacity: boolean
   willExceedCapacity: boolean
@@ -140,12 +141,20 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
     status: 'all',
     searchTerm: ''
   })
+  // Debounced copy of the search box so typing doesn't refetch on every keystroke
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(filters.searchTerm.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [filters.searchTerm])
 
   useEffect(() => {
     fetchGroups()
     fetchStaff()
-  }, [eventId, filters])
+  }, [eventId, filters.status, searchQuery])
 
   async function fetchGroups() {
     setLoading(true)
@@ -153,7 +162,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       const token = await getToken()
       const params = new URLSearchParams({
         status: filters.status,
-        search: filters.searchTerm
+        search: searchQuery
       })
 
       const response = await fetch(
@@ -161,13 +170,19 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
         { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
       )
       if (response.ok) {
-        const data = await response.json()
+        const data: Group[] = await response.json()
         setGroups(data)
+        // Expand groups that matched on a participant name so the person is visible
+        const matched = data.filter((g) => g.participantMatch).map((g) => g.id)
+        if (matched.length > 0) {
+          setExpandedGroups((prev) => new Set([...prev, ...matched]))
+        }
       }
     } catch (error) {
       console.error('Failed to fetch groups:', error)
     } finally {
       setLoading(false)
+      setHasLoaded(true)
     }
   }
 
@@ -200,7 +215,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       const token = await getToken()
       const params = new URLSearchParams({
         status: filters.status,
-        search: filters.searchTerm,
+        search: searchQuery,
       })
       const response = await fetch(
         `/api/admin/events/${eventId}/poros-liability/staff?${params}`,
@@ -313,7 +328,9 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
     setExpandedGroups(newExpanded)
   }
 
-  if (loading) {
+  // Only replace the whole tab with a spinner on first load — unmounting the
+  // filters on every refetch would drop focus from the search box mid-typing.
+  if (!hasLoaded) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-[#1E3A5F]" />
@@ -489,7 +506,13 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
 
       {/* Groups List */}
       <div className="space-y-3">
-        {groups.length === 0 ? (
+        {loading && (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading…
+          </div>
+        )}
+        {groups.length === 0 && !loading ? (
           <Card className="p-8 text-center text-gray-500 bg-white border-[#D1D5DB]">
             <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
             <p>No liability forms found</p>
