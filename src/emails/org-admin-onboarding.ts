@@ -199,16 +199,30 @@ export function generateOrgAdminOnboardingEmail({
   const eventLimit = tier
     ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #555;">Your ${tier.name} plan includes <strong>${tier.eventsPerYear === null ? 'unlimited events' : `${tier.eventsPerYear} event${tier.eventsPerYear === 1 ? '' : 's'} per year`}</strong>${tier.maxPeoplePerYear === null ? '' : ` for up to <strong>${tier.maxPeoplePerYear.toLocaleString('en-US')} people</strong>`}.</p>`
     : ''
+  const wizardSteps: [string, string][] = [
+    ['Basic Information', 'Event name, whether groups, individuals, or both can register, dates and times, location, description, and total capacity'],
+    ['Registration Settings', 'When registration opens and closes, early-bird and late pricing deadlines, and the final payment deadline'],
+    ['Features &amp; Modules', 'Optional extras: housing or day passes, t-shirts, meal packages, add-ons, coupon codes, and staff or vendor registration'],
+    ['Pricing', 'What each type of attendee pays, such as youth, chaperones, or individuals'],
+    ['Contact &amp; Instructions', 'Who attendees should contact with questions, and how they can pay'],
+    ['Landing Page', 'The public page people see when they go to register'],
+    ['Review &amp; Publish', 'Look everything over, then click <strong>Publish Event</strong>, or <strong>Save as Draft</strong> to come back later'],
+  ]
   const eventStep = step(
     'Build your first event',
-    `<p style="margin: 0 0 8px 0;">Click ${where('Events')} in the left sidebar, then <strong>Create New Event</strong>. The event wizard walks you through each part:</p>
-    <ul style="margin: 0; padding-left: 22px;">
-      <li style="margin-bottom: 4px;">Name, dates, location, and description</li>
-      <li style="margin-bottom: 4px;">Registration options and pricing for each type of attendee</li>
-      <li style="margin-bottom: 4px;">Housing or day-pass options, if your event has them</li>
-      <li style="margin-bottom: 4px;">The liability and consent forms attendees fill out</li>
-      <li style="margin-bottom: 4px;">Your event's public landing page</li>
-    </ul>
+    `<p style="margin: 0 0 12px 0;">Click ${where('Events')} in the left sidebar, then <strong>Create New Event</strong>. A 7-step wizard walks you through everything, and you can move back and forth between steps as you go:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size: 15px; border: 1px solid #E5E7EB; border-radius: 6px; border-collapse: separate;">
+      ${wizardSteps
+        .map(
+          ([name, detail], i) => `
+      <tr>
+        <td valign="top" style="padding: 10px 12px; ${i > 0 ? 'border-top: 1px solid #E5E7EB; ' : ''}width: 36%; color: #1E3A5F; font-weight: 600;">${i + 1}. ${name}</td>
+        <td valign="top" style="padding: 10px 12px 10px 0; ${i > 0 ? 'border-top: 1px solid #E5E7EB; ' : ''}color: #555;">${detail}</td>
+      </tr>`
+        )
+        .join('')}
+    </table>
+    <p style="margin: 12px 0 0 0;">Nothing is public until you publish, and you can edit the event afterward. Liability and consent forms are set up separately under ${where('Liability Forms')} in the sidebar.</p>
     ${eventLimit}
     ${guides([
       ['create-event', 'Creating Your First Event'],
@@ -252,7 +266,14 @@ export function generateOrgAdminOnboardingEmail({
   const docsHtml = `
     <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 24px; margin: 10px 0 30px 0;">
       <h2 style="color: #1E3A5F; margin: 0 0 8px 0; font-size: 20px;">Everything else is in the help docs</h2>
-      <p style="margin: 0 0 16px 0;">Every part of ChiRho Events has a step-by-step guide in our help docs. Whenever you're not sure how something works, start there; it's the fastest way to an answer. We suggest bookmarking it.</p>
+      <p style="margin: 0 0 14px 0;">Every part of ChiRho Events has a step-by-step guide in our help docs. Whenever you're not sure how something works, start there; it's the fastest way to an answer.</p>
+      <p style="margin: 0 0 6px 0; font-weight: bold; color: #1E3A5F;">How the help docs work</p>
+      <ul style="margin: 0 0 18px 0; padding-left: 22px;">
+        <li style="margin-bottom: 6px;"><strong>Finding them:</strong> go to <a href="${appUrl}/docs" style="color: #9C8466;">${appUrl.replace(/^https?:\/\//, '')}/docs</a>, or click <strong>Documentation</strong> in the menu at the top of our homepage. We suggest bookmarking it.</li>
+        <li style="margin-bottom: 6px;"><strong>Getting around:</strong> guides are grouped in the left-hand menu by who they're for: <em>Getting Started</em>, <em>For Organization Admins</em> (that's you), <em>For Group Leaders</em>, <em>For Participants</em>, and <em>For Vendors</em>.</li>
+        <li style="margin-bottom: 6px;"><strong>Searching:</strong> type a topic into the search bar at the top, like &ldquo;coupon&rdquo; or &ldquo;refund&rdquo;, to jump straight to the right guide.</li>
+        <li style="margin-bottom: 6px;"><strong>Sharing:</strong> every guide has its own link. Send the Group Leader and Participant guides to the people registering for your event, so they can help themselves too.</li>
+      </ul>
       <div>${button(docsUrl('setup'), 'Open the Help Docs')}</div>
       ${docGroup('Getting started', [
         ['setup', 'Setting Up Your Organization'],
@@ -292,8 +313,9 @@ export function generateOrgAdminOnboardingEmail({
     supportHtml = `
     <div style="background: #FEF3C7; border: 1px solid #FCD34D; padding: 16px 18px; border-radius: 6px; margin: 0 0 30px 0;">
       <p style="margin: 0 0 8px 0; font-weight: bold; color: #92400E;">How support works on the ${tier.name} plan</p>
-      <p style="margin: 0 0 8px 0; color: #92400E;">Your plan is self-serve, which is what keeps it affordable. It doesn't include an onboarding call or setup done for you, so this email and the help docs are your guide. If something isn't working the way the docs describe, email <a href="mailto:support@chirhoevents.com" style="color: #92400E;">support@chirhoevents.com</a> and we'll sort it out.</p>
-      <p style="margin: 0; color: #92400E;">Want us to set things up for you or train your team? Hands-on help is available at <strong>$90/hour</strong>. Just reply to this email to ask.</p>
+      <p style="margin: 0 0 8px 0; color: #92400E;">Your plan is self-serve, which is what keeps it affordable. It doesn't include an onboarding call or setup done for you, so this email and the help docs are your guide.</p>
+      <p style="margin: 0 0 8px 0; color: #92400E;">Questions are always welcome. Email <a href="mailto:support@chirhoevents.com" style="color: #92400E;">support@chirhoevents.com</a> or reply to this email any time, and we'll point you in the right direction.</p>
+      <p style="margin: 0; color: #92400E;">Want us to set things up for you or train your team? Hands-on help is available at <strong>$90/hour</strong>. Just reply to ask.</p>
     </div>`
   } else if (tier?.includesSetupCall) {
     supportHtml = `
@@ -329,6 +351,8 @@ export function generateOrgAdminOnboardingEmail({
 
     <p>This email is your setup checklist. It covers everything you need to go from here to taking registrations. Each step tells you where to click and links to a detailed guide in our help docs, so keep it handy.</p>
 
+    <p>And if you have any questions along the way, just reply to this email or write to <a href="mailto:support@chirhoevents.com" style="color: #9C8466; font-weight: 600;">support@chirhoevents.com</a>. We're happy to help.</p>
+
     ${personalNoteHtml}
 
     ${planHtml}
@@ -349,10 +373,10 @@ export function generateOrgAdminOnboardingEmail({
 
     <!-- Need Help -->
     <div style="margin: 0 0 10px 0;">
-      <h2 style="color: #1E3A5F; margin: 0 0 10px 0; font-size: 20px;">Where to get help</h2>
+      <h2 style="color: #1E3A5F; margin: 0 0 10px 0; font-size: 20px;">Questions? We're here</h2>
       <ul style="margin: 0; padding-left: 22px;">
-        <li style="margin-bottom: 6px;"><strong>Help docs:</strong> <a href="${appUrl}/docs" style="color: #9C8466;">${appUrl.replace(/^https?:\/\//, '')}/docs</a></li>
-        <li style="margin-bottom: 6px;"><strong>Email:</strong> <a href="mailto:support@chirhoevents.com" style="color: #9C8466;">support@chirhoevents.com</a>, or just reply to this email</li>
+        <li style="margin-bottom: 6px;"><strong>Email us:</strong> <a href="mailto:support@chirhoevents.com" style="color: #9C8466;">support@chirhoevents.com</a>, or just reply to this email</li>
+        <li style="margin-bottom: 6px;"><strong>Help docs:</strong> <a href="${appUrl}/docs" style="color: #9C8466;">${appUrl.replace(/^https?:\/\//, '')}/docs</a>, also linked as <strong>Documentation</strong> at the top of our homepage</li>
         <li style="margin-bottom: 6px;"><strong>From your dashboard:</strong> click <strong>Support</strong> in the left sidebar to open a support ticket</li>
       </ul>
     </div>
