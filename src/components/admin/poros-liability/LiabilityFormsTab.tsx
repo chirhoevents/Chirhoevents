@@ -27,7 +27,8 @@ import {
   Mail,
   Trash2,
   RefreshCw,
-  Send
+  Send,
+  Shield
 } from 'lucide-react'
 import { hasAnyMedicalInfo, hasRealMedicalText } from '@/lib/medical-info'
 import { liabilityFormNeedsApproval } from '@/lib/liability-form-approval'
@@ -71,6 +72,7 @@ interface Group {
   pendingCount: number
   deniedCount: number
   pendingParentCount: number
+  participantMatch?: boolean
   isAtCapacity: boolean
   isOverCapacity: boolean
   willExceedCapacity: boolean
@@ -140,12 +142,20 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
     status: 'all',
     searchTerm: ''
   })
+  // Debounced copy of the search box so typing doesn't refetch on every keystroke
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(filters.searchTerm.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [filters.searchTerm])
 
   useEffect(() => {
     fetchGroups()
     fetchStaff()
-  }, [eventId, filters])
+  }, [eventId, filters.status, searchQuery])
 
   async function fetchGroups() {
     setLoading(true)
@@ -153,7 +163,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       const token = await getToken()
       const params = new URLSearchParams({
         status: filters.status,
-        search: filters.searchTerm
+        search: searchQuery
       })
 
       const response = await fetch(
@@ -161,13 +171,19 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
         { headers: token ? { 'Authorization': `Bearer ${token}` } : {} }
       )
       if (response.ok) {
-        const data = await response.json()
+        const data: Group[] = await response.json()
         setGroups(data)
+        // Expand groups that matched on a participant name so the person is visible
+        const matched = data.filter((g) => g.participantMatch).map((g) => g.id)
+        if (matched.length > 0) {
+          setExpandedGroups((prev) => new Set([...prev, ...matched]))
+        }
       }
     } catch (error) {
       console.error('Failed to fetch groups:', error)
     } finally {
       setLoading(false)
+      setHasLoaded(true)
     }
   }
 
@@ -200,7 +216,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
       const token = await getToken()
       const params = new URLSearchParams({
         status: filters.status,
-        search: filters.searchTerm,
+        search: searchQuery,
       })
       const response = await fetch(
         `/api/admin/events/${eventId}/poros-liability/staff?${params}`,
@@ -313,7 +329,9 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
     setExpandedGroups(newExpanded)
   }
 
-  if (loading) {
+  // Only replace the whole tab with a spinner on first load — unmounting the
+  // filters on every refetch would drop focus from the search box mid-typing.
+  if (!hasLoaded) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-[#1E3A5F]" />
@@ -489,7 +507,13 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
 
       {/* Groups List */}
       <div className="space-y-3">
-        {groups.length === 0 ? (
+        {loading && (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading…
+          </div>
+        )}
+        {groups.length === 0 && !loading ? (
           <Card className="p-8 text-center text-gray-500 bg-white border-[#D1D5DB]">
             <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
             <p>No liability forms found</p>
@@ -1016,6 +1040,55 @@ function ParticipantRow({
   const [processing, setProcessing] = useState(false)
   const [editingEmail, setEditingEmail] = useState(false)
   const [draftParentEmail, setDraftParentEmail] = useState(participant.parentEmail || '')
+  const [showCertUpload, setShowCertUpload] = useState(false)
+  const [certFile, setCertFile] = useState<File | null>(null)
+  const [certProgram, setCertProgram] = useState('')
+  const [certCompletionDate, setCertCompletionDate] = useState('')
+  const [certExpirationDate, setCertExpirationDate] = useState('')
+  const [certMarkVerified, setCertMarkVerified] = useState(true)
+
+  async function handleUploadCertificate() {
+    if (!participant.formId || !certFile) return
+
+    setProcessing(true)
+    try {
+      const token = await getToken()
+      const body = new FormData()
+      body.append('file', certFile)
+      if (certProgram.trim()) body.append('programName', certProgram.trim())
+      if (certCompletionDate) body.append('completionDate', certCompletionDate)
+      if (certExpirationDate) body.append('expirationDate', certExpirationDate)
+      body.append('markVerified', certMarkVerified ? 'true' : 'false')
+
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/forms/${participant.formId}/certificate`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body,
+        }
+      )
+
+      const data = await response.json().catch(() => ({}))
+      if (response.ok) {
+        alert(`Safe Environment certificate uploaded for ${participant.firstName} ${participant.lastName}.`)
+        setShowCertUpload(false)
+        setCertFile(null)
+        setCertProgram('')
+        setCertCompletionDate('')
+        setCertExpirationDate('')
+        setCertMarkVerified(true)
+        onUpdate()
+      } else {
+        alert(`Failed to upload: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Certificate upload error:', error)
+      alert('Failed to upload certificate')
+    } finally {
+      setProcessing(false)
+    }
+  }
 
   async function handleResendToParent(overrideParentEmail?: string) {
     if (!participant.formId) return
@@ -1363,6 +1436,21 @@ function ParticipantRow({
             <span className="text-xs text-gray-500 px-2">No approval needed</span>
           )}
 
+          {/* Admin upload of a Safe Environment certificate on the adult's behalf */}
+          {!isYouth && participant.formId && participant.formStatus !== 'pending_parent' && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowCertUpload(!showCertUpload)}
+              disabled={processing}
+              title="Upload a Safe Environment certificate on their behalf"
+              className="text-xs border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
+              <Shield className="w-4 h-4 mr-1" />
+              Upload Cert
+            </Button>
+          )}
+
           {participant.formId && participant.formStatus !== 'pending_parent' && (
             <Button
               size="sm"
@@ -1377,6 +1465,84 @@ function ParticipantRow({
           )}
         </div>
       </div>
+
+      {/* Safe Environment Certificate Upload Panel */}
+      {showCertUpload && (
+        <div className="p-4 bg-purple-50 border-t border-purple-200">
+          <h4 className="font-semibold text-purple-900 mb-1 flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Upload Safe Environment Certificate for {participant.firstName} {participant.lastName}
+          </h4>
+          <p className="text-xs text-purple-700 mb-3">
+            Use this when a certificate was sent to you directly (e.g. by email). PDF, PNG, JPG, or WEBP up to 10MB.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div className="md:col-span-2">
+              <label className="text-gray-700 mb-1 block">Certificate file *</label>
+              <Input
+                type="file"
+                accept="application/pdf,image/png,image/jpeg,image/webp"
+                onChange={(e) => setCertFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-gray-700 mb-1 block">Program name (optional)</label>
+              <Input
+                placeholder="e.g. VIRTUS Protecting God's Children"
+                value={certProgram}
+                onChange={(e) => setCertProgram(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-gray-700 mb-1 block">Completion date (optional)</label>
+              <Input
+                type="date"
+                value={certCompletionDate}
+                onChange={(e) => setCertCompletionDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-gray-700 mb-1 block">Expiration date (optional)</label>
+              <Input
+                type="date"
+                value={certExpirationDate}
+                onChange={(e) => setCertExpirationDate(e.target.value)}
+              />
+            </div>
+            <label className="md:col-span-2 flex items-center gap-2 text-gray-700">
+              <input
+                type="checkbox"
+                checked={certMarkVerified}
+                onChange={(e) => setCertMarkVerified(e.target.checked)}
+              />
+              Mark as verified (I&apos;ve reviewed this certificate)
+            </label>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <Button
+              size="sm"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={handleUploadCertificate}
+              disabled={processing || !certFile}
+            >
+              {processing ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Shield className="w-4 h-4 mr-1" />
+              )}
+              {processing ? 'Uploading…' : 'Upload Certificate'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowCertUpload(false)}
+              disabled={processing}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Details Panel */}
       {showDetails && (
