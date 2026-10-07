@@ -38,6 +38,8 @@ interface GroupRegistration {
   leaderName: string
   leaderEmail: string
   leaderPhone: string
+  accessCode: string
+  groupCode: string | null
   participantCount: number
   housingType: string
   registeredAt: string
@@ -131,14 +133,16 @@ export default function RegistrationsClient({
     let filtered = groupRegistrations
 
     // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+    const query = searchQuery.trim().toLowerCase()
+    if (query) {
       filtered = filtered.filter(
         (reg) =>
           reg.groupName.toLowerCase().includes(query) ||
           reg.parishName?.toLowerCase().includes(query) ||
           reg.leaderName.toLowerCase().includes(query) ||
-          reg.leaderEmail.toLowerCase().includes(query)
+          reg.leaderEmail.toLowerCase().includes(query) ||
+          reg.accessCode?.toLowerCase().includes(query) ||
+          reg.groupCode?.toLowerCase().includes(query)
       )
     }
 
@@ -165,8 +169,8 @@ export default function RegistrationsClient({
     let filtered = individualRegistrations
 
     // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+    const query = searchQuery.trim().toLowerCase()
+    if (query) {
       filtered = filtered.filter(
         (reg) =>
           reg.firstName.toLowerCase().includes(query) ||
@@ -249,7 +253,7 @@ export default function RegistrationsClient({
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search by name, parish, email, or confirmation code..."
+                placeholder="Search by name, parish, email, access code, or confirmation code..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"

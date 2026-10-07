@@ -17,6 +17,8 @@ interface GroupRegistration {
   leaderName: string
   leaderEmail: string
   leaderPhone: string
+  accessCode: string
+  groupCode: string | null
   participantCount: number
   housingType: string
   registeredAt: string

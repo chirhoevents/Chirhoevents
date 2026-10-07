@@ -117,6 +117,8 @@ export async function GET(
         leaderName: reg.groupLeaderName,
         leaderEmail: reg.groupLeaderEmail,
         leaderPhone: reg.groupLeaderPhone,
+        accessCode: reg.accessCode,
+        groupCode: reg.groupCode,
         participantCount: headcount,
         totalParticipants: headcount,
         youthCount: reg.youthCount,
