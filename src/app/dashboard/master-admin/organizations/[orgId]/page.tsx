@@ -35,6 +35,7 @@ import {
   HardDrive,
   RefreshCw,
   RotateCcw,
+  Send,
 } from 'lucide-react'
 
 interface Organization {
@@ -146,6 +147,23 @@ const invoiceStatusColors: Record<string, string> = {
   cancelled: 'bg-gray-100 text-gray-800',
 }
 
+interface WelcomeEmailPreview {
+  html: string
+  subject: string
+  sentTo: string
+  hasAccount: boolean
+  paysByCheck: boolean
+  setupInvoice: { invoiceNumber: number; amount: number } | null
+  includePaymentLink: boolean
+}
+
+interface WelcomeEmailForm {
+  personalMessage: string
+  // undefined = let the server pick (off for orgs that pay by check)
+  includePaymentLink?: boolean
+  billingNote: string
+}
+
 export default function OrganizationDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -220,6 +238,49 @@ export default function OrganizationDetailPage() {
   const [loadingEvents, setLoadingEvents] = useState(false)
   const [showAllEvents, setShowAllEvents] = useState(false)
   const [updatingEventStatus, setUpdatingEventStatus] = useState<string | null>(null)
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+  const [welcomeForm, setWelcomeForm] = useState<WelcomeEmailForm>({ personalMessage: '', billingNote: '' })
+  const [welcomePreview, setWelcomePreview] = useState<WelcomeEmailPreview | null>(null)
+  const [welcomeError, setWelcomeError] = useState<string | null>(null)
+
+  // The organizations list links here with ?welcome=1 to open the dialog
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('welcome') === '1') {
+      setShowWelcomeModal(true)
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [])
+
+  // Refresh the server-rendered preview as the message and options change
+  useEffect(() => {
+    if (!showWelcomeModal) return
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const token = await getToken()
+        const response = await fetch(`/api/master-admin/organizations/${params.orgId}/resend-onboarding`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ ...welcomeForm, dryRun: true }),
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to load the email preview')
+        if (!cancelled) {
+          setWelcomePreview(data)
+          setWelcomeError(null)
+        }
+      } catch (error: unknown) {
+        if (!cancelled) setWelcomeError(error instanceof Error ? error.message : 'Failed to load the email preview')
+      }
+    }, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [showWelcomeModal, welcomeForm, getToken, params.orgId])
 
   useEffect(() => {
     const fetchOrganization = async () => {
@@ -379,15 +440,25 @@ export default function OrganizationDetailPage() {
     }
   }
 
-  const handleResendOnboarding = async () => {
-    if (!confirm('Resend onboarding email to the organization admin?')) return
+  const openWelcomeModal = () => {
+    setWelcomeForm({ personalMessage: '', billingNote: '' })
+    setWelcomePreview(null)
+    setWelcomeError(null)
+    setShowWelcomeModal(true)
+  }
 
+  const handleResendOnboarding = async () => {
     setActionLoading('resend-onboarding')
+    setWelcomeError(null)
     try {
       const token = await getToken()
       const response = await fetch(`/api/master-admin/organizations/${params.orgId}/resend-onboarding`, {
         method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(welcomeForm),
       })
 
       const data = await response.json()
@@ -396,10 +467,11 @@ export default function OrganizationDetailPage() {
         throw new Error(data.error || 'Failed to resend onboarding email')
       }
 
+      setShowWelcomeModal(false)
       alert(`Onboarding email sent to ${data.sentTo}`)
     } catch (error: unknown) {
       console.error('Failed to resend onboarding:', error)
-      alert(error instanceof Error ? error.message : 'Failed to resend onboarding email')
+      setWelcomeError(error instanceof Error ? error.message : 'Failed to resend onboarding email')
     } finally {
       setActionLoading(null)
     }
@@ -1226,7 +1298,7 @@ export default function OrganizationDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
             <div className="space-y-2">
               <button
-                onClick={handleResendOnboarding}
+                onClick={openWelcomeModal}
                 disabled={actionLoading === 'resend-onboarding'}
                 className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
               >
@@ -1295,6 +1367,142 @@ export default function OrganizationDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Onboarding Email Modal */}
+      {showWelcomeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[92vh] flex flex-col">
+            <div className="flex items-start justify-between p-4 border-b border-gray-200">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Send Onboarding Email</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  The welcome email with the full setup checklist and links to the help docs
+                  {welcomePreview ? <> goes to <strong>{welcomePreview.sentTo}</strong></> : null}.
+                  {welcomePreview?.hasAccount && ' They already created their login, so it asks them to sign in.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowWelcomeModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-2 gap-6 p-4">
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Personal welcome message <span className="font-normal text-gray-500">(optional)</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">Shown near the top of the email and signed with your name.</p>
+                  <textarea
+                    value={welcomeForm.personalMessage}
+                    onChange={(e) => setWelcomeForm({ ...welcomeForm, personalMessage: e.target.value })}
+                    rows={5}
+                    placeholder={`Welcome to ChiRho Events! We're excited to have ${organization?.name ?? 'you'} on board.`}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Billing</h3>
+                  {welcomePreview?.setupInvoice ? (
+                    <label className="flex items-start gap-3 text-sm text-gray-900 cursor-pointer mb-3">
+                      <input
+                        type="checkbox"
+                        checked={welcomeForm.includePaymentLink ?? welcomePreview.includePaymentLink}
+                        onChange={(e) => setWelcomeForm({ ...welcomeForm, includePaymentLink: e.target.checked })}
+                        className="mt-1"
+                      />
+                      <span>
+                        Include a card payment link for invoice #{welcomePreview.setupInvoice.invoiceNumber} ({formatCurrency(welcomePreview.setupInvoice.amount)})
+                        <span className="block text-xs text-gray-500">
+                          {welcomePreview.paysByCheck
+                            ? 'Off by default because this organization pays by check.'
+                            : 'Leave this off if you\'re invoicing them yourself.'}
+                        </span>
+                      </span>
+                    </label>
+                  ) : (
+                    <p className="text-xs text-gray-500 mb-3">There&apos;s no unpaid setup fee invoice, so no payment link is included.</p>
+                  )}
+                  {!(welcomeForm.includePaymentLink ?? welcomePreview?.includePaymentLink) && (
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">
+                        What the email says about billing <span className="text-gray-500">(optional)</span>
+                      </label>
+                      <textarea
+                        value={welcomeForm.billingNote}
+                        onChange={(e) => setWelcomeForm({ ...welcomeForm, billingNote: e.target.value })}
+                        rows={3}
+                        placeholder="We'll send your invoice separately, so there's nothing to pay online right now."
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        {welcomePreview && !welcomePreview.paysByCheck && !welcomePreview.setupInvoice
+                          ? 'Leave blank to leave billing out of the email.'
+                          : 'Leave blank to use the text above.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {welcomeError && (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    {welcomeError}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col">
+                <h3 className="text-sm font-medium text-gray-700 flex items-center gap-1 mb-1">
+                  <Eye className="h-4 w-4 text-gray-500" />
+                  Email preview
+                </h3>
+                {welcomePreview && (
+                  <p className="text-xs text-gray-500 mb-2">To: {welcomePreview.sentTo} &middot; Subject: {welcomePreview.subject}</p>
+                )}
+                {welcomePreview ? (
+                  <iframe
+                    title="Onboarding email preview"
+                    srcDoc={welcomePreview.html.replace('<head>', '<head><style>a { pointer-events: none; }</style>')}
+                    sandbox=""
+                    className="flex-1 w-full min-h-[500px] border border-gray-200 rounded-lg bg-gray-100"
+                  />
+                ) : (
+                  <div className="flex-1 min-h-[500px] border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowWelcomeModal(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResendOnboarding}
+                disabled={actionLoading === 'resend-onboarding' || !welcomePreview}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading === 'resend-onboarding' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                Send Email
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Invoice Modal */}
       {showInvoiceModal && (

@@ -1,16 +1,53 @@
 /**
  * Org Admin Onboarding Email Template
  *
- * Sent when a Master Admin creates a new organization
- * Contains step-by-step instructions for getting started
+ * Sent when an organization is approved or created, and whenever a master
+ * admin resends onboarding. It has to work on its own for self-serve plans
+ * (Chapel/Parish get no onboarding call), so every step says exactly where to
+ * click and links to the matching section of the help docs.
  */
 
-interface OrgAdminOnboardingEmailProps {
+import { getTier, resolveModuleAccess } from '@/lib/subscription-tiers'
+
+/** How the org's setup / basic access fee is handled in this email. */
+export type OnboardingBilling =
+  // A secure link to pay the fee online; the subscription starts after payment
+  | { mode: 'online'; amount: number; label: string; payUrl: string }
+  // The ChiRho team invoices this org by hand (e.g. an annual check)
+  | { mode: 'manual'; note?: string | null }
+
+export interface OrgAdminOnboardingEmailProps {
   orgName: string
   orgAdminFirstName: string
   orgAdminEmail: string
   inviteLink: string
   organizationId: string
+  /** The admin already created their login, so step 1 becomes "sign in". */
+  hasAccount?: boolean
+  tierKey?: string | null
+  billingCycle?: string | null
+  /** What the org pays each billing cycle (per month, or per year if annual). */
+  planPrice?: number | null
+  modulesEnabled?: unknown
+  /** Plain-text note from the ChiRho team, shown above the checklist. */
+  personalMessage?: string | null
+  personalMessageFrom?: string | null
+  billing?: OnboardingBilling | null
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function formatMoney(amount: number): string {
+  return Number.isInteger(amount)
+    ? `$${amount.toLocaleString('en-US')}`
+    : `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 export function generateOrgAdminOnboardingEmail({
@@ -18,8 +55,254 @@ export function generateOrgAdminOnboardingEmail({
   orgAdminFirstName,
   orgAdminEmail,
   inviteLink,
-  organizationId,
+  hasAccount = false,
+  tierKey,
+  billingCycle,
+  planPrice,
+  modulesEnabled,
+  personalMessage,
+  personalMessageFrom,
+  billing,
 }: OrgAdminOnboardingEmailProps): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
+  const org = escapeHtml(orgName)
+  const firstName = escapeHtml(orgAdminFirstName)
+  const adminEmail = escapeHtml(orgAdminEmail)
+  const tier = tierKey ? getTier(tierKey) : undefined
+  const modules = tier ? resolveModuleAccess(modulesEnabled, tier.key) : null
+  const cycleUnit = billingCycle === 'annual' ? 'year' : 'month'
+
+  const docsUrl = (section: string) => `${appUrl}/docs?section=${section}`
+  const docLink = (section: string, title: string) =>
+    `<a href="${docsUrl(section)}" style="color: #9C8466; font-weight: 600;">${title}</a>`
+  const guides = (links: [string, string][]) =>
+    `<p style="margin: 10px 0 0 0; font-size: 14px; color: #555;"><strong style="color: #1E3A5F;">Step-by-step guide${links.length > 1 ? 's' : ''}:</strong> ${links
+      .map(([section, title]) => docLink(section, title))
+      .join(' &middot; ')}</p>`
+  const where = (text: string) =>
+    `<span style="background: #F5F1E8; color: #1E3A5F; padding: 1px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap;">${text}</span>`
+  const button = (href: string, label: string, background = '#1E3A5F') =>
+    `<a href="${href}" style="display: inline-block; background: ${background}; color: #ffffff; padding: 13px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">${label}</a>`
+
+  let stepNumber = 0
+  const step = (title: string, body: string) => {
+    stepNumber++
+    return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 28px 0;">
+      <tr>
+        <td width="44" valign="top">
+          <div style="width: 32px; height: 32px; line-height: 32px; border-radius: 16px; background: #1E3A5F; color: #ffffff; text-align: center; font-weight: bold; font-size: 15px;">${stepNumber}</div>
+        </td>
+        <td valign="top">
+          <h3 style="margin: 4px 0 8px 0; color: #1E3A5F; font-size: 18px;">${title}</h3>
+          ${body}
+        </td>
+      </tr>
+    </table>`
+  }
+
+  // ---- Personal note -------------------------------------------------------
+  const note = personalMessage?.trim()
+  const personalNoteHtml = note
+    ? `
+    <div style="background: #F5F1E8; border-left: 4px solid #9C8466; padding: 16px 18px; margin: 24px 0; border-radius: 4px;">
+      <p style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #9C8466; font-weight: bold;">A note from ${escapeHtml(personalMessageFrom?.trim() || 'the ChiRho Events team')}</p>
+      <p style="margin: 0; color: #1E3A5F;">${escapeHtml(note).replace(/\r?\n/g, '<br>')}</p>
+    </div>`
+    : ''
+
+  // ---- Plan at a glance ----------------------------------------------------
+  const planRow = (label: string, value: string) => `
+        <tr>
+          <td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; color: #666; width: 48%;">${label}</td>
+          <td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; color: #1E3A5F; font-weight: 600;">${value}</td>
+        </tr>`
+  const included = (on: boolean) =>
+    on ? 'Included' : '<span style="color: #999; font-weight: normal;">Not included</span>'
+  const supportLabel = !tier
+    ? 'Email support'
+    : tier.isSelfServe
+      ? 'Self-serve: help docs + email support'
+      : tier.includesSetupCall
+        ? 'Email support + a 1-hour onboarding call'
+        : 'Email support'
+  const planHtml = tier
+    ? `
+    <div style="margin: 30px 0;">
+      <h2 style="color: #1E3A5F; margin: 0 0 10px 0; font-size: 20px;">Your plan at a glance</h2>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size: 15px;">
+        ${planRow('Plan', `${tier.name}${planPrice ? ` &mdash; ${formatMoney(planPrice)}/${cycleUnit}` : ''}`)}
+        ${planRow('Events per year', tier.eventsPerYear === null ? 'Unlimited' : String(tier.eventsPerYear))}
+        ${planRow('People registered per year', tier.maxPeoplePerYear === null ? 'Unlimited' : `Up to ${tier.maxPeoplePerYear.toLocaleString('en-US')}`)}
+        ${planRow('File storage', `${tier.storageGb} GB`)}
+        ${modules ? planRow('Poros housing &amp; room assignments', included(modules.poros)) : ''}
+        ${modules ? planRow('SALVE check-in &amp; name tags', included(modules.salve)) : ''}
+        ${modules ? planRow('Rapha medical &amp; incident tracking', included(modules.rapha)) : ''}
+        ${planRow('Support', supportLabel)}
+      </table>
+    </div>`
+    : ''
+
+  // ---- Checklist -----------------------------------------------------------
+  const loginStep = hasAccount
+    ? step(
+        'Sign in to your dashboard',
+        `<p style="margin: 0 0 14px 0;">You've already created your login, so just sign in with <strong>${adminEmail}</strong> to reach your admin dashboard.</p>
+        <div>${button(`${appUrl}/sign-in`, 'Sign In')}</div>`
+      )
+    : step(
+        'Create your login',
+        `<p style="margin: 0 0 14px 0;">Click the button below to create your password. This link is just for you &mdash; it connects your new login to <strong>${org}</strong> as its administrator. We recommend signing up with <strong>${adminEmail}</strong>, the address this email was sent to.</p>
+        <div>${button(inviteLink, 'Create My Login')}</div>
+        <p style="margin: 10px 0 0 0; font-size: 13px; color: #666;">Button not working? Copy and paste this link into your browser:<br><a href="${inviteLink}" style="color: #9C8466; word-break: break-all;">${inviteLink}</a></p>
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: #555;">After this, you can always sign in at <a href="${appUrl}/sign-in" style="color: #9C8466;">${appUrl.replace(/^https?:\/\//, '')}/sign-in</a>.</p>`
+      )
+
+  let billingStep = ''
+  if (billing?.mode === 'online') {
+    billingStep = step(
+      `Pay your ${escapeHtml(billing.label)}`,
+      `<p style="margin: 0 0 14px 0;">Your one-time ${escapeHtml(billing.label.toLowerCase())} is <strong>${formatMoney(billing.amount)}</strong>. Pay it securely online by card:</p>
+      <div>${button(billing.payUrl, `Pay ${formatMoney(billing.amount)} ${escapeHtml(billing.label)}`, '#9C8466')}</div>
+      ${tier && planPrice ? `<p style="margin: 12px 0 0 0;">Once it's paid, your ${tier.name} subscription (${formatMoney(planPrice)}/${cycleUnit}) starts automatically on the same card &mdash; there's nothing else to set up.</p>` : ''}
+      ${guides([['subscription-billing', 'How Subscription Billing Works']])}`
+    )
+  } else if (billing?.mode === 'manual') {
+    const manualNote = billing.note?.trim()
+    billingStep = step(
+      'Billing &mdash; nothing to pay online',
+      `<p style="margin: 0;">${manualNote ? escapeHtml(manualNote).replace(/\r?\n/g, '<br>') : "We'll send your invoice separately, so there's nothing to pay online right now."}</p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #555;">Questions about billing? Just reply to this email.</p>`
+    )
+  }
+
+  const profileStep = step(
+    'Complete your organization profile',
+    `<p style="margin: 0 0 8px 0;">From your dashboard, open ${where('Settings &rarr; Organization')} and check your organization's name, contact details, and address.</p>
+    <p style="margin: 0;">Then open ${where('Settings &rarr; Branding')} to upload your logo and choose your colors. They appear on your public registration pages.</p>
+    ${guides([['setup', 'Setting Up Your Organization']])}`
+  )
+
+  const stripeStep = step(
+    'Connect Stripe so you can collect registration payments',
+    `<p style="margin: 0 0 8px 0;">Registration payments go straight from your attendees to your organization's bank account through Stripe. ChiRho Events never holds your money. To turn on online payments:</p>
+    <ol style="margin: 0 0 8px 0; padding-left: 22px;">
+      <li style="margin-bottom: 6px;">Go to ${where('Settings &rarr; Integrations')}</li>
+      <li style="margin-bottom: 6px;">Confirm the <strong>Stripe Account Email</strong>, then click <strong>Connect Stripe</strong></li>
+      <li style="margin-bottom: 6px;">Stripe will ask for your organization's legal name, EIN (tax ID), the bank account for payouts, and to verify your identity. Have those handy; it takes about 15 minutes</li>
+      <li style="margin-bottom: 6px;">When Stripe sends you back, click <strong>Sync Status from Stripe</strong></li>
+    </ol>
+    <p style="margin: 0; font-size: 14px; color: #555;">Don't have a Stripe account yet? No problem. The connection process walks you through creating one. Each registration payment carries Stripe's processing fee (2.9% + $0.30) and a 1% ChiRho platform fee; these are separate from your subscription.</p>
+    ${guides([['stripe-connect', 'Connecting Stripe to Accept Payments']])}`
+  )
+
+  const eventLimit = tier
+    ? `<p style="margin: 10px 0 0 0; font-size: 14px; color: #555;">Your ${tier.name} plan includes <strong>${tier.eventsPerYear === null ? 'unlimited events' : `${tier.eventsPerYear} event${tier.eventsPerYear === 1 ? '' : 's'} per year`}</strong>${tier.maxPeoplePerYear === null ? '' : ` for up to <strong>${tier.maxPeoplePerYear.toLocaleString('en-US')} people</strong>`}.</p>`
+    : ''
+  const eventStep = step(
+    'Build your first event',
+    `<p style="margin: 0 0 8px 0;">Click ${where('Events')} in the left sidebar, then <strong>Create New Event</strong>. The event wizard walks you through each part:</p>
+    <ul style="margin: 0; padding-left: 22px;">
+      <li style="margin-bottom: 4px;">Name, dates, location, and description</li>
+      <li style="margin-bottom: 4px;">Registration options and pricing for each type of attendee</li>
+      <li style="margin-bottom: 4px;">Housing or day-pass options, if your event has them</li>
+      <li style="margin-bottom: 4px;">The liability and consent forms attendees fill out</li>
+      <li style="margin-bottom: 4px;">Your event's public landing page</li>
+    </ul>
+    ${eventLimit}
+    ${guides([
+      ['create-event', 'Creating Your First Event'],
+      ['pricing-setup', 'Pricing &amp; Registration'],
+      ['housing-daypass', 'Housing &amp; Day Pass Options'],
+      ['liability-individual', 'Liability Forms'],
+      ['landing-page', 'Customizing Your Landing Page'],
+    ])}`
+  )
+
+  const registrationStep = step(
+    'Open registration and share your link',
+    `<p style="margin: 0 0 8px 0;">When your event looks right, make it visible and open registration. Then share the registration link wherever your people will see it: the bulletin, your website, social media, or email.</p>
+    <p style="margin: 0;">As people sign up, they appear under ${where('Registrations')}. From there you can track payments, record checks and cash, email attendees, and export lists. ${where('Reports')} has your financial and attendance reports.</p>
+    ${guides([
+      ['event-visibility', 'Event Visibility &amp; Registration Status'],
+      ['manage-registrations', 'Managing Registrations &amp; Payments'],
+      ['email-participants', 'Emailing Participants'],
+      ['coupon-codes', 'Coupon &amp; Discount Codes'],
+      ['reports', 'Generating Reports'],
+    ])}`
+  )
+
+  const teamStep = step(
+    'Invite your team (optional)',
+    `<p style="margin: 0;">Have others helping you run the event? Go to ${where('Settings &rarr; Team')} and click <strong>Invite Team Member</strong>. You choose what each person can do, from full admin access down to view-only, and they'll get their own email invitation.</p>
+    ${guides([['team', 'Managing Your Team']])}`
+  )
+
+  // ---- Help docs library ---------------------------------------------------
+  const docGroup = (heading: string, links: [string, string][]) => `
+      <p style="margin: 16px 0 6px 0; font-weight: bold; color: #1E3A5F;">${heading}</p>
+      <ul style="margin: 0; padding-left: 22px; font-size: 15px;">
+        ${links.map(([section, title]) => `<li style="margin-bottom: 4px;">${docLink(section, title)}</li>`).join('')}
+      </ul>`
+  const moduleDocs: [string, string][] = []
+  if (modules?.poros) moduleDocs.push(['poros-enable', 'Enabling Poros (housing) for an event'])
+  if (modules?.salve) moduleDocs.push(['salve-checkin', 'Using SALVE for check-in'])
+  if (modules?.rapha) moduleDocs.push(['rapha-medical', 'Using Rapha for medical info'])
+
+  const docsHtml = `
+    <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 24px; margin: 10px 0 30px 0;">
+      <h2 style="color: #1E3A5F; margin: 0 0 8px 0; font-size: 20px;">Everything else is in the help docs</h2>
+      <p style="margin: 0 0 16px 0;">Every part of ChiRho Events has a step-by-step guide in our help docs. Whenever you're not sure how something works, start there; it's the fastest way to an answer. We suggest bookmarking it.</p>
+      <div>${button(docsUrl('setup'), 'Open the Help Docs')}</div>
+      ${docGroup('Getting started', [
+        ['setup', 'Setting Up Your Organization'],
+        ['stripe-connect', 'Connecting Stripe to Accept Payments'],
+        ['subscription-billing', 'How Subscription Billing Works'],
+      ])}
+      ${docGroup('Building your event', [
+        ['create-event', 'Creating Your First Event'],
+        ['pricing-setup', 'Setting Up Pricing &amp; Registration'],
+        ['housing-daypass', 'Housing &amp; Day Pass Options'],
+        ['liability-individual', 'Liability Forms for Individuals'],
+        ['landing-page', 'Customizing Your Landing Page'],
+        ['access-codes', 'Managing Access Codes (group registration)'],
+      ])}
+      ${docGroup('Running registration', [
+        ['event-visibility', 'Event Visibility &amp; Registration Status'],
+        ['capacity-management', 'Managing Capacity'],
+        ['waitlist-queue', 'Waitlist &amp; Queue System'],
+        ['manage-registrations', 'Managing Registrations &amp; Payments'],
+        ['virtual-terminal', 'Taking Payments by Phone'],
+        ['email-participants', 'Emailing Participants'],
+      ])}
+      ${docGroup('Reports, surveys &amp; your team', [
+        ['reports', 'Generating Reports'],
+        ['custom-reports', 'Custom Report Builder'],
+        ['surveys', 'Post-Event Surveys'],
+        ['team', 'Managing Your Team'],
+        ['notifications', 'Notifications &amp; Email Digest'],
+      ])}
+      ${moduleDocs.length > 0 ? docGroup('Your add-on modules', moduleDocs) : ''}
+      <p style="margin: 18px 0 0 0; font-size: 14px; color: #555;"><strong>Registering groups?</strong> Point your group leaders to the ${docLink('register-group', 'For Group Leaders')} guides, which walk them through registering, paying, and completing forms.</p>
+    </div>`
+
+  // ---- Support expectations ------------------------------------------------
+  let supportHtml = ''
+  if (tier?.isSelfServe) {
+    supportHtml = `
+    <div style="background: #FEF3C7; border: 1px solid #FCD34D; padding: 16px 18px; border-radius: 6px; margin: 0 0 30px 0;">
+      <p style="margin: 0 0 8px 0; font-weight: bold; color: #92400E;">How support works on the ${tier.name} plan</p>
+      <p style="margin: 0 0 8px 0; color: #92400E;">Your plan is self-serve, which is what keeps it affordable. It doesn't include an onboarding call or setup done for you, so this email and the help docs are your guide. If something isn't working the way the docs describe, email <a href="mailto:support@chirhoevents.com" style="color: #92400E;">support@chirhoevents.com</a> and we'll sort it out.</p>
+      <p style="margin: 0; color: #92400E;">Want us to set things up for you or train your team? Hands-on help is available at <strong>$90/hour</strong>. Just reply to this email to ask.</p>
+    </div>`
+  } else if (tier?.includesSetupCall) {
+    supportHtml = `
+    <div style="background: #ECFDF5; border: 1px solid #A7F3D0; padding: 16px 18px; border-radius: 6px; margin: 0 0 30px 0;">
+      <p style="margin: 0 0 8px 0; font-weight: bold; color: #065F46;">Your onboarding call</p>
+      <p style="margin: 0; color: #065F46;">Your ${tier.name} plan includes a 1-hour onboarding call. Reply to this email to schedule it. It works best after you've created your login, so we can work in your account together.</p>
+    </div>`
+  }
+
   return `
 <!DOCTYPE html>
 <html>
@@ -28,170 +311,53 @@ export function generateOrgAdminOnboardingEmail({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Welcome to ChiRho Events</title>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 640px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
 
   <!-- Header -->
   <div style="background: #1E3A5F; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-    <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 16px;" />
+    <img src="${appUrl}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 16px;" />
     <h1 style="margin: 0; font-size: 28px;">Welcome to ChiRho Events!</h1>
-    <p style="margin: 10px 0 0 0; opacity: 0.9;">Your Catholic Event Management Platform</p>
+    <p style="margin: 10px 0 0 0; opacity: 0.9;">${org} is ready to set up</p>
   </div>
 
   <!-- Main Content -->
   <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
 
-    <p style="font-size: 18px; margin-top: 0;">Hi ${orgAdminFirstName},</p>
+    <p style="font-size: 18px; margin-top: 0;">Hi ${firstName},</p>
 
-    <p>Congratulations! Your organization <strong style="color: #1E3A5F;">${orgName}</strong> has been set up on ChiRho Events. You've been assigned as an <strong>Organization Administrator</strong>.</p>
+    <p>Your organization <strong style="color: #1E3A5F;">${org}</strong> is set up on ChiRho Events, and you're its <strong>Organization Administrator</strong>.</p>
 
-    <div style="background: #F5F1E8; border-left: 4px solid #9C8466; padding: 15px; margin: 20px 0; border-radius: 4px;">
-      <p style="margin: 0; font-weight: 600; color: #1E3A5F;">You can now manage all your Catholic ministry events in one place!</p>
-    </div>
+    <p>This email is your setup checklist. It covers everything you need to go from here to taking registrations. Each step tells you where to click and links to a detailed guide in our help docs, so keep it handy.</p>
 
-    <!-- Step 1: Create Account -->
-    <div style="margin: 30px 0;">
-      <h2 style="color: #1E3A5F; margin-bottom: 10px; font-size: 22px;">Step 1: Create Your Account</h2>
-      <p>Click the button below to create your ChiRho Events account:</p>
-      <div style="text-align: center; margin: 20px 0;">
-        <a href="${inviteLink}" style="display: inline-block; background: #1E3A5F; color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Create My Account</a>
-      </div>
-      <p style="font-size: 14px; color: #666;">
-        Or copy and paste this link: <a href="${inviteLink}" style="color: #9C8466;">${inviteLink}</a>
-      </p>
-    </div>
+    ${personalNoteHtml}
 
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+    ${planHtml}
 
-    <!-- Step 2: Set Up Stripe -->
-    <div style="margin: 30px 0;">
-      <h2 style="color: #1E3A5F; margin-bottom: 10px; font-size: 22px;">Step 2: Connect Stripe for Payments</h2>
-      <p>To accept event registrations and payments, you'll need to connect your Stripe account:</p>
-      <ol style="margin: 15px 0; padding-left: 25px;">
-        <li style="margin-bottom: 10px;">Sign in to your ChiRho Events account</li>
-        <li style="margin-bottom: 10px;">Go to <strong>Settings &rarr; Integrations</strong></li>
-        <li style="margin-bottom: 10px;">Click <strong>"Connect Stripe"</strong></li>
-        <li style="margin-bottom: 10px;">Follow the Stripe Connect onboarding process</li>
-        <li style="margin-bottom: 10px;">Once connected, you can start accepting payments!</li>
-      </ol>
-      <div style="background: #FEF3C7; border: 1px solid #FCD34D; padding: 12px; border-radius: 6px; margin-top: 15px;">
-        <p style="margin: 0; font-size: 14px; color: #92400E;">
-          <strong>Tip:</strong> Don't have a Stripe account yet? No problem! The connection process will guide you through creating one. It takes about 10 minutes.
-        </p>
-      </div>
-    </div>
+    <h2 style="color: #1E3A5F; margin: 30px 0 18px 0; font-size: 22px;">Your setup checklist</h2>
 
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+    ${loginStep}
+    ${billingStep}
+    ${profileStep}
+    ${stripeStep}
+    ${eventStep}
+    ${registrationStep}
+    ${teamStep}
 
-    <!-- Step 3: Create First Event -->
-    <div style="margin: 30px 0;">
-      <h2 style="color: #1E3A5F; margin-bottom: 10px; font-size: 22px;">Step 3: Create Your First Event</h2>
-      <p>Ready to create your first event? Here's how:</p>
-      <ol style="margin: 15px 0; padding-left: 25px;">
-        <li style="margin-bottom: 10px;">From your dashboard, click <strong>"+ Create New Event"</strong></li>
-        <li style="margin-bottom: 10px;">Fill in event details (name, dates, location)</li>
-        <li style="margin-bottom: 10px;">Set up registration settings and pricing</li>
-        <li style="margin-bottom: 10px;">Configure features (housing, check-in, medical tracking)</li>
-        <li style="margin-bottom: 10px;">Add your event landing page content</li>
-        <li style="margin-bottom: 10px;">Review and publish!</li>
-      </ol>
-      <p style="font-size: 14px; color: #666; font-style: italic;">The event creation wizard walks you through each step with helpful tips.</p>
-    </div>
+    ${docsHtml}
 
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-
-    <!-- Step 4: Invite Team -->
-    <div style="margin: 30px 0;">
-      <h2 style="color: #1E3A5F; margin-bottom: 10px; font-size: 22px;">Step 4: Invite Your Team</h2>
-      <p>You don't have to do this alone! Invite team members to help:</p>
-      <ol style="margin: 15px 0; padding-left: 25px;">
-        <li style="margin-bottom: 10px;">Go to <strong>Settings &rarr; Team</strong></li>
-        <li style="margin-bottom: 10px;">Click <strong>"+ Invite Team Member"</strong></li>
-        <li style="margin-bottom: 10px;">Enter their email and select their role:
-          <ul style="margin-top: 8px; padding-left: 20px;">
-            <li><strong>Org Admin:</strong> Full access (like you)</li>
-            <li><strong>Event Manager:</strong> Create/manage events</li>
-            <li><strong>Finance Manager:</strong> Handle payments</li>
-            <li><strong>Staff:</strong> View-only access</li>
-          </ul>
-        </li>
-        <li style="margin-bottom: 10px;">They'll receive an invitation email to join!</li>
-      </ol>
-    </div>
-
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-
-    <!-- Platform Features Overview -->
-    <div style="margin: 30px 0;">
-      <h2 style="color: #1E3A5F; margin-bottom: 10px; font-size: 22px;">What You Can Do with ChiRho Events</h2>
-      <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-          <td style="background: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid #E5E7EB; vertical-align: top;">
-            <h3 style="margin: 0 0 8px 0; color: #1E3A5F; font-size: 16px;">Registration Management</h3>
-            <p style="margin: 0; font-size: 14px; color: #666;">Accept group and individual registrations, flexible pricing, deposits, early bird discounts</p>
-          </td>
-        </tr>
-        <tr><td style="height: 10px;"></td></tr>
-        <tr>
-          <td style="background: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid #E5E7EB; vertical-align: top;">
-            <h3 style="margin: 0 0 8px 0; color: #1E3A5F; font-size: 16px;">Payment Processing</h3>
-            <p style="margin: 0; font-size: 14px; color: #666;">Credit card and check payments, automatic invoicing, late fees, refunds</p>
-          </td>
-        </tr>
-        <tr><td style="height: 10px;"></td></tr>
-        <tr>
-          <td style="background: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid #E5E7EB; vertical-align: top;">
-            <h3 style="margin: 0 0 8px 0; color: #1E3A5F; font-size: 16px;">Digital Liability Forms</h3>
-            <p style="margin: 0; font-size: 14px; color: #666;">Automatic PDF generation, parent consent workflows, e-signatures, medical information tracking</p>
-          </td>
-        </tr>
-        <tr><td style="height: 10px;"></td></tr>
-        <tr>
-          <td style="background: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid #E5E7EB; vertical-align: top;">
-            <h3 style="margin: 0 0 8px 0; color: #1E3A5F; font-size: 16px;">Poros: Housing Management</h3>
-            <p style="margin: 0; font-size: 14px; color: #666;">Room assignments, meal groups, small groups, seminarian/SGL tracking</p>
-          </td>
-        </tr>
-        <tr><td style="height: 10px;"></td></tr>
-        <tr>
-          <td style="background: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid #E5E7EB; vertical-align: top;">
-            <h3 style="margin: 0 0 8px 0; color: #1E3A5F; font-size: 16px;">SALVE: Event Check-In</h3>
-            <p style="margin: 0; font-size: 14px; color: #666;">QR code scanning, name tag printing, welcome packet generation</p>
-          </td>
-        </tr>
-        <tr><td style="height: 10px;"></td></tr>
-        <tr>
-          <td style="background: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid #E5E7EB; vertical-align: top;">
-            <h3 style="margin: 0 0 8px 0; color: #1E3A5F; font-size: 16px;">Rapha: Medical Platform</h3>
-            <p style="margin: 0; font-size: 14px; color: #666;">Medical info access, incident reporting, allergy tracking, ADA accommodations</p>
-          </td>
-        </tr>
-        <tr><td style="height: 10px;"></td></tr>
-        <tr>
-          <td style="background: #F9FAFB; padding: 15px; border-radius: 6px; border: 1px solid #E5E7EB; vertical-align: top;">
-            <h3 style="margin: 0 0 8px 0; color: #1E3A5F; font-size: 16px;">Reports & Analytics</h3>
-            <p style="margin: 0; font-size: 14px; color: #666;">Financial reports, registration analytics, export to CSV/Google Sheets</p>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+    ${supportHtml}
 
     <!-- Need Help -->
-    <div style="margin: 30px 0;">
-      <h2 style="color: #1E3A5F; margin-bottom: 10px; font-size: 22px;">Need Help?</h2>
-      <p>We're here to support you every step of the way:</p>
-      <ul style="margin: 15px 0; padding-left: 25px;">
-        <li style="margin-bottom: 10px;">Email us: <a href="mailto:support@chirhoevents.com" style="color: #9C8466;">support@chirhoevents.com</a></li>
-        <li style="margin-bottom: 10px;">In-app support: Click the help icon in your dashboard</li>
+    <div style="margin: 0 0 10px 0;">
+      <h2 style="color: #1E3A5F; margin: 0 0 10px 0; font-size: 20px;">Where to get help</h2>
+      <ul style="margin: 0; padding-left: 22px;">
+        <li style="margin-bottom: 6px;"><strong>Help docs:</strong> <a href="${appUrl}/docs" style="color: #9C8466;">${appUrl.replace(/^https?:\/\//, '')}/docs</a></li>
+        <li style="margin-bottom: 6px;"><strong>Email:</strong> <a href="mailto:support@chirhoevents.com" style="color: #9C8466;">support@chirhoevents.com</a>, or just reply to this email</li>
+        <li style="margin-bottom: 6px;"><strong>From your dashboard:</strong> click <strong>Support</strong> in the left sidebar to open a support ticket</li>
       </ul>
     </div>
 
-    <!-- Call to Action -->
-    <div style="background: linear-gradient(135deg, #1E3A5F 0%, #2A4A7F 100%); color: white; padding: 25px; border-radius: 8px; text-align: center; margin: 30px 0;">
-      <h3 style="margin: 0 0 15px 0; font-size: 20px;">Ready to Get Started?</h3>
-      <a href="${inviteLink}" style="display: inline-block; background: #9C8466; color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Create My Account Now</a>
-    </div>
+    <p style="margin-top: 24px;">Welcome aboard!<br><strong>The ChiRho Events Team</strong></p>
 
     <!-- Footer -->
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #666; font-size: 14px;">
@@ -200,7 +366,7 @@ export function generateOrgAdminOnboardingEmail({
         <a href="https://chirhoevents.com" style="color: #9C8466; text-decoration: none;">chirhoevents.com</a>
       </p>
       <p style="margin: 15px 0 5px 0; font-size: 12px; color: #999;">
-        This invitation was sent to ${orgAdminEmail} for ${orgName}
+        This email was sent to ${adminEmail} as the administrator of ${org}.
       </p>
     </div>
 

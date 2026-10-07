@@ -30,7 +30,7 @@ export async function POST(
       where: { id: invoiceId },
       include: {
         organization: {
-          select: { id: true, name: true, contactEmail: true },
+          select: { id: true, name: true, contactEmail: true, paymentMethodPreference: true },
         },
       },
     })
@@ -39,9 +39,12 @@ export async function POST(
     if (invoice.status === 'paid') return NextResponse.json({ error: 'Invoice is already paid' }, { status: 400 })
     if (invoice.status === 'cancelled') return NextResponse.json({ error: 'Invoice is cancelled' }, { status: 400 })
 
-    // Ensure a payment token exists
+    // Orgs set to pay by check get check instructions only: no Stripe link
+    const paysByCheck = invoice.organization.paymentMethodPreference === 'check'
+
+    // Ensure a payment token exists for the online payment link
     let { paymentToken } = invoice
-    if (!paymentToken) {
+    if (!paymentToken && !paysByCheck) {
       paymentToken = crypto.randomBytes(32).toString('hex')
       await prisma.invoice.update({ where: { id: invoiceId }, data: { paymentToken } })
     }
@@ -61,7 +64,7 @@ export async function POST(
     })
     const bsMap: Record<string, string> = {}
     billingSettings.forEach((s: { settingKey: string; settingValue: string }) => { bsMap[s.settingKey] = s.settingValue })
-    const checkEnabled = bsMap.check_enabled !== 'false'
+    const checkEnabled = paysByCheck || bsMap.check_enabled !== 'false'
     const checkPayableTo = bsMap.check_payable_to || 'ChiRho Events'
     const billingLine1 = bsMap.billing_address_line1 || ''
     const billingLine2 = bsMap.billing_address_line2 || ''
@@ -93,7 +96,7 @@ export async function POST(
     }
     const typeLabel = invoiceTypeLabels[invoice.invoiceType] || 'Invoice'
 
-    await resend.emails.send({
+    const { error: sendError } = await resend.emails.send({
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
       reply_to: 'support@chirhoevents.com',
       to: toEmail,
@@ -116,6 +119,7 @@ export async function POST(
                   <p style="font-size: 40px; font-weight: bold; color: #1E3A5F; margin: 10px 0;">$${Number(invoice.amount).toFixed(2)}</p>
                   <p style="font-size: 14px; color: #666; margin: 0;">Due by ${dueDate}</p>
                 </div>
+                ${paysByCheck ? '' : `
                 <div style="text-align: center; margin: 30px 0;">
                   <a href="${paymentUrl}" style="display: inline-block; background: #9C8466; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
                     Pay Online Now
@@ -123,7 +127,7 @@ export async function POST(
                 </div>
                 <p style="font-size: 13px; color: #666; text-align: center;">
                   Or copy this link: <a href="${paymentUrl}" style="color: #1E3A5F;">${paymentUrl}</a>
-                </p>
+                </p>`}
                 ${checkAddressHtml}
                 <p>If you have any questions, please contact us at <a href="mailto:support@chirhoevents.com" style="color: #1E3A5F;">support@chirhoevents.com</a>.</p>
               </div>
@@ -135,6 +139,15 @@ export async function POST(
         </html>
       `,
     })
+
+    // The Resend SDK reports most failures in `error` rather than throwing
+    if (sendError) {
+      console.error('Send invoice email error:', sendError)
+      return NextResponse.json(
+        { error: `The email service rejected the message: ${sendError.message}` },
+        { status: 502 }
+      )
+    }
 
     await prisma.platformActivityLog.create({
       data: {
