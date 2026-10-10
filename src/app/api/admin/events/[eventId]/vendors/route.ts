@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 export async function GET(
   request: NextRequest,
@@ -69,6 +70,7 @@ export async function GET(
     // Attach answers to vendor records
     const vendorsWithAnswers = vendors.map((v) => ({
       ...v,
+      safeEnvironmentCertUrl: secureFileLink('vendor-cert', v.id, v.safeEnvironmentCertUrl),
       customAnswers: (answersByRegistration[v.id] || []).map((a) => ({
         questionText: a.question.questionText,
         answerText: a.answerText,

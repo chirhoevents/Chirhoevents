@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { incrementOrgStorage } from '@/lib/storage/track-storage'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 export async function POST(request: NextRequest) {
   try {
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      certificate,
+      certificate: { ...certificate, fileUrl: secureFileLink('safe-env-cert', certificate.id, certificate.fileUrl) },
     })
   } catch (error) {
     console.error('Error uploading certificate:', error)

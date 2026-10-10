@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 export async function GET(
   request: NextRequest,
@@ -72,6 +73,7 @@ export async function GET(
   return NextResponse.json({
     staff: {
       ...staff,
+      safeEnvironmentCertUrl: secureFileLink('staff-cert', staff.id, staff.safeEnvironmentCertUrl),
       customAnswers: customAnswers.map((a) => ({
         questionText: a.question.questionText,
         answerText: a.answerText,
@@ -130,5 +132,7 @@ export async function PATCH(
     data: updates,
   })
 
-  return NextResponse.json({ staff: updated })
+  return NextResponse.json({
+    staff: { ...updated, safeEnvironmentCertUrl: secureFileLink('staff-cert', updated.id, updated.safeEnvironmentCertUrl) },
+  })
 }

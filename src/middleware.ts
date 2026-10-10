@@ -50,6 +50,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/group-leader(.*)',  // Group leader APIs - handle their own auth
   '/api/registration(.*)',
   '/api/liability(.*)',
+  '/api/secure-files(.*)',  // Sensitive file viewer - checks login and access itself
   '/api/portal(.*)',  // Portal APIs - handle their own auth
   '/api/vendor(.*)',  // Vendor portal APIs - use access code auth
   '/api/webhooks(.*)',

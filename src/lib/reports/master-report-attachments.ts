@@ -15,6 +15,7 @@
 
 import { PDFDocument, PDFFont, StandardFonts, rgb } from 'pdf-lib'
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { isPrivateRef, privateRefKey } from '@/lib/r2/private-files'
 
 export interface ArchiveAttachment {
   /** Short label stamped on every page, e.g. "Safe Environment Certificate - Jane Doe" */
@@ -38,6 +39,8 @@ function getR2Client() {
 
 /** Only files in our own R2 bucket are fetched — never arbitrary URLs. */
 function r2KeyFromUrl(url: string): string | null {
+  // Sensitive files live in the private bucket (see src/lib/r2/private-files.ts)
+  if (isPrivateRef(url)) return privateRefKey(url)
   const publicUrl = process.env.R2_PUBLIC_URL
   if (!publicUrl) return null
   const base = publicUrl.replace(/\/+$/, '') + '/'
@@ -59,7 +62,8 @@ async function fetchStoredFile(url: string): Promise<Buffer | null> {
   if (!key) return null
 
   const client = getR2Client()
-  const bucket = process.env.R2_BUCKET_NAME
+  const isPrivate = isPrivateRef(url)
+  const bucket = isPrivate ? process.env.R2_PRIVATE_BUCKET_NAME : process.env.R2_BUCKET_NAME
   if (client && bucket) {
     try {
       const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
@@ -69,6 +73,9 @@ async function fetchStoredFile(url: string): Promise<Buffer | null> {
       console.warn(`[Master Report PDF] R2 get failed for ${key}:`, err?.message || err)
     }
   }
+
+  // Private files have no public URL to fall back to
+  if (isPrivate) return null
 
   // Fall back to the public URL (e.g. local dev without write credentials).
   try {
