@@ -293,7 +293,7 @@ export default function SimpleEventRegistrationForm(props: SimpleEventRegistrati
       <div className="flex items-center justify-between gap-4 border-t border-gray-200 pt-4">
         <div>
           <p className="text-sm text-gray-500">{totalQuantity} ticket{totalQuantity === 1 ? '' : 's'}</p>
-          <p className="text-xl font-semibold text-[#1E3A5F]">{total > 0 ? formatMoney(total) : 'Free'}</p>
+          <p className="text-xl font-semibold text-[#1E3A5F]">{totalQuantity === 0 ? 'Choose tickets' : total > 0 ? formatMoney(total) : 'Free'}</p>
         </div>
         <button type="submit" disabled={submitting || totalQuantity === 0}
           className="inline-flex items-center gap-2 rounded-lg bg-[#1E3A5F] px-6 py-3 text-white font-medium hover:bg-[#162C48] disabled:bg-gray-300">

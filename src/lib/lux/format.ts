@@ -37,15 +37,15 @@ export function formatTimeRange(start: string | null | undefined, end: string | 
   return s || e
 }
 
-export function formatDateTime(date: Date | string | null | undefined): string {
+/** Date and time; pass the event's time zone when rendering on the server */
+export function formatDateTime(date: Date | string | null | undefined, timeZone?: string | null): string {
   if (!date) return ''
-  return new Date(date).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }
+  try {
+    return new Date(date).toLocaleString('en-US', timeZone ? { ...options, timeZone } : options)
+  } catch {
+    return new Date(date).toLocaleString('en-US', options) // unknown time zone
+  }
 }
 
 /** Grade value → label: "K" → "Kindergarten", "3" → "3rd grade" */

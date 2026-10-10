@@ -42,7 +42,7 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
   const contactPhone = event.settings?.contactPhone || event.organization.contactPhone
 
   const closedMessages: Record<string, string> = {
-    not_yet_open: event.registrationOpenDate ? `Registration opens ${formatDateTime(event.registrationOpenDate)}.` : 'Registration opens soon.',
+    not_yet_open: event.registrationOpenDate ? `Registration opens ${formatDateTime(event.registrationOpenDate, event.timezone)}.` : 'Registration opens soon.',
     full: 'This event is full. Please contact the parish if you’d like to be added if a spot opens up.',
     closed: 'Registration for this event is closed.',
     ended: 'This event has already happened. Thank you to everyone who came!',
@@ -77,7 +77,7 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
           </div>
           {event.description && <div className="text-gray-700 whitespace-pre-line leading-relaxed">{event.description}</div>}
           {status === 'open' && (
-            <p className="text-sm text-gray-500">Registration closes {formatDateTime(simpleEventCloseAt(event))}.</p>
+            <p className="text-sm text-gray-500">Registration closes {formatDateTime(simpleEventCloseAt(event), event.timezone)}.</p>
           )}
           {(contactEmail || contactPhone) && (
             <div className="rounded-lg bg-white border border-[#E8E2D4] p-4 text-sm">

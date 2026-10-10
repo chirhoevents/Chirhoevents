@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       })
       if (!org?.stripeAccountId || !org.stripeChargesEnabled) {
         return NextResponse.json({
-          error: 'Online card payments need Stripe connected first (Settings → Integrations). Or turn on "Pay at the parish office" for this event.',
+          error: 'Online card payments need Stripe connected first (Settings → Card payments). Or turn on "Pay at the parish office" for this event.',
           needsStripe: true,
         }, { status: 400 })
       }

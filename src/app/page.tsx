@@ -411,7 +411,7 @@ export default function LandingPage() {
           <p className="text-center text-gray-600 mb-4 text-lg">
             Processing Fee: 2.9% + $0.30 per ticket (Stripe) • Platform Fee: 1% • Setup fees vary by plan
           </p>
-          <p className="text-center text-gray-600 mb-4">
+          <p className="text-center text-gray-600 mb-4 max-w-3xl mx-auto">
             <strong className="text-navy">Chapel and Parish</strong> are Lux plans for parish life. <strong className="text-navy">Cathedral, Shrine and Basilica</strong> include the full Events portal for retreats, conferences and diocesan gatherings, and can add Lux.
           </p>
           <p className="text-center text-sm text-gray-500 mb-2">

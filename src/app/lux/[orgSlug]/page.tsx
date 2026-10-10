@@ -18,7 +18,7 @@ type Props = { params: Promise<{ orgSlug: string }>; searchParams: Promise<{ pro
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { orgSlug } = await params
   const org = await findLuxOrgBySlug(orgSlug)
-  return { title: org ? `Register – ${org.name}` : 'Not found' }
+  return { title: org ? `${org.name} – Registration` : 'Not found' }
 }
 
 function gradeRange(grades: string[] | null): string {
