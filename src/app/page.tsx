@@ -4,11 +4,12 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Check, Users, FileText, Home, Clipboard, Heart, BarChart3, Mail, Phone, MapPin, Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Check, Users, FileText, Home, Clipboard, Heart, BarChart3, Mail, Phone, MapPin, Play, Pause, Volume2, VolumeX, BookOpen, CalendarHeart, Lock, HandHeart, Link2, Download, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { PublicNav } from "@/components/PublicNav";
 import { PortalAccessSection } from "@/components/PortalAccessSection";
+import LuxLogo from "@/components/lux/LuxLogo";
 
 export default function LandingPage() {
   const [contactFormSubmitted, setContactFormSubmitted] = useState(false);
@@ -109,6 +110,11 @@ export default function LandingPage() {
                 </Button>
               </a>
             </div>
+            <a href="#lux" className="inline-flex items-center gap-2 mt-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/30 px-4 py-2 text-sm sm:text-base transition-colors">
+              <span className="rounded-full bg-gold text-navy text-xs font-bold px-2 py-0.5">LUX</span>
+              <span>For parishes: faith formation registration and simple sign-ups, from $39/mo</span>
+              <ArrowRight className="h-4 w-4" />
+            </a>
           </div>
         </div>
       </section>
@@ -235,6 +241,90 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Section: Lux for Parishes */}
+      <section id="lux" className="py-16 sm:py-20 bg-[#FBF8F1] border-y border-[#EDE6D6]">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="flex justify-center mb-4"><LuxLogo size="lg" /></div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">
+              Simple registration for parish life
+            </h2>
+            <p className="text-lg text-gray-600">
+              Most parishes don&apos;t need conference software. They need families to register for religious education, upload a baptismal
+              certificate, and pay, without a stack of paper forms. Lux does that, and handles your parish events too. If you can use a
+              Google Form, you can run Lux.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12 max-w-5xl mx-auto">
+            <Card className="border-[#E8E2D4]">
+              <CardHeader>
+                <BookOpen className="h-10 w-10 text-gold mb-3" />
+                <CardTitle className="text-navy">Faith formation &amp; sacraments</CardTitle>
+                <CardDescription>Faith Formation, First Communion, Confirmation, Vacation Bible School</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-gray-600">
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> One form for every child, even in different programs</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Sibling discounts and a family maximum, worked out for you</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Baptismal certificates and sponsor letters uploaded online</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Rosters by grade, with allergies and sacrament details</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Unlimited programs on every plan</li>
+                </ul>
+              </CardContent>
+            </Card>
+            <Card className="border-[#E8E2D4]">
+              <CardHeader>
+                <CalendarHeart className="h-10 w-10 text-gold mb-3" />
+                <CardTitle className="text-navy">Events &amp; sign-ups</CardTitle>
+                <CardDescription>Fish fry, Bible study, retreat, parish picnic, volunteer sign-ups</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-gray-600">
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> A sign-up page in a couple of minutes</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Tickets, limits and a few custom questions</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Pay online, pay at the office, or free</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Optional waiver and allergy questions</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> 5 events a year on Chapel, 10 on Parish</li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-10 max-w-5xl mx-auto">
+            <div className="text-center">
+              <Lock className="h-8 w-8 text-navy mx-auto mb-2" />
+              <p className="font-semibold text-navy">Private documents</p>
+              <p className="text-sm text-gray-600">Certificates are stored privately and opened by your staff through links that expire in minutes. Every view is logged.</p>
+            </div>
+            <div className="text-center">
+              <HandHeart className="h-8 w-8 text-navy mx-auto mb-2" />
+              <p className="font-semibold text-navy">Quiet fee assistance</p>
+              <p className="text-sm text-gray-600">Families can ask for help without a phone call. You decide privately, and they&apos;re still registered.</p>
+            </div>
+            <div className="text-center">
+              <Link2 className="h-8 w-8 text-navy mx-auto mb-2" />
+              <p className="font-semibold text-navy">No passwords for families</p>
+              <p className="text-sm text-gray-600">Returning families sign in with an emailed link and find everything filled in for the new year.</p>
+            </div>
+            <div className="text-center">
+              <Download className="h-8 w-8 text-navy mx-auto mb-2" />
+              <p className="font-semibold text-navy">Office-friendly</p>
+              <p className="text-sm text-gray-600">Record cash and checks, send reminders in one click, and export rosters and payments to Excel.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-12">
+            <Link href="/get-started?tier=chapel">
+              <Button size="lg" className="px-8">Start with Lux: $39/mo</Button>
+            </Link>
+            <Link href="/docs?section=lux-overview">
+              <Button size="lg" variant="outline" className="px-8">See how it works</Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Section: Security & Compliance */}
       <section id="security" className="py-16 bg-beige">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -321,6 +411,9 @@ export default function LandingPage() {
           <p className="text-center text-gray-600 mb-4 text-lg">
             Processing Fee: 2.9% + $0.30 per ticket (Stripe) • Platform Fee: 1% • Setup fees vary by plan
           </p>
+          <p className="text-center text-gray-600 mb-4">
+            <strong className="text-navy">Chapel and Parish</strong> are Lux plans for parish life. <strong className="text-navy">Cathedral, Shrine and Basilica</strong> include the full Events portal for retreats, conferences and diocesan gatherings, and can add Lux.
+          </p>
           <p className="text-center text-sm text-gray-500 mb-2">
             All payments are processed securely via Stripe. The 1% platform fee helps us maintain and improve ChiRho Events.
           </p>
@@ -329,7 +422,10 @@ export default function LandingPage() {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
             {/* Chapel */}
-            <Card className="border-2 border-gray-200">
+            <Card className="border-2 border-[#E8D9AE] bg-[#FFFDF8]">
+              <div className="bg-[#F5EBD0] text-navy text-center py-1 text-sm font-semibold tracking-wide">
+                LUX FOR PARISHES
+              </div>
               <CardHeader>
                 <CardTitle className="text-2xl">Chapel</CardTitle>
                 <div className="mt-4">
@@ -338,10 +434,11 @@ export default function LandingPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• 1 event/year</p>
-                <p className="text-sm text-gray-600">• Up to 500 people</p>
+                <p className="text-sm font-semibold text-navy">• Unlimited faith formation &amp; sacrament programs</p>
+                <p className="text-sm text-gray-600">• 5 simple events/year</p>
+                <p className="text-sm text-gray-600">• Family registration with sibling discounts</p>
+                <p className="text-sm text-gray-600">• Secure document uploads</p>
                 <p className="text-sm text-gray-600">• 5GB storage</p>
-                <p className="text-sm text-gray-600">• Basic registration only</p>
                 <p className="text-sm text-gray-600">• Self-serve (no setup call)</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
@@ -359,7 +456,10 @@ export default function LandingPage() {
             </Card>
 
             {/* Parish */}
-            <Card className="border-2 border-gray-200">
+            <Card className="border-2 border-[#E8D9AE] bg-[#FFFDF8]">
+              <div className="bg-[#F5EBD0] text-navy text-center py-1 text-sm font-semibold tracking-wide">
+                LUX FOR PARISHES
+              </div>
               <CardHeader>
                 <CardTitle className="text-2xl">Parish</CardTitle>
                 <div className="mt-4">
@@ -368,10 +468,11 @@ export default function LandingPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">• 3 events/year</p>
-                <p className="text-sm text-gray-600">• Up to 750 people</p>
+                <p className="text-sm font-semibold text-navy">• Unlimited faith formation &amp; sacrament programs</p>
+                <p className="text-sm text-gray-600">• 10 simple events/year</p>
+                <p className="text-sm text-gray-600">• Family registration with sibling discounts</p>
+                <p className="text-sm text-gray-600">• Secure document uploads</p>
                 <p className="text-sm text-gray-600">• 10GB storage</p>
-                <p className="text-sm text-gray-600">• Basic registration only</p>
                 <p className="text-sm text-gray-600">• Self-serve (no setup call)</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
@@ -402,6 +503,7 @@ export default function LandingPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                <p className="text-sm font-semibold text-navy">• Full Events portal</p>
                 <p className="text-sm text-gray-600">• 5 events/year</p>
                 <p className="text-sm text-gray-600">• Up to 1,250 people</p>
                 <p className="text-sm text-gray-600">• 25GB storage</p>
@@ -433,6 +535,7 @@ export default function LandingPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                <p className="text-sm font-semibold text-navy">• Full Events portal</p>
                 <p className="text-sm text-gray-600">• 10 events/year</p>
                 <p className="text-sm text-gray-600">• Up to 3,000 people</p>
                 <p className="text-sm text-gray-600">• 100GB storage</p>
@@ -641,6 +744,33 @@ export default function LandingPage() {
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
                   Yes! Organizations on annual plans can pay by check. We&apos;ll send you an invoice with mailing instructions.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="lux-1">
+                <AccordionTrigger className="text-left text-lg font-semibold text-navy">
+                  What is Lux?
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600">
+                  Lux is the parish side of ChiRho Events, included with the Chapel and Parish plans. It handles registration for faith formation and the sacraments (with sibling discounts, document uploads and fee assistance) and simple sign-ups for parish events, without the options a large conference needs. <a href="/docs?section=lux-overview" className="text-navy underline">Read the Lux guide</a>.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="lux-2">
+                <AccordionTrigger className="text-left text-lg font-semibold text-navy">
+                  Can Lux handle religious education for families with several children?
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600">
+                  Yes. Parents register every child on one form, even in different programs. You set the tuition, extra fees like books, a sibling discount (an amount or a percent) and a family maximum, and Lux works out each family&apos;s total. Families can pay online, pay at the office, or quietly ask for fee assistance.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="lux-3">
+                <AccordionTrigger className="text-left text-lg font-semibold text-navy">
+                  Are baptismal certificates kept private?
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600">
+                  Yes. Documents are stored in private storage, never at a public address. Your staff open them through links that expire after five minutes, and every view is logged. Families can upload but never download. You choose how long files are kept.
                 </AccordionContent>
               </AccordionItem>
 

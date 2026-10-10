@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -30,13 +30,22 @@ const organizationTypes = [
   { value: 'other', label: 'Other' },
 ]
 
-const eventRanges = [
-  { value: '1', label: '1 event', tier: 'chapel' },
-  { value: '2-3', label: '2-3 events', tier: 'parish' },
-  { value: '4-5', label: '4-5 events', tier: 'cathedral' },
-  { value: '6-10', label: '6-10 events', tier: 'shrine' },
-  { value: '10+', label: '10+ events', tier: 'basilica' },
-]
+type Need = 'lux' | 'events'
+
+// Chapel and Parish are Lux plans (parish life); the larger plans include
+// the full Events portal
+const eventRanges: Record<Need, Array<{ value: string; label: string; tier: string }>> = {
+  lux: [
+    { value: 'lux-5', label: 'Up to 5 events a year (Chapel)', tier: 'chapel' },
+    { value: 'lux-10', label: 'Up to 10 events a year (Parish)', tier: 'parish' },
+  ],
+  events: [
+    { value: '1-5', label: '1-5 events', tier: 'cathedral' },
+    { value: '6-10', label: '6-10 events', tier: 'shrine' },
+    { value: '10+', label: '10+ events', tier: 'basilica' },
+  ],
+}
+const LUX_TIERS = ['chapel', 'parish']
 
 const attendeeRanges = [
   { value: 'under-500', label: 'Under 500' },
@@ -94,9 +103,36 @@ export default function GetStartedPage() {
     }))
   }
 
+  const [need, setNeed] = useState<Need | ''>('')
+
+  // /get-started?tier=chapel from the pricing cards preselects the plan
+  useEffect(() => {
+    const tier = new URLSearchParams(window.location.search).get('tier')
+    if (!tier) return
+    const preset: Need = LUX_TIERS.includes(tier) ? 'lux' : 'events'
+    setNeed(preset)
+    const range = eventRanges[preset].find(r => r.tier === tier)
+    setFormData(prev => ({
+      ...prev,
+      eventsPerYear: range?.value ?? '',
+      billingCycle: preset === 'lux' ? 'monthly' : prev.billingCycle,
+    }))
+  }, [])
+
+  const chooseNeed = (value: Need) => {
+    setNeed(value)
+    setFormData(prev => ({
+      ...prev,
+      eventsPerYear: '',
+      attendeesPerYear: value === 'lux' ? '' : prev.attendeesPerYear,
+      // Chapel and Parish are monthly only
+      billingCycle: value === 'lux' ? 'monthly' : prev.billingCycle,
+    }))
+  }
+
   const getSuggestedTier = () => {
-    const eventRange = eventRanges.find(r => r.value === formData.eventsPerYear)
-    return eventRange?.tier || 'shrine'
+    const eventRange = need ? eventRanges[need].find(r => r.value === formData.eventsPerYear) : undefined
+    return eventRange?.tier || (need === 'lux' ? 'chapel' : 'shrine')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -431,10 +467,37 @@ export default function GetStartedPage() {
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  How many events do you plan to run per year? *
+                  What do you need? *
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {([
+                    { value: 'lux', title: 'Parish life (Lux)', description: 'Faith formation and sacrament registration, plus simple sign-ups for parish events. Chapel or Parish plan.' },
+                    { value: 'events', title: 'Larger events', description: 'Retreats, conferences and diocesan gatherings with groups, housing, forms and check-in. Cathedral and up.' },
+                  ] as const).map(option => (
+                    <label
+                      key={option.value}
+                      className={`flex gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+                        need === option.value ? 'border-[#1E3A5F] bg-[#1E3A5F]/5' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input type="radio" name="need" value={option.value} checked={need === option.value} onChange={() => chooseNeed(option.value)} className="sr-only" />
+                      <span className="flex-1">
+                        <span className="block text-sm font-semibold text-gray-900">{option.title}</span>
+                        <span className="block text-sm text-gray-600 mt-1">{option.description}</span>
+                      </span>
+                      {need === option.value && <Check className="h-4 w-4 text-[#1E3A5F] shrink-0" />}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {need && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  {need === 'lux' ? 'How many parish events (fish fry, retreat, sign-ups) do you run per year? Faith formation programs are unlimited. *' : 'How many events do you plan to run per year? *'}
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {eventRanges.map(range => (
+                  {eventRanges[need].map(range => (
                     <label
                       key={range.value}
                       className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -459,7 +522,9 @@ export default function GetStartedPage() {
                   ))}
                 </div>
               </div>
+              )}
 
+              {need === 'events' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Estimated attendees per year? *
@@ -490,6 +555,7 @@ export default function GetStartedPage() {
                   ))}
                 </div>
               </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -503,7 +569,7 @@ export default function GetStartedPage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1E3A5F] focus:border-[#1E3A5F]"
                   >
                     <option value="monthly">Monthly</option>
-                    <option value="annual">Annual (save 2 months)</option>
+                    {need !== 'lux' && <option value="annual">Annual (save 2 months)</option>}
                   </select>
                 </div>
 

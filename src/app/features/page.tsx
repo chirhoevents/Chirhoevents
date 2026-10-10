@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, Home, Clipboard, Heart, BarChart3, Check, Shield, Clock, Smartphone } from "lucide-react";
+import { Users, FileText, Home, Clipboard, Heart, BarChart3, Check, Shield, Clock, Smartphone, Sun } from "lucide-react";
 import Link from "next/link";
 import { PublicNav } from "@/components/PublicNav";
 
@@ -75,6 +75,55 @@ export default function FeaturesPage() {
             <h2 className="text-3xl sm:text-4xl font-bold text-center text-navy mb-12">
               Comprehensive Feature Set
             </h2>
+
+            {/* Lux for Parishes */}
+            <div className="mb-16" id="lux">
+              <Card className="border-2 border-gold bg-[#FFFDF8]">
+                <CardHeader>
+                  <div className="flex items-start gap-4">
+                    <Sun className="h-12 w-12 text-gold flex-shrink-0" />
+                    <div>
+                      <CardTitle className="text-2xl mb-2">Lux for Parishes</CardTitle>
+                      <CardDescription className="text-base">
+                        Simple registration for parish life, on the Chapel and Parish plans. No conference options to wade through.
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-semibold text-navy mb-3">Faith Formation &amp; Sacraments</h4>
+                      <ul className="space-y-2 text-gray-600">
+                        <li>• Templates for Faith Formation, First Communion and Confirmation</li>
+                        <li>• Parents register every child on one form</li>
+                        <li>• Sibling discounts and a family maximum, calculated automatically</li>
+                        <li>• Baptismal certificates and sponsor letters stored privately</li>
+                        <li>• Pay online, pay at the office, or quietly ask for fee assistance</li>
+                        <li>• Returning families sign in with an emailed link, no password</li>
+                        <li>• Rosters, document checklists and one-click reminders</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-navy mb-3">Simple Events &amp; Sign-Ups</h4>
+                      <ul className="space-y-2 text-gray-600">
+                        <li>• A sign-up page in a couple of minutes</li>
+                        <li>• Ticket types, limits and custom questions</li>
+                        <li>• Free events, card payments or pay at the office</li>
+                        <li>• Optional waiver and allergy questions</li>
+                        <li>• One parish page that lists everything open for registration</li>
+                        <li>• Confirmations and receipts from Lux, with replies going to your office</li>
+                        <li>• Convert to a full event if it outgrows Lux</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                    <Link href="/get-started?tier=chapel"><Button>Get started with Lux</Button></Link>
+                    <Link href="/docs?section=lux-overview"><Button variant="outline">Read the Lux guide</Button></Link>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Registration System */}
             <div className="mb-16">
