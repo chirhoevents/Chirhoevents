@@ -11,6 +11,7 @@ import { buildIndividualConfirmedEmail } from '@/lib/individual-confirmation-ema
 import { parseSimpleEventConfig } from '@/lib/lux/simple-event'
 import { ticketLines } from '@/lib/lux/registrations'
 import { sendLuxEmail, simpleEventConfirmationEmail } from '@/lib/lux/email'
+import { handleLuxOrderCheckoutCompleted, handleLuxOrderCheckoutExpired } from '@/lib/lux/order-payments'
 import { abandonUnpaidCheckout } from '@/lib/abandoned-checkout'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -431,6 +432,17 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      // Lux faith formation order (one family, possibly several programs)
+      if (registrationType === 'lux_order') {
+        await handleLuxOrderCheckoutCompleted(session as any, {
+          receiptUrl: chargeReceiptUrl,
+          chargeId: chargeStripeChargeId,
+          last4: chargeCardLast4,
+          brand: chargeCardBrand,
+        })
+        return NextResponse.json({ received: true })
+      }
+
       // Handle INDIVIDUAL registration differently
       if (registrationType === 'individual') {
         console.log('👤 Processing individual registration payment')
@@ -1173,6 +1185,17 @@ export async function POST(request: NextRequest) {
     const registrationId = session.metadata?.registrationId
     if (!registrationId) {
       console.log('⚠️ checkout.session.expired: no registrationId in metadata, skipping')
+      return NextResponse.json({ received: true })
+    }
+
+    // Lux faith formation order never paid: release its spots
+    if (session.metadata?.registrationType === 'lux_order') {
+      try {
+        await handleLuxOrderCheckoutExpired(session as any)
+      } catch (error) {
+        console.error('❌ Error releasing expired Lux order checkout:', error)
+        return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
+      }
       return NextResponse.json({ received: true })
     }
 

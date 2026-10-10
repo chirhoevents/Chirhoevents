@@ -175,7 +175,7 @@ async function main() {
       questions: input.value.questions.map(q => ({ ...q, id: question!.id, questionText: 'Meal choice (fish or mac)' })),
     })
     const ok = edit2.ok ? await updateSimpleEvent({ organizationId: org.id, eventId: event.id, input: edit2.value, hasRapha: false }) : null
-    ev = await prisma.event.findUnique({ where: { id: event.id } })
+    ev = await prisma.event.findUnique({ where: { id: event.id }, include: { ticketOptions: true } })
     check('growing capacity keeps sold count (12 - 4 = 8 left)', !!ok?.ok && ev?.capacityRemaining === 8, { ok, cap: ev?.capacityRemaining })
     const renamed = await prisma.customRegistrationQuestion.findUnique({ where: { id: question!.id } })
     check('question wording can still be edited', renamed?.questionText === 'Meal choice (fish or mac)')

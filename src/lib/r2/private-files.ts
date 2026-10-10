@@ -36,6 +36,12 @@ function getR2Client(): S3Client | null {
   })
 }
 
+export class PrivateStorageNotConfiguredError extends Error {
+  constructor() {
+    super('Secure document storage isn’t set up yet (R2_PRIVATE_BUCKET_NAME).')
+  }
+}
+
 export function privateBucketConfigured(): boolean {
   return !!process.env.R2_PRIVATE_BUCKET_NAME
 }
@@ -67,7 +73,11 @@ export function contentTypeForFilename(filename: string): string {
 export async function uploadSensitiveFile(
   fileBuffer: Buffer,
   key: string,
-  contentType: string
+  contentType: string,
+  options: {
+    // Children's sacramental records never fall back to the public bucket
+    requirePrivate?: boolean
+  } = {}
 ): Promise<string> {
   const client = getR2Client()
   if (!client) {
@@ -78,6 +88,9 @@ export async function uploadSensitiveFile(
   if (privateBucket) {
     await client.send(new PutObjectCommand({ Bucket: privateBucket, Key: key, Body: fileBuffer, ContentType: contentType }))
     return `${PRIVATE_REF_PREFIX}${key}`
+  }
+  if (options.requirePrivate) {
+    throw new PrivateStorageNotConfiguredError()
   }
 
   const publicBucket = process.env.R2_BUCKET_NAME
