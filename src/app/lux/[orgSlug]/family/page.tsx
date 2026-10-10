@@ -53,7 +53,7 @@ export default async function FamilyPage({ params }: Props) {
     return (
       <LuxPublicShell organizationName={org.name} logoUrl={org.logoUrl} parishSlug={orgSlug} accentColor={accentColor}>
         <div className="max-w-md mx-auto bg-white rounded-2xl border border-[#E8E2D4] p-7">
-          <h1 className="text-xl font-semibold text-[#1E3A5F]">{t.link.signInTitle}</h1>
+          <h1 className="text-xl font-bold text-[#1E3A5F]">{t.link.signInTitle}</h1>
           <p className="text-sm text-gray-600 mt-2 mb-4">{t.link.signInText}</p>
           <FamilyLinkRequest slug={orgSlug} lang={lang} />
         </div>
@@ -87,7 +87,7 @@ export default async function FamilyPage({ params }: Props) {
       <div className="max-w-3xl mx-auto space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-[#1E3A5F]" style={{ fontFamily: 'Georgia, serif' }}>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#1E3A5F]">
               {f.welcome(household.guardian1FirstName)}
             </h1>
             <p className="text-gray-600 mt-1">

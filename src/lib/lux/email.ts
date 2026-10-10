@@ -98,7 +98,7 @@ export function luxEmailLayout(content: string, options: { organizationName: str
   <style>
     body { margin: 0; padding: 0; background: #F5F1E8; }
     body, td { font-family: 'Segoe UI', Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; }
-    h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 600; color: #1E3A5F; margin: 0 0 16px 0; }
+    h1 { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 600; color: #1E3A5F; margin: 0 0 16px 0; }
     h2 { font-size: 18px; font-weight: 600; color: #1E3A5F; margin: 24px 0 8px 0; }
     p { margin: 0 0 14px 0; }
     a { color: #8A6D2F; }

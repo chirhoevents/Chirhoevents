@@ -19,7 +19,7 @@ export default async function LuxPublicShell({ organizationName, logoUrl, parish
     <span className="flex items-center gap-3 min-w-0">
       {/* eslint-disable-next-line @next/next/no-img-element -- parish logos are uploaded URLs */}
       {logoUrl && <img src={logoUrl} alt="" className="h-10 w-10 rounded-lg object-contain bg-white border border-gray-100 shrink-0" />}
-      <span className="font-semibold text-[#1E3A5F] text-lg truncate" style={{ fontFamily: 'Georgia, serif' }}>{organizationName}</span>
+      <span className="font-semibold text-[#1E3A5F] text-lg truncate">{organizationName}</span>
     </span>
   )
   return (

@@ -75,13 +75,13 @@ export default async function ParishLuxPage({ params, searchParams }: Props) {
             <img src={page.headerImageUrl} alt="" className="w-full h-56 sm:h-80 object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10 text-white max-w-3xl">
-              <h1 className="text-3xl sm:text-5xl font-semibold drop-shadow" style={{ fontFamily: 'Georgia, serif' }}>{headline}</h1>
+              <h1 className="text-3xl sm:text-5xl font-bold drop-shadow">{headline}</h1>
               <p className="mt-3 text-base sm:text-lg text-white/90 whitespace-pre-line drop-shadow">{message}</p>
             </div>
           </div>
         ) : (
           <div className="text-center max-w-2xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl font-semibold text-[#1E3A5F]" style={{ fontFamily: 'Georgia, serif' }}>{headline}</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#1E3A5F]">{headline}</h1>
             <p className="text-gray-600 mt-3 whitespace-pre-line">{message}</p>
           </div>
         )}

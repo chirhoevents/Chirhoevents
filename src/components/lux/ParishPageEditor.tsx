@@ -91,13 +91,13 @@ export default function ParishPageEditor({ value, onChange, parishName, disabled
               <img src={value.headerImageUrl} alt="" className="w-full h-40 sm:h-52 object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-4 sm:p-6 text-white">
-                <p className="text-xl sm:text-2xl font-semibold drop-shadow" style={{ fontFamily: 'Georgia, serif' }}>{headline}</p>
+                <p className="text-xl sm:text-2xl font-bold drop-shadow">{headline}</p>
                 <p className="mt-1 text-sm text-white/90 line-clamp-2 drop-shadow whitespace-pre-line">{message}</p>
               </div>
             </div>
           ) : (
             <div className="text-center px-4 py-8">
-              <p className="text-xl sm:text-2xl font-semibold text-[#1E3A5F]" style={{ fontFamily: 'Georgia, serif' }}>{headline}</p>
+              <p className="text-xl sm:text-2xl font-bold text-[#1E3A5F]">{headline}</p>
               <p className="mt-1 text-sm text-gray-600 line-clamp-2 whitespace-pre-line">{message}</p>
             </div>
           )}

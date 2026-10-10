@@ -17,7 +17,7 @@ const LABELS: Record<ButtonText, string> = {
 export function websiteButtonHtml(params: { url: string; iconUrl: string; label: string; color: string }) {
   const style = [
     'display:inline-flex', 'align-items:center', 'gap:10px', 'padding:12px 22px', 'border-radius:10px',
-    `background:${params.color}`, 'color:#ffffff', 'font-family:Georgia,serif', 'font-size:17px',
+    `background:${params.color}`, 'color:#ffffff', "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif", 'font-size:17px',
     'font-weight:600', 'text-decoration:none', 'line-height:1',
   ].join(';')
   return `<a href="${params.url}" target="_blank" rel="noopener" style="${style}">` +
