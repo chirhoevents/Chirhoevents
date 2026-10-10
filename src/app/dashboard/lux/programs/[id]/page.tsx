@@ -471,7 +471,7 @@ function CancelRegistrationModal({ entry, onClose, onDone }: { entry: RosterEntr
       footer={<><Button variant="ghost" onClick={onClose}>Keep it</Button><Button variant="danger" onClick={cancel} loading={saving}>Cancel registration</Button></>}>
       <p className="text-sm text-gray-700 mb-3">
         {entry?.child.firstName} will be removed from the roster and their spot opened up. If the family hasn’t paid yet, {formatMoney(entry?.feeAmount ?? 0)} comes off what they owe.
-        Payments already made stay on record; refund them from your Stripe dashboard if needed.
+        If they’ve already paid, open their registration afterward and use Refund to give money back.
       </p>
       <Field label="Reason" hint="Optional, saved in staff notes"><TextInput value={reason} onChange={e => setReason(e.target.value)} /></Field>
     </Modal>

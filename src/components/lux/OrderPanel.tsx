@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { HandHeart, Receipt, Banknote, SlidersHorizontal } from 'lucide-react'
+import { HandHeart, Receipt, Banknote, SlidersHorizontal, Undo2 } from 'lucide-react'
 import { useLux, useLuxApi } from '@/contexts/LuxContext'
 import { toast } from '@/lib/toast'
 import { formatDateTime, formatMoney } from '@/lib/lux/format'
@@ -10,11 +10,13 @@ import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/lux/program-st
 import type { StaffOrder } from '@/lib/lux/orders-staff'
 import { Badge, Button, ErrorNote, Field, Modal, Spinner, TextArea, TextInput } from '@/components/lux/ui'
 import RecordPaymentModal from '@/components/lux/RecordPaymentModal'
+import RefundModal, { REFUND_ROLES } from '@/components/lux/RefundModal'
 
-type Order = Omit<StaffOrder, 'createdAt' | 'feeAssistance' | 'payments'> & {
+type Order = Omit<StaffOrder, 'createdAt' | 'feeAssistance' | 'payments' | 'refunds'> & {
   createdAt: string
   feeAssistance: Omit<StaffOrder['feeAssistance'], 'resolvedAt'> & { resolvedAt: string | null }
   payments: Array<Omit<StaffOrder['payments'][number], 'at'> & { at: string }>
+  refunds: Array<Omit<StaffOrder['refunds'][number], 'at'> & { at: string }>
 }
 
 export const ORDER_TONE: Record<string, 'gray' | 'green' | 'amber' | 'red' | 'blue'> = {
@@ -36,6 +38,7 @@ export default function OrderPanel({ orderId, onClose, onChanged }: {
   const [order, setOrder] = useState<Order | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
+  const [refunding, setRefunding] = useState(false)
   const [deciding, setDeciding] = useState<null | 'assistance' | 'adjust'>(null)
 
   const load = useCallback(async () => {
@@ -63,7 +66,7 @@ export default function OrderPanel({ orderId, onClose, onChanged }: {
 
   return (
     <>
-      <Modal open={!paying} onClose={onClose} wide title={order ? `Registration #${order.confirmationCode}` : 'Registration'}>
+      <Modal open={!paying && !refunding} onClose={onClose} wide title={order ? `Registration #${order.confirmationCode}` : 'Registration'}>
         {error ? <ErrorNote message={error} /> : !order ? <Spinner /> : (
           <div className="space-y-5 text-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -109,7 +112,7 @@ export default function OrderPanel({ orderId, onClose, onChanged }: {
                 {order.siblingDiscount > 0 && <p className="flex justify-between text-gray-600"><span>Sibling discount (included above)</span><span>−{formatMoney(order.siblingDiscount)}</span></p>}
                 {order.familyCapAdjustment > 0 && <p className="flex justify-between text-gray-600"><span>Family maximum (included above)</span><span>−{formatMoney(order.familyCapAdjustment)}</span></p>}
                 <p className="flex justify-between font-medium"><span>Total</span><span>{formatMoney(order.total)}</span></p>
-                {order.amountDue !== order.total && <p className="flex justify-between text-[#1E3A5F]"><span>Amount due after adjustment</span><span>{formatMoney(order.amountDue)}</span></p>}
+                {order.amountDue !== order.total && <p className="flex justify-between text-[#1E3A5F]"><span>{order.refunds.length > 0 ? 'Amount due after changes' : 'Amount due after adjustment'}</span><span>{formatMoney(order.amountDue)}</span></p>}
                 <p className="flex justify-between text-gray-600"><span>Paid</span><span>{formatMoney(order.amountPaid)}</span></p>
                 <p className={`flex justify-between font-semibold ${order.owed > 0 ? 'text-amber-700' : 'text-green-700'}`}><span>Still owed</span><span>{formatMoney(order.owed)}</span></p>
               </div>
@@ -117,7 +120,7 @@ export default function OrderPanel({ orderId, onClose, onChanged }: {
 
             <div>
               <p className="font-medium text-gray-800 mb-2 flex items-center gap-2"><Receipt className="h-4 w-4 text-[#C8A24A]" /> Payments</p>
-              {order.payments.length === 0 ? <p className="text-gray-500">No payments yet.</p> : (
+              {order.payments.length === 0 && order.refunds.length === 0 ? <p className="text-gray-500">No payments yet.</p> : (
                 <div className="space-y-1">
                   {order.payments.map(p => (
                     <div key={p.id} className="flex justify-between gap-3">
@@ -134,15 +137,29 @@ export default function OrderPanel({ orderId, onClose, onChanged }: {
                       </span>
                     </div>
                   ))}
+                  {order.refunds.map(r => (
+                    <div key={r.id} className="flex justify-between gap-3 text-red-700">
+                      <span>
+                        {formatDateTime(r.at)} · Refund {r.toCard ? 'to card' : ''}
+                        {r.status !== 'completed' && <span className="text-amber-700"> · {r.status}</span>}
+                        <span className="text-gray-500"> · {r.by}</span>
+                        {r.notes && <span className="block text-xs text-gray-500">{r.notes}</span>}
+                      </span>
+                      <span>−{formatMoney(r.amount)}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            {info.canManage && order.status !== 'cancelled' && (
+            {info.canManage && (order.status !== 'cancelled' || order.amountPaid > 0) && (
               <div className="flex flex-wrap gap-2 border-t border-[#F0EBDF] pt-4">
-                {order.owed > 0 && <Button onClick={() => setPaying(true)}><Banknote className="h-4 w-4" /> Record a payment</Button>}
-                {!assistancePending && live.length > 0 && (
+                {order.status !== 'cancelled' && order.owed > 0 && <Button onClick={() => setPaying(true)}><Banknote className="h-4 w-4" /> Record a payment</Button>}
+                {order.status !== 'cancelled' && !assistancePending && live.length > 0 && (
                   <Button variant="secondary" onClick={() => setDeciding('adjust')}><SlidersHorizontal className="h-4 w-4" /> Adjust amount due</Button>
+                )}
+                {order.amountPaid > 0 && REFUND_ROLES.includes(info.userRole) && (
+                  <Button variant="secondary" onClick={() => setRefunding(true)}><Undo2 className="h-4 w-4" /> Refund</Button>
                 )}
               </div>
             )}
@@ -157,6 +174,16 @@ export default function OrderPanel({ orderId, onClose, onChanged }: {
           endpoint={`/api/lux/orders/${order.id}/payments`}
           owed={order.owed}
           onClose={() => setPaying(false)}
+          onDone={changed}
+        />
+      )}
+      {order && (
+        <RefundModal
+          open={refunding}
+          kind="order"
+          id={order.id}
+          who={`${order.household.guardian1FirstName} ${order.household.guardian1LastName}`}
+          onClose={() => setRefunding(false)}
           onDone={changed}
         />
       )}

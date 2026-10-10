@@ -33,7 +33,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   })
   const ids = registrations.map(r => r.id)
 
-  const [balances, answers, payments] = await Promise.all([
+  const [balances, answers, payments, refunds] = await Promise.all([
     prisma.paymentBalance.findMany({
       where: { registrationId: { in: ids } },
       select: { registrationId: true, totalAmountDue: true, amountPaid: true, amountRemaining: true, paymentStatus: true },
@@ -46,6 +46,11 @@ export async function GET(request: NextRequest, { params }: Params) {
       where: { registrationId: { in: ids }, registrationType: 'individual', paymentStatus: 'succeeded' },
       orderBy: { createdAt: 'asc' },
       select: { registrationId: true, amount: true, paymentMethod: true, processedAt: true, createdAt: true, receiptUrl: true, checkNumber: true },
+    }),
+    prisma.refund.findMany({
+      where: { registrationId: { in: ids }, registrationType: 'individual', organizationId: ctx.organizationId },
+      orderBy: { processedAt: 'asc' },
+      select: { registrationId: true, refundAmount: true, refundMethod: true, notes: true, processedAt: true, status: true },
     }),
   ])
   const balanceBy = new Map(balances.map(b => [b.registrationId, b]))
@@ -72,6 +77,9 @@ export async function GET(request: NextRequest, { params }: Params) {
         payments: payments
           .filter(p => p.registrationId === r.id)
           .map(p => ({ ...p, amount: Number(p.amount) })),
+        refunds: refunds
+          .filter(f => f.registrationId === r.id)
+          .map(f => ({ amount: Number(f.refundAmount), toCard: f.refundMethod === 'stripe', notes: f.notes, at: f.processedAt, status: f.status })),
       }
     }),
   })

@@ -15,6 +15,7 @@ import {
   Badge, Button, Card, ErrorNote, Field, Modal, PageHeader, Select, Spinner, StatCard, TextArea, TextInput,
 } from '@/components/lux/ui'
 import RecordPaymentModal from '@/components/lux/RecordPaymentModal'
+import RefundModal, { REFUND_ROLES } from '@/components/lux/RefundModal'
 
 interface EventDetail {
   id: string
@@ -55,6 +56,7 @@ interface Registration {
   balance: { totalAmountDue: number; amountPaid: number; amountRemaining: number; paymentStatus: string } | null
   answers: Array<{ question: string; answer: string | null }>
   payments: Array<{ amount: number; paymentMethod: string; processedAt: string | null; createdAt: string; receiptUrl: string | null; checkNumber: string | null }>
+  refunds: Array<{ amount: number; toCard: boolean; notes: string | null; at: string; status: string }>
 }
 
 const STATUS_TONE: Record<SimpleEventStatus, 'gray' | 'green' | 'amber' | 'red' | 'blue'> = {
@@ -296,18 +298,25 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
                             {p.receiptUrl && <> · <a className="underline" href={p.receiptUrl} target="_blank" rel="noreferrer">receipt</a></>}
                           </p>
                         ))}
+                        {r.refunds.map((f, i) => (
+                          <p key={`refund-${i}`} className="text-red-700">
+                            Refund −{formatMoney(f.amount)}{f.toCard ? ' to card' : ''} · {formatDateTime(f.at)}
+                            {f.status !== 'completed' && <span className="text-amber-700"> · {f.status}</span>}
+                            {f.notes && <span className="text-gray-500"> · {f.notes}</span>}
+                          </p>
+                        ))}
                         {r.balance && r.balance.amountRemaining > 0 && !r.cancelledAt && (
                           <p className="mt-1 text-amber-700">Still owed: {formatMoney(r.balance.amountRemaining)}</p>
                         )}
-                        {info.canManage && !r.cancelledAt && (
+                        {info.canManage && (!r.cancelledAt || (r.balance && r.balance.amountPaid > 0)) && (
                           <div className="flex flex-wrap gap-2 mt-3">
-                            {r.balance && r.balance.amountRemaining > 0 && r.registrationStatus !== 'incomplete' && (
+                            {!r.cancelledAt && r.balance && r.balance.amountRemaining > 0 && r.registrationStatus !== 'incomplete' && (
                               <Button variant="primary" onClick={() => setPaying(r)}>Record payment</Button>
                             )}
-                            {info.userRole === 'org_admin' && r.balance && r.balance.amountPaid > 0 && (
+                            {REFUND_ROLES.includes(info.userRole) && r.balance && r.balance.amountPaid > 0 && (
                               <Button variant="secondary" onClick={() => setRefunding(r)}>Refund</Button>
                             )}
-                            <Button variant="danger" onClick={() => setCancelling(r)}>Cancel registration</Button>
+                            {!r.cancelledAt && <Button variant="danger" onClick={() => setCancelling(r)}>Cancel registration</Button>}
                           </div>
                         )}
                       </div>
@@ -320,17 +329,20 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
         )}
       </Card>
 
-      {info.canManage && (
+      {/* Moving to the full Events portal is only for parishes that have it (Cathedral plan) */}
+      {info.canManage && (info.modulesEnabled.events || (event.status === 'draft' && registrations.length === 0)) && (
         <Card title="More options">
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-800">Need housing, group registration, staff or vendors?</p>
-              <p className="text-sm text-gray-500">Move this event to the full Events portal. Every registration and payment comes with it.</p>
+          {info.modulesEnabled.events && (
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Need housing, group registration, staff or vendors?</p>
+                <p className="text-sm text-gray-500">Move this event to the full Events portal. Every registration and payment comes with it.</p>
+              </div>
+              <Button variant="secondary" onClick={() => setConverting(true)}><ArrowUpRight className="h-4 w-4" /> Convert to full event</Button>
             </div>
-            <Button variant="secondary" onClick={() => setConverting(true)}><ArrowUpRight className="h-4 w-4" /> Convert to full event</Button>
-          </div>
+          )}
           {event.status === 'draft' && registrations.length === 0 && (
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between mt-4 pt-4 border-t border-[#F0EBDF]">
+            <div className={`flex flex-col sm:flex-row gap-3 sm:items-center justify-between ${info.modulesEnabled.events ? 'mt-4 pt-4 border-t border-[#F0EBDF]' : ''}`}>
               <p className="text-sm text-gray-500">Don’t need this draft anymore?</p>
               <Button variant="danger" onClick={deleteDraft}><Trash2 className="h-4 w-4" /> Delete draft</Button>
             </div>
@@ -347,7 +359,14 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
         onDone={load}
       />
       <CancelModal registration={cancelling} onClose={() => setCancelling(null)} onDone={load} />
-      <RefundModal registration={refunding} onClose={() => setRefunding(null)} onDone={load} />
+      <RefundModal
+        open={!!refunding}
+        kind="event"
+        id={refunding?.id ?? null}
+        who={`${refunding?.firstName ?? ''} ${refunding?.lastName ?? ''}`}
+        onClose={() => setRefunding(null)}
+        onDone={load}
+      />
       <ConvertModal open={converting} eventId={id} onClose={() => setConverting(false)} />
     </div>
   )
@@ -379,70 +398,9 @@ function CancelModal({ registration, onClose, onDone }: { registration: Registra
       footer={<><Button variant="ghost" onClick={onClose}>Keep it</Button><Button variant="danger" onClick={cancel} loading={saving}>Cancel registration</Button></>}>
       <p className="text-sm text-gray-700 mb-3">
         {registration?.firstName} {registration?.lastName}’s {registration?.ticketQuantity} ticket(s) will be released for others.
-        {registration?.balance && registration.balance.amountPaid > 0 && ' Payments stay on record; refund separately if needed.'}
+        {registration?.balance && registration.balance.amountPaid > 0 && ' What they paid stays on record. To give money back, use Refund after cancelling.'}
       </p>
       <Field label="Reason" hint="Optional"><TextInput value={reason} onChange={e => setReason(e.target.value)} /></Field>
-    </Modal>
-  )
-}
-
-function RefundModal({ registration, onClose, onDone }: { registration: Registration | null; onClose: () => void; onDone: () => void }) {
-  const api = useLuxApi()
-  const [amount, setAmount] = useState('')
-  const [method, setMethod] = useState<'stripe' | 'manual'>('stripe')
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const paidByCard = !!registration?.payments.some(p => p.paymentMethod === 'card' && p.receiptUrl)
-
-  useEffect(() => {
-    if (registration) {
-      setAmount(String(registration.balance?.amountPaid ?? ''))
-      setMethod(registration.payments.some(p => p.paymentMethod === 'card' && p.receiptUrl) ? 'stripe' : 'manual')
-      setNotes(''); setError(null)
-    }
-  }, [registration])
-
-  const refund = async () => {
-    if (!registration) return
-    setSaving(true)
-    setError(null)
-    try {
-      await api('/api/admin/refunds', {
-        method: 'POST',
-        json: {
-          registrationId: registration.id,
-          registrationType: 'individual',
-          refundAmount: Number(amount),
-          refundMethod: method,
-          refundReason: 'other',
-          notes,
-        },
-      })
-      toast.success('Refund recorded')
-      onClose()
-      onDone()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Modal open={!!registration} onClose={onClose} title="Refund"
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={refund} loading={saving}>Refund {amount ? formatMoney(Number(amount)) : ''}</Button></>}>
-      <div className="space-y-4">
-        <ErrorNote message={error} />
-        <Field label="Amount"><TextInput type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /></Field>
-        <Field label="How">
-          <Select value={method} onChange={e => setMethod(e.target.value as 'stripe' | 'manual')}>
-            {paidByCard && <option value="stripe">Back to their card (Stripe)</option>}
-            <option value="manual">I refunded it myself (cash/check)</option>
-          </Select>
-        </Field>
-        <Field label="Note" hint="Optional"><TextArea rows={2} value={notes} onChange={e => setNotes(e.target.value)} /></Field>
-      </div>
     </Modal>
   )
 }

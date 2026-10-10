@@ -24,6 +24,11 @@ export async function loadOrderForStaff(organizationId: string, orderId: string)
     include: { processedBy: { select: { firstName: true, lastName: true } } },
     orderBy: { createdAt: 'asc' },
   })
+  const refunds = await prisma.refund.findMany({
+    where: { registrationId: order.id, registrationType: 'lux_order' },
+    include: { processedBy: { select: { firstName: true, lastName: true } } },
+    orderBy: { processedAt: 'asc' },
+  })
   const resolver = order.feeAssistanceResolvedById
     ? await prisma.user.findUnique({ where: { id: order.feeAssistanceResolvedById }, select: { firstName: true, lastName: true } })
     : null
@@ -70,6 +75,15 @@ export async function loadOrderForStaff(organizationId: string, orderId: string)
       receiptUrl: p.receiptUrl,
       at: p.processedAt ?? p.createdAt,
       by: p.processedBy ? `${p.processedBy.firstName} ${p.processedBy.lastName}`.trim() : p.processedVia === 'online' ? 'Paid online' : null,
+    })),
+    refunds: refunds.map(r => ({
+      id: r.id,
+      amount: Number(r.refundAmount),
+      toCard: r.refundMethod === 'stripe',
+      status: r.status,
+      notes: r.notes,
+      at: r.processedAt,
+      by: `${r.processedBy.firstName} ${r.processedBy.lastName}`.trim(),
     })),
   }
 }

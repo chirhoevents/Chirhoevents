@@ -67,6 +67,7 @@ export async function deleteOrg(prisma: any, organizationId: string) {
   await prisma.luxChild.deleteMany({ where: { organizationId } })
   await prisma.luxHousehold.deleteMany({ where: { organizationId } })
   await prisma.emailLog.deleteMany({ where: { organizationId } })
+  await prisma.refund.deleteMany({ where: { organizationId } })
   await prisma.payment.deleteMany({ where: { organizationId } })
   await prisma.paymentBalance.deleteMany({ where: { organizationId } })
   const regs = await prisma.individualRegistration.findMany({ where: { organizationId }, select: { id: true } })
