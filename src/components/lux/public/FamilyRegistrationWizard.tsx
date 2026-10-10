@@ -265,7 +265,7 @@ export default function FamilyRegistrationWizard(props: {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl sm:text-3xl font-semibold text-[#1E3A5F] text-center" style={{ fontFamily: 'Georgia, serif' }}>{w.title}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-[#1E3A5F] text-center">{w.title}</h1>
       <p className="text-center text-gray-600 mt-1">{props.organizationName}</p>
 
       <ol className="flex items-center justify-center gap-2 sm:gap-4 my-6 text-xs sm:text-sm" aria-label="Steps">

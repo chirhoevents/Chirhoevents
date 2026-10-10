@@ -29,7 +29,7 @@ export default async function PayOrderPage({ params, searchParams }: Props) {
   return (
     <LuxPublicShell organizationName={order.organization.name} logoUrl={order.organization.logoUrl} parishSlug={orgSlug} accentColor={settings.page.accentColor}>
       <div className="max-w-xl mx-auto bg-white rounded-2xl border border-[#E8E2D4] shadow-sm p-7">
-        <h1 className="text-2xl font-semibold text-[#1E3A5F]" style={{ fontFamily: 'Georgia, serif' }}>{t.pay.title}</h1>
+        <h1 className="text-2xl font-bold text-[#1E3A5F]">{t.pay.title}</h1>
         <p className="text-gray-600 mt-1">{t.common.confirmation(order.confirmationCode)}</p>
         {cancelled && owed > 0 && order.status !== 'cancelled' && (
           <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{t.pay.notCompleted}</p>

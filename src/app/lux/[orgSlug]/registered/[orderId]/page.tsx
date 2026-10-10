@@ -55,7 +55,7 @@ export default async function OrderRegisteredPage({ params, searchParams }: Prop
           {stillPaying ? (
             <>
               <Clock className="h-14 w-14 text-amber-500 mx-auto" />
-              <h1 className="text-2xl font-semibold text-[#1E3A5F] mt-3">{r.notFinished}</h1>
+              <h1 className="text-2xl font-bold text-[#1E3A5F] mt-3">{r.notFinished}</h1>
               <p className="text-gray-600 mt-2">{r.heldAWhile}</p>
               <Link href={`/lux/${orgSlug}/pay/${order.id}?t=${token}`} className="inline-block mt-5 rounded-lg bg-[#1E3A5F] px-5 py-2.5 text-white">{r.finishPaying}</Link>
             </>
@@ -64,7 +64,7 @@ export default async function OrderRegisteredPage({ params, searchParams }: Prop
               {order.status === 'assistance_requested'
                 ? <HandHeart className="h-14 w-14 text-[#C8A24A] mx-auto" />
                 : <CheckCircle2 className="h-14 w-14 text-green-600 mx-auto" />}
-              <h1 className="text-2xl font-semibold text-[#1E3A5F] mt-3" style={{ fontFamily: 'Georgia, serif' }}>{r.done}</h1>
+              <h1 className="text-2xl font-bold text-[#1E3A5F] mt-3">{r.done}</h1>
               <p className="text-gray-600 mt-2">{r.confirmationTo} <strong>{order.household.email}</strong>.</p>
             </>
           )}

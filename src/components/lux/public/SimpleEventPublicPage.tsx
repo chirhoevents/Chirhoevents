@@ -58,7 +58,7 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
     <LuxPublicShell organizationName={event.organization.name} logoUrl={event.organization.logoUrl} parishSlug={event.organization.publicSlug} accentColor={accentColor}>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         <div className="lg:col-span-2 space-y-5">
-          <h1 className="text-3xl font-semibold text-[#1E3A5F]" style={{ fontFamily: 'Georgia, serif' }}>{event.name}</h1>
+          <h1 className="text-3xl font-bold text-[#1E3A5F]">{event.name}</h1>
           <div className="space-y-3 text-gray-700">
             <p className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-[#C8A24A] mt-0.5 shrink-0" />

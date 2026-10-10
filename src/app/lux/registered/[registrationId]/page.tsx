@@ -63,14 +63,14 @@ export default async function LuxRegisteredPage({ params, searchParams }: {
         {stillPaying ? (
           <>
             <Clock className="h-14 w-14 text-amber-500 mx-auto" />
-            <h1 className="text-2xl font-semibold text-[#1E3A5F] mt-4">{t.registered.notFinished}</h1>
+            <h1 className="text-2xl font-bold text-[#1E3A5F] mt-4">{t.registered.notFinished}</h1>
             <p className="text-gray-600 mt-2">{t.event.stillPaying}</p>
             <Link href={`/events/${event.slug}?cancelled=1&r=${registration.id}`} className="inline-block mt-6 rounded-lg bg-[#1E3A5F] px-5 py-2.5 text-white">{t.event.tryAgain}</Link>
           </>
         ) : (
           <>
             <CheckCircle2 className="h-14 w-14 text-green-600 mx-auto" />
-            <h1 className="text-2xl font-semibold text-[#1E3A5F] mt-4" style={{ fontFamily: 'Georgia, serif' }}>{t.registered.done}</h1>
+            <h1 className="text-2xl font-bold text-[#1E3A5F] mt-4">{t.registered.done}</h1>
             <p className="text-gray-600 mt-2">{t.registered.confirmationTo} <strong>{registration.email}</strong>.</p>
 
             <div className="text-left mt-6 rounded-xl bg-[#FAF8F3] p-5 space-y-2 text-sm">
