@@ -10,6 +10,7 @@ import { toast } from '@/lib/toast'
 import { downloadFromApi } from '@/lib/lux/download'
 import { formatEventDate, formatMoney, gradeLabel, GRADE_OPTIONS } from '@/lib/lux/format'
 import { DOCUMENT_STATUS_LABELS, ORDER_STATUS_LABELS, PROGRAM_STATUS_LABELS } from '@/lib/lux/program-status'
+import OrderPanel from '@/components/lux/OrderPanel'
 import DocumentPanel, { DOC_TONE, type PanelDocument } from '@/components/lux/DocumentPanel'
 import {
   Badge, Button, Card, ErrorNote, Field, Modal, PageHeader, Select, Spinner, StatCard, Tabs, TextArea, TextInput,
@@ -64,6 +65,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
   const [expanded, setExpanded] = useState<string | null>(null)
   const [panel, setPanel] = useState<{ doc: PanelDocument; label: string; childName: string } | null>(null)
   const [cancelling, setCancelling] = useState<RosterEntry | null>(null)
+  const [orderOpen, setOrderOpen] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -278,7 +280,14 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
                       </div>
                       <div className="space-y-2">
                         <p><span className="text-gray-500">Fee</span> {formatMoney(r.feeAmount)}{r.discountAmount > 0 ? ` (after ${formatMoney(r.discountAmount)} discount)` : ''}</p>
-                        {r.order && <p><span className="text-gray-500">Order</span> {r.order.confirmationCode} · paid {formatMoney(r.order.amountPaid)} of {formatMoney(r.order.amountDue)}</p>}
+                        {r.order && (
+                          <p>
+                            <span className="text-gray-500">Paid</span> {formatMoney(r.order.amountPaid)} of {formatMoney(r.order.amountDue)}{' '}
+                            <button type="button" className="text-[#9C8466] hover:text-[#1E3A5F] underline" onClick={() => setOrderOpen(r.order!.id)}>
+                              {r.order.feeAssistanceStatus === 'requested' ? 'Review fee assistance' : 'Payments'}
+                            </button>
+                          </p>
+                        )}
                         <div className="space-y-1">
                           {data.requirements.map(req => {
                             const d = docFor(r, req.id)
@@ -352,6 +361,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
 
       {panel && <DocumentPanel document={panel.doc} label={panel.label} childName={panel.childName} onClose={() => setPanel(null)} onChanged={load} />}
       <CancelRegistrationModal entry={cancelling} onClose={() => setCancelling(null)} onDone={load} />
+      <OrderPanel orderId={orderOpen} onClose={() => setOrderOpen(null)} onChanged={load} />
     </div>
   )
 }

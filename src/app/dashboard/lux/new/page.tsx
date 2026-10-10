@@ -34,7 +34,7 @@ export default function NewInLuxPage() {
             <BookOpen className="h-6 w-6 text-[#C8A24A]" />
           </div>
           <h2 className="text-lg font-semibold text-[#1E3A5F]">A class or sacrament program</h2>
-          <p className="text-gray-600 mt-1 text-sm">Faith Formation, First Communion, Confirmation, OCIA. Families register their children, upload documents, and pay.</p>
+          <p className="text-gray-600 mt-1 text-sm">Faith Formation, First Communion, Confirmation, Vacation Bible School. Families register their children, upload documents, and pay.</p>
           <p className="text-xs text-gray-500 mt-3">Unlimited programs on every plan</p>
           <span className="inline-flex items-center gap-1 text-sm font-medium text-[#1E3A5F] mt-4 group-hover:gap-2 transition-all">
             Set up a program <ArrowRight className="h-4 w-4" />
