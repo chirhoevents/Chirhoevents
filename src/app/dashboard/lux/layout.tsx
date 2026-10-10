@@ -185,8 +185,13 @@ export default function LuxLayout({ children }: { children: React.ReactNode }) {
         }}
       >
         <div className="min-h-screen bg-[#FAF8F3]">
-          {info.isImpersonating && info.impersonatedOrgId && (
-            <ImpersonationBanner organizationName={info.organizationName} organizationId={info.impersonatedOrgId} />
+          {/* Always tell a master admin which org they're in */}
+          {info.actualRole === 'master_admin' && (
+            <ImpersonationBanner
+              organizationName={info.organizationName}
+              organizationId={info.impersonatedOrgId ?? info.organizationId}
+              ownOrganization={!info.isImpersonating}
+            />
           )}
           {info.subscriptionStatus === 'suspended' && info.pauseReason && (
             <SubscriptionPausedBanner
@@ -207,9 +212,9 @@ export default function LuxLayout({ children }: { children: React.ReactNode }) {
             }`}
           >
             <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between h-20 px-5 border-b border-[#E8E2D4]">
-                <Link href="/dashboard/lux"><LuxLogo size="md" subtitle /></Link>
-                <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-[#1E3A5F]" aria-label="Close menu">
+              <div className="relative flex items-center justify-center h-20 lg:h-24 px-5 border-b border-[#E8E2D4]">
+                <Link href="/dashboard/lux" className="hover:opacity-90 transition-opacity"><LuxLogo size="md" subtitle center /></Link>
+                <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-[#1E3A5F] absolute top-4 right-4" aria-label="Close menu">
                   <X className="h-6 w-6" />
                 </button>
               </div>
@@ -220,7 +225,7 @@ export default function LuxLayout({ children }: { children: React.ReactNode }) {
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-[#1E3A5F] truncate">{info.organizationName}</p>
-                  <p className="text-xs text-[#9C8466]">{getRoleName(info.userRole as UserRole)}</p>
+                  <p className="text-xs text-[#9C8466]">{getRoleName((info.actualRole === 'master_admin' ? 'master_admin' : info.userRole) as UserRole)}</p>
                 </div>
               </div>
 

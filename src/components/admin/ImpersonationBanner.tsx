@@ -8,16 +8,24 @@ import { AlertTriangle, X, LogOut } from 'lucide-react'
 interface ImpersonationBannerProps {
   organizationName: string
   organizationId: string
+  // A master admin in their own org, not entered from master admin: there's
+  // nothing to exit, so the button just goes back to master admin
+  ownOrganization?: boolean
 }
 
 export default function ImpersonationBanner({
   organizationName,
   organizationId,
+  ownOrganization = false,
 }: ImpersonationBannerProps) {
   const { getToken } = useAuth()
   const [isExiting, setIsExiting] = useState(false)
 
   const handleExitImpersonation = async () => {
+    if (ownOrganization) {
+      window.location.href = '/dashboard/master-admin'
+      return
+    }
     setIsExiting(true)
     try {
       const token = await getToken()
@@ -64,7 +72,7 @@ export default function ImpersonationBanner({
         >
           <LogOut className="h-4 w-4" />
           <span className="hidden sm:inline">
-            {isExiting ? 'Exiting...' : 'Exit to Master Admin'}
+            {isExiting ? 'Exiting...' : ownOrganization ? 'Back to Master Admin' : 'Exit to Master Admin'}
           </span>
           <span className="sm:hidden">
             {isExiting ? '...' : 'Exit'}

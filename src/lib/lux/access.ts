@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser, type AuthUser } from '@/lib/auth-utils'
-import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getEffectiveOrgId, isImpersonating as hasImpersonationCookie } from '@/lib/get-effective-org'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { resolveModuleAccess, type ModuleAccess } from '@/lib/subscription-tiers'
 import { isLuxStaffRole } from '@/lib/lux/routing'
@@ -54,7 +54,9 @@ export async function requireLuxStaff(
   }
 
   const organizationId = await getEffectiveOrgId(user)
-  const isImpersonating = isMasterAdmin && organizationId !== user.organizationId
+  // Same rule as the Events dashboard: the master admin entered this org from
+  // master admin, even if it's their own org
+  const isImpersonating = isMasterAdmin && await hasImpersonationCookie(user)
   if (isMasterAdmin && organizationId === 'platform-admin') {
     return deny('Open an organization from the master admin dashboard first.', 403)
   }
