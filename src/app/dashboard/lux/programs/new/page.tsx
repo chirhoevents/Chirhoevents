@@ -2,16 +2,20 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { BookOpen, Cross, Flame, Sparkles, ArrowRight } from 'lucide-react'
+import { BookOpen, Cross, Flame, Sparkles, ArrowRight, Users, Droplets, Church, type LucideIcon } from 'lucide-react'
 import ProgramForm, { programValueFromTemplate } from '@/components/lux/ProgramForm'
 import { PageHeader, Spinner } from '@/components/lux/ui'
 import { useLuxApi } from '@/contexts/LuxContext'
-import { PROGRAM_TEMPLATES, defaultTerm, getProgramTemplate } from '@/lib/lux/program-templates'
+import { PROGRAM_TEMPLATES, defaultTerm, getProgramTemplate, type ProgramTemplate } from '@/lib/lux/program-templates'
 
-const ICONS: Record<string, typeof BookOpen> = {
+// Keyed by every template key, so adding a template without an icon fails the type check
+const ICONS: Record<ProgramTemplate['key'], LucideIcon> = {
   faith_formation: BookOpen,
+  family_faith_formation: Users,
   first_communion: Cross,
   confirmation: Flame,
+  baptism_prep: Droplets,
+  ocia: Church,
   custom: Sparkles,
 }
 
@@ -36,7 +40,7 @@ function NewProgram() {
         <PageHeader title="Which kind of program?" description="Each one starts with sensible fields and documents. You can change everything." back={{ href: '/dashboard/lux/new', label: 'Back' }} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {PROGRAM_TEMPLATES.map(t => {
-            const Icon = ICONS[t.key]
+            const Icon = ICONS[t.key] ?? Sparkles
             return (
               <button key={t.key} type="button" onClick={() => router.push(`/dashboard/lux/programs/new?template=${t.key}`)}
                 className="group text-left bg-white rounded-2xl border border-[#E8E2D4] p-5 hover:shadow-lg hover:border-[#C8A24A] transition-all">
