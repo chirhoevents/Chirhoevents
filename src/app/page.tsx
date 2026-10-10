@@ -261,14 +261,16 @@ export default function LandingPage() {
               <CardHeader>
                 <BookOpen className="h-10 w-10 text-gold mb-3" />
                 <CardTitle className="text-navy">Faith formation &amp; sacraments</CardTitle>
-                <CardDescription>Faith Formation, First Communion, Confirmation, Vacation Bible School</CardDescription>
+                <CardDescription>Faith Formation, Family Faith Formation, First Communion, Confirmation, Baptism Preparation, OCIA</CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-gray-600">
-                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> One form for every child, even in different programs</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> One form for the whole family: children, adults in OCIA, or the whole family together</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Class times by day or by grade, each with its own limit</li>
                   <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Sibling discounts and a family maximum, worked out for you</li>
-                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Baptismal certificates and sponsor letters uploaded online</li>
-                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Rosters by grade, with allergies and sacrament details</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Baptismal and First Communion certificates, sponsor and godparent letters, all in one place</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Rosters by grade or class time, with allergies and sacrament details</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Families can switch to Spanish with one click</li>
                   <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Unlimited programs on every plan</li>
                 </ul>
               </CardContent>
@@ -310,7 +312,7 @@ export default function LandingPage() {
             <div className="text-center">
               <Download className="h-8 w-8 text-navy mx-auto mb-2" />
               <p className="font-semibold text-navy">Office-friendly</p>
-              <p className="text-sm text-gray-600">Record cash and checks, send reminders in one click, and export rosters and payments to Excel.</p>
+              <p className="text-sm text-gray-600">Record cash and checks, give refunds, send reminders in one click, and export rosters and payments to Excel.</p>
             </div>
           </div>
 

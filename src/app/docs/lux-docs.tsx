@@ -1,4 +1,5 @@
-import { Sun, Heart } from "lucide-react"
+import { Heart } from "lucide-react"
+import { LuxMark } from "@/components/lux/LuxLogo"
 
 /**
  * Help articles for Lux, the parish module (simple events and faith
@@ -16,7 +17,7 @@ export const luxDocSections = [
   {
     id: "lux",
     title: "Lux for Parishes",
-    icon: Sun,
+    icon: LuxMark,
     items: [
       { id: "lux-overview", title: "What is Lux?" },
       { id: "lux-setup", title: "Setting Up Lux" },

@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
-import { Calendar, Sun } from 'lucide-react'
+import { Calendar } from 'lucide-react'
+import { LuxMark } from '@/components/lux/LuxLogo'
 
 /**
  * "Events | Lux" switch shown in the header for orgs that have both
@@ -52,7 +53,7 @@ export default function DashboardSwitcher({ current }: { current: 'events' | 'lu
         disabled={switching}
         className={`${base} ${current === 'lux' ? 'bg-white shadow-sm text-[#1E3A5F] font-medium' : 'text-gray-600 hover:text-[#1E3A5F]'}`}
       >
-        <Sun className="h-4 w-4" />
+        <LuxMark />
         Lux
       </button>
     </div>
