@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Copy, ExternalLink, Sun, Building2, Palette, Users, CreditCard, Plug, Bell } from 'lucide-react'
+import { Copy, ExternalLink, Building2, Palette, Users, CreditCard, Plug, Bell } from 'lucide-react'
 import { useLux, useLuxApi } from '@/contexts/LuxContext'
 import { useAdminContext } from '@/contexts/AdminContext'
 import { canManageTeam } from '@/lib/permissions'
@@ -15,6 +15,9 @@ import IntegrationsSettingsTab from '@/components/admin/settings/IntegrationsSet
 import BillingSettingsTab from '@/components/admin/settings/BillingSettingsTab'
 import BrandingSettingsTab from '@/components/admin/settings/BrandingSettingsTab'
 import NotificationsSettingsTab from '@/components/admin/settings/NotificationsSettingsTab'
+import ParishPageEditor, { type ParishPageDraft } from '@/components/lux/ParishPageEditor'
+import WebsiteButtonCard from '@/components/lux/WebsiteButtonCard'
+import { LuxMark } from '@/components/lux/LuxLogo'
 
 type TabKey = 'lux' | 'organization' | 'branding' | 'team' | 'billing' | 'integrations' | 'notifications'
 
@@ -23,6 +26,7 @@ interface LuxSettings {
   officePaymentInstructions: string
   publicSlug: string
   documentStorageReady: boolean
+  page: ParishPageDraft
 }
 
 function LuxSettingsTab() {
@@ -33,6 +37,7 @@ function LuxSettingsTab() {
   const [rules, setRules] = useState<FeeRules | null>(null)
   const [thirdDifferent, setThirdDifferent] = useState(false)
   const [office, setOffice] = useState('')
+  const [page, setPage] = useState<ParishPageDraft | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,6 +48,7 @@ function LuxSettingsTab() {
       setRules(s.feeRules)
       setThirdDifferent(s.feeRules.siblingDiscount.thirdPlusValue !== null)
       setOffice(s.officePaymentInstructions)
+      setPage(s.page)
     }).catch(e => setError(e.message))
   }, [api])
 
@@ -52,7 +58,7 @@ function LuxSettingsTab() {
   }), [rules, thirdDifferent])
 
   if (error && !loaded) return <ErrorNote message={error} />
-  if (!loaded || !rules || !effectiveRules) return <Spinner />
+  if (!loaded || !rules || !effectiveRules || !page) return <Spinner />
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const sd = rules.siblingDiscount
@@ -65,10 +71,10 @@ function LuxSettingsTab() {
     try {
       await api('/api/lux/settings', {
         method: 'PUT',
-        json: { publicSlug: slug.trim().toLowerCase(), feeRules: effectiveRules, officePaymentInstructions: office },
+        json: { publicSlug: slug.trim().toLowerCase(), feeRules: effectiveRules, officePaymentInstructions: office, page },
       })
       toast.success('Settings saved')
-      setLoaded({ ...loaded, publicSlug: slug.trim().toLowerCase(), feeRules: effectiveRules, officePaymentInstructions: office })
+      setLoaded({ ...loaded, publicSlug: slug.trim().toLowerCase(), feeRules: effectiveRules, officePaymentInstructions: office, page })
       refresh()
     } catch (e) {
       setError((e as Error).message)
@@ -100,6 +106,10 @@ function LuxSettingsTab() {
           </div>
         </Field>
       </Card>
+
+      <ParishPageEditor value={page} onChange={setPage} parishName={info.organizationName} disabled={disabled} />
+
+      <WebsiteButtonCard slug={loaded.publicSlug} accentColor={page.accentColor} />
 
       <Card title="Sibling discount & family maximum" description="Applied automatically when a family registers more than one child. Each program can opt out.">
         <div className="space-y-5">
@@ -158,7 +168,7 @@ function SettingsInner() {
   const canAccessTeam = userRole ? canManageTeam(userRole) : false
 
   const tabs: Array<{ value: TabKey; label: React.ReactNode; show: boolean }> = [
-    { value: 'lux', label: <span className="flex items-center gap-1.5"><Sun className="h-4 w-4" /> Lux</span>, show: true },
+    { value: 'lux', label: <span className="flex items-center gap-1.5"><LuxMark /> Lux</span>, show: true },
     { value: 'organization', label: <span className="flex items-center gap-1.5"><Building2 className="h-4 w-4" /> Parish</span>, show: true },
     { value: 'branding', label: <span className="flex items-center gap-1.5"><Palette className="h-4 w-4" /> Logo &amp; colors</span>, show: true },
     { value: 'team', label: <span className="flex items-center gap-1.5"><Users className="h-4 w-4" /> Team</span>, show: canAccessTeam },

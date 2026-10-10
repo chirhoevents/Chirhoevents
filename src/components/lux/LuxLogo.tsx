@@ -44,3 +44,10 @@ export default function LuxLogo({ size = 'md', variant = 'color', subtitle = fal
     </span>
   )
 }
+
+/** The Lux arch on its own, sized like an icon (h-4 w-4 by default) */
+export function LuxMark({ className = 'h-4 w-4', brand: given }: { className?: string; brand?: LuxBrand | null }) {
+  const brand = useLuxBrand(given)
+  // eslint-disable-next-line @next/next/no-img-element -- can be an uploaded URL
+  return <img src={brand.mark} alt="" className={`object-contain ${className}`} />
+}

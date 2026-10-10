@@ -5,6 +5,13 @@ import { mergeLuxSettings, parseLuxSettings } from '@/lib/lux/settings'
 import { describeFeeRules, parseFeeRules } from '@/lib/lux/family-fees'
 import { ensureOrgPublicSlug, validatePublicSlug } from '@/lib/lux/org-slug'
 import { privateBucketConfigured } from '@/lib/r2/private-files'
+import type { ParishPageSettings } from '@/lib/lux/settings'
+
+function pageTextPatch(raw: Record<string, unknown>): ParishPageSettings {
+  const { headerImageUrl: _ignored, ...rest } = raw
+  void _ignored
+  return rest as unknown as ParishPageSettings
+}
 
 /** GET /api/lux/settings: the parish's Lux settings */
 export async function GET(request: NextRequest) {
@@ -19,7 +26,7 @@ export async function GET(request: NextRequest) {
   })
 }
 
-/** PUT /api/lux/settings  { feeRules?, officePaymentInstructions?, publicSlug? } */
+/** PUT /api/lux/settings  { feeRules?, officePaymentInstructions?, publicSlug?, page? } */
 export async function PUT(request: NextRequest) {
   const { error, ctx } = await requireLuxStaff(request, { manage: true })
   if (error) return error
@@ -29,6 +36,8 @@ export async function PUT(request: NextRequest) {
     luxSettings: mergeLuxSettings(ctx.organization.luxSettings, {
       ...(body.feeRules !== undefined ? { feeRules: parseFeeRules(body.feeRules) } : {}),
       ...(body.officePaymentInstructions !== undefined ? { officePaymentInstructions: String(body.officePaymentInstructions) } : {}),
+      // The header photo is only set by the upload endpoint
+      ...(body.page && typeof body.page === 'object' ? { page: pageTextPatch(body.page) } : {}),
     }),
   }
   if (typeof body.publicSlug === 'string' && body.publicSlug !== ctx.organization.publicSlug) {
