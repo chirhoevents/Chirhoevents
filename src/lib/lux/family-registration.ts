@@ -479,6 +479,11 @@ export async function registerFamily(params: {
     c.isAdult = program?.audience === 'adults'
     if (c.isAdult) c.grade = null
     if (program && program.sessionsList.length === 0) c.sessionId = null
+    // OCIA asks "Have you been baptized?" with more detail; keep the yes/no on the person too
+    const background = c.answers?.baptism_background
+    if (c.baptized === null && typeof background === 'string' && background) {
+      c.baptized = background.startsWith('Yes') ? true : background === 'No' ? false : null
+    }
   }
   const problem = checkChildrenAgainstPrograms(input.children, programs)
   if (problem) throw new RegistrationError(problem)

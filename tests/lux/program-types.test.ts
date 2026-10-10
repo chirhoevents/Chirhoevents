@@ -69,6 +69,7 @@ async function main() {
     })
     const adultRow = await prisma.luxChild.findFirst({ where: { householdId: adult.householdId } })
     check('saved as an adult, without a grade', adultRow?.isAdult === true && adultRow.grade === null)
+    check('their OCIA baptism answer is kept on the person too', adultRow?.baptized === false)
     check('the adult’s fee is charged', adult.total === 50, adult.quote)
     check('a required OCIA question is enforced',
       await fails({ household: household(), children: [{ key: 'a', firstName: 'Jon', programId: ocia.program.id, answers: {} }] }, /baptized/))

@@ -235,7 +235,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
         label: 'Baptismal certificate',
         description: 'If you were baptized in any Christian church, a copy of your baptismal certificate. If you’re not sure, leave it for now and we’ll help.',
         required: false,
-        allowParishLookup: true,
+        allowParishLookup: false,
       }],
       questions: [
         {

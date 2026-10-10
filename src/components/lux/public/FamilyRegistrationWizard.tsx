@@ -430,7 +430,8 @@ export default function FamilyRegistrationWizard(props: {
                     )}
                   </div>
 
-                  {program?.templateKey !== 'baptism_prep' && (
+                  {/* Baptism Preparation is for the unbaptized; OCIA asks its own, more detailed question */}
+                  {program?.templateKey !== 'baptism_prep' && !program?.questions.some(q => q.id === 'baptism_background') && (
                     <div className="border-t border-gray-100 pt-4 space-y-3">
                       <p className="text-sm font-medium text-gray-800">
                         {c.isAdult && c.firstName && c.firstName === household.guardian1FirstName ? w.baptizedSelf : w.baptized(c.firstName.trim() || (c.isAdult ? name : w.yourChild))}
