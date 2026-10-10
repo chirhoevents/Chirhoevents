@@ -215,7 +215,7 @@ model LuxAuditLog {                 // document views, status changes, deletes, 
 * `/api/user/role` also returns `dashboard`, and `/dashboard/page.tsx` routes on it.
 * The admin layout redirects a Lux-only org from `/dashboard/admin` to `/dashboard/lux`. The Lux layout redirects an org without Lux back to `/dashboard/admin`.
 * A `DashboardSwitcher` in both headers ("Events | Lux") appears only when the org has both. Switching calls `POST /api/user/last-dashboard`.
-* Lux layout (`src/app/dashboard/lux/layout.tsx`) nav: **Home · Programs & Events · Registrations · Households · Documents** (registrar only) **· Payments · Exports · Settings**. Settings embeds the existing `SettingsClient` (Stripe Connect, team, branding), so nothing is rebuilt.
+* Lux layout (`src/app/dashboard/lux/layout.tsx`) nav: **Home · Programs & Events · Registrations · Households · Documents · Payments · Exports · Settings**. Settings embeds the existing `SettingsClient` (Stripe Connect, team, branding), so nothing is rebuilt.
 
 ---
 
@@ -296,7 +296,7 @@ title, date (+ optional time), location, short description · ticket types (star
   * Converting to a full event
   * Creating a faith formation or sacrament program
   * How families register
-  * Documents & privacy (registrar role)
+  * Documents & privacy
   * Returning families (email link)
   * Fee assistance
   * Exports
@@ -310,8 +310,8 @@ title, date (+ optional time), location, short description · ticket types (star
 
 Status: **a** and **b** are fixed on this branch (commits `Verify Clerk tokens…` and `Store certificates and letters privately…`), with tests in `tests/security/`. **c** no longer matters for Lux because document access is no longer a separate permission. **d** is folded into Phase 1.
 
-**a. Unverified JWT accepted as identity (high severity). FIXED.** `src/lib/jwt-auth-helper.ts` (`getClerkUserIdFromHeader`, `getClerkUserIdFromRequest`, `getClerkUserIdFromCookies`) and the inline copies in `/api/admin/check-access` and `/api/user/role` base64-decode a bearer token or cookie and trust its `sub` **without checking the signature**. `getCurrentUser(overrideUserId)` then prefers that ID over the verified Clerk session. About 150 files use this path, and `/api/admin(.*)` is public in the middleware ("handles its own auth"). Anyone who knows a staff member's Clerk user ID can make admin API calls as that person. Lux document access would sit on the same layer, so the acceptance criterion "documents are inaccessible without the registrar permission" cannot honestly be met until this is fixed.
-  * **Proposed fix (separate PR):** verify the token with Clerk's `verifyToken` (keeps the cookie-timing workaround for real tokens), make `getCurrentUser` prefer the verified `auth()` session, and have all Lux routes use a strict helper.
+**a. Unverified JWT accepted as identity (high severity). FIXED.** `src/lib/jwt-auth-helper.ts` (`getClerkUserIdFromHeader`, `getClerkUserIdFromRequest`, `getClerkUserIdFromCookies`) and the inline copies in `/api/admin/check-access` and `/api/user/role` base64-decode a bearer token or cookie and trust its `sub` **without checking the signature**. `getCurrentUser(overrideUserId)` then prefers that ID over the verified Clerk session. About 150 files use this path, and `/api/admin(.*)` is public in the middleware ("handles its own auth"). Anyone who knows a staff member's Clerk user ID can make admin API calls as that person. Lux document access sits on the same layer, so this had to be fixed first.
+  * **Fix:** every fallback now verifies the token with Clerk's `verifyToken` (signature, algorithm, expiry with 2 minutes of clock skew, session id required), and `getCurrentUser` uses the verified `auth()` session first.
 
 **b. Public file URLs. FIXED in code; needs the private bucket created to take effect.** Safe Environment certificates (participants, staff, vendors) and letters of good standing were uploaded to the public bucket with permanent URLs. (Liability form PDFs are generated on request, not stored, so they were never exposed this way.)
   * They now upload to `R2_PRIVATE_BUCKET_NAME`, and every page opens them through `/api/secure-files`: org admins for that event's organization, or the group leader who owns the group.
