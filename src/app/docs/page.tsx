@@ -5,6 +5,7 @@ import { PublicNav } from "@/components/PublicNav"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Search, BookOpen, Users, ClipboardCheck, Home, Heart, BarChart3, FileText, HelpCircle } from "lucide-react"
+import { luxDocContent, luxDocSections } from "./lux-docs"
 
 const docSections = [
   {
@@ -21,6 +22,7 @@ const docSections = [
       { id: "stripe-connect", title: "Connecting Stripe to Accept Payments" },
     ]
   },
+  ...luxDocSections.slice(0, 1),
   {
     id: "org-admins",
     title: "For Organization Admins",
@@ -95,9 +97,11 @@ const docSections = [
       { id: "vendor-future", title: "Upcoming Features" },
     ]
   },
+  ...luxDocSections.slice(1),
 ]
 
 const docContent: Record<string, { title: string; content: React.ReactNode }> = {
+  ...luxDocContent,
   "overview": {
     title: "What is ChiRho Events?",
     content: (
@@ -115,6 +119,7 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <li><strong>SALVE Check-In</strong> - QR code scanning, packet printing, and name badges</li>
           <li><strong>Rapha Medical</strong> - Secure access to medical information and allergy alerts</li>
           <li><strong>Reports & Integrations</strong> - Export to Google Sheets, Mailchimp, and QuickBooks</li>
+          <li><strong>Lux for Parishes</strong> - Simple event sign-ups plus faith formation and sacrament registration, on the Chapel and Parish plans (<a href="/docs?section=lux-overview" className="text-navy underline">learn more</a>)</li>
         </ul>
         <h3 className="text-xl font-semibold text-navy mt-6">Why ChiRho?</h3>
         <p>
@@ -159,7 +164,27 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
     title: "Choosing the Right Plan",
     content: (
       <div className="space-y-4">
-        <p>ChiRho offers five subscription tiers to fit organizations of all sizes:</p>
+        <p>ChiRho offers five plans. The two smaller plans are built around <strong>Lux</strong>, our simple parish module. The three larger plans include the full Events portal for retreats, conferences and diocesan gatherings.</p>
+        <h3 className="text-xl font-semibold text-navy mt-6">For parishes: Lux plans</h3>
+        <p>Simple events and sign-ups, plus faith formation and sacrament registration. See <a href="/docs?section=lux-overview" className="text-navy underline">What is Lux?</a></p>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border border-gray-200 mt-4">
+            <thead className="bg-navy text-white">
+              <tr>
+                <th className="border border-gray-200 p-3 text-left">Plan</th>
+                <th className="border border-gray-200 p-3 text-left">Price</th>
+                <th className="border border-gray-200 p-3 text-left">Simple events/year</th>
+                <th className="border border-gray-200 p-3 text-left">Faith formation programs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td className="border p-3">Chapel</td><td className="border p-3">$39/mo</td><td className="border p-3">5</td><td className="border p-3">Unlimited</td></tr>
+              <tr><td className="border p-3">Parish</td><td className="border p-3">$59/mo</td><td className="border p-3">10</td><td className="border p-3">Unlimited</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 className="text-xl font-semibold text-navy mt-6">For larger events: the full Events portal</h3>
+        <p>Group registration with leader portals, liability forms, Poros housing, SALVE check-in and Rapha medical. Lux can be added to these plans on request.</p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border border-gray-200 mt-4">
             <thead className="bg-navy text-white">
@@ -171,8 +196,6 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
               </tr>
             </thead>
             <tbody>
-              <tr><td className="border p-3">Chapel</td><td className="border p-3">$39/mo</td><td className="border p-3">1</td><td className="border p-3">500</td></tr>
-              <tr><td className="border p-3">Parish</td><td className="border p-3">$59/mo</td><td className="border p-3">3</td><td className="border p-3">750</td></tr>
               <tr><td className="border p-3">Cathedral</td><td className="border p-3">$150/mo</td><td className="border p-3">5</td><td className="border p-3">1,250</td></tr>
               <tr><td className="border p-3">Shrine</td><td className="border p-3">$200/mo</td><td className="border p-3">10</td><td className="border p-3">3,000</td></tr>
               <tr><td className="border p-3">Basilica</td><td className="border p-3">Starting at $5,000/yr</td><td className="border p-3">Unlimited</td><td className="border p-3">Custom</td></tr>
