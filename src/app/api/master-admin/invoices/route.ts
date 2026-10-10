@@ -2,22 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import crypto from 'crypto'
+import { verifyClerkSessionToken } from '@/lib/jwt-auth-helper'
 
 // Generate a secure random payment token
 function generatePaymentToken(): string {
   return crypto.randomBytes(32).toString('hex')
-}
-
-// Decode JWT payload to extract user ID when cookies aren't available
-function decodeJwtPayload(token: string): { sub?: string } | null {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = Buffer.from(parts[1], 'base64').toString('utf-8')
-    return JSON.parse(payload)
-  } catch {
-    return null
-  }
 }
 
 // Helper to get clerk user ID from auth or JWT token
@@ -32,9 +21,9 @@ async function getClerkUserId(request: NextRequest): Promise<string | null> {
   const authHeader = request.headers.get('Authorization')
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.substring(7)
-    const payload = decodeJwtPayload(token)
-    if (payload?.sub) {
-      return payload.sub
+    const verifiedUserId = await verifyClerkSessionToken(token)
+    if (verifiedUserId) {
+      return verifiedUserId
     }
   }
 

@@ -1,21 +1,9 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-
-/**
- * Decode a JWT and extract the payload (without verification)
- * Used as fallback when Clerk cookies aren't available
- */
-function decodeJwtPayload(token: string): { sub?: string } | null {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = Buffer.from(parts[1], 'base64').toString('utf-8')
-    return JSON.parse(payload)
-  } catch {
-    return null
-  }
-}
+import { verifyClerkSessionToken } from '@/lib/jwt-auth-helper'
+import { resolveModuleAccess } from '@/lib/subscription-tiers'
+import { resolveLandingDashboard } from '@/lib/lux/routing'
 
 /**
  * GET /api/user/role
@@ -31,15 +19,15 @@ export async function GET(request: NextRequest) {
     const authResult = await auth()
     clerkUserId = authResult.userId
 
-    // Fallback: If no userId from auth(), try to decode JWT from Authorization header
+    // Fallback: If no userId from auth(), use a verified token from the Authorization header
     // This handles the case where cookies aren't available right after sign-in redirect
     if (!clerkUserId) {
       const authHeader = request.headers.get('Authorization')
       if (authHeader?.startsWith('Bearer ')) {
         const token = authHeader.substring(7)
-        const payload = decodeJwtPayload(token)
-        if (payload?.sub) {
-          clerkUserId = payload.sub
+        const verifiedUserId = await verifyClerkSessionToken(token)
+        if (verifiedUserId) {
+          clerkUserId = verifiedUserId
         }
       }
     }
@@ -56,6 +44,8 @@ export async function GET(request: NextRequest) {
         email: true,
         role: true,
         organizationId: true,
+        lastDashboard: true,
+        organization: { select: { subscriptionTier: true, modulesEnabled: true } },
       },
     })
 
@@ -68,11 +58,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Lux-only orgs land on Lux; orgs with both land on the one used last
+    const dashboard = user.organization
+      ? resolveLandingDashboard({
+          role: user.role,
+          modules: resolveModuleAccess(user.organization.modulesEnabled, user.organization.subscriptionTier),
+          lastDashboard: user.lastDashboard,
+        })
+      : null
+
     return NextResponse.json({
       userId: user.id,
       email: user.email,
       role: user.role,
       hasOrganization: !!user.organizationId,
+      dashboard,
     })
   } catch (error) {
     console.error('Error getting user role:', error)

@@ -1,31 +1,13 @@
 /**
- * Upload Safe Environment Certificate to Cloudflare R2 storage
+ * Upload Safe Environment Certificate to private R2 storage
  *
  * R2 path structure: /{orgId}/certificates/{participantId}/{timestamp}_{filename}
+ *
+ * Returns the value to store on the record: a private reference that staff
+ * open through /api/secure-files (see src/lib/r2/private-files.ts).
  */
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
-
-// Initialize S3 client for R2
-function getR2Client() {
-  const accountId = process.env.R2_ACCOUNT_ID
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
-
-  if (!accountId || !accessKeyId || !secretAccessKey) {
-    console.warn('R2 credentials not configured - uploads will fail')
-    return null
-  }
-
-  return new S3Client({
-    region: 'auto',
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
-  })
-}
+import { contentTypeForFilename, deleteSensitiveFile, uploadSensitiveFile } from '@/lib/r2/private-files'
 
 export async function uploadCertificate(
   fileBuffer: Buffer,
@@ -38,37 +20,10 @@ export async function uploadCertificate(
   const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_')
   const key = `${orgId}/certificates/${participantId}/${timestamp}_${sanitizedFilename}`
 
-  const client = getR2Client()
-  const bucketName = process.env.R2_BUCKET_NAME
-  const publicUrl = process.env.R2_PUBLIC_URL
-
-  if (!client || !bucketName) {
-    console.error('R2 not configured - cannot upload certificate')
-    throw new Error('File storage not configured. Please contact administrator.')
-  }
-
-  // Determine content type based on file extension
-  const ext = filename.toLowerCase().split('.').pop()
-  let contentType = 'application/octet-stream'
-  if (ext === 'pdf') contentType = 'application/pdf'
-  else if (ext === 'png') contentType = 'image/png'
-  else if (ext === 'jpg' || ext === 'jpeg') contentType = 'image/jpeg'
-  else if (ext === 'gif') contentType = 'image/gif'
-  else if (ext === 'webp') contentType = 'image/webp'
-
   try {
-    await client.send(
-      new PutObjectCommand({
-        Bucket: bucketName,
-        Key: key,
-        Body: fileBuffer,
-        ContentType: contentType,
-      })
-    )
-
-    const fileUrl = `${publicUrl}/${key}`
-    console.log(`Certificate uploaded to R2: ${fileUrl}`)
-    return fileUrl
+    const stored = await uploadSensitiveFile(fileBuffer, key, contentTypeForFilename(filename))
+    console.log(`Certificate uploaded to R2: ${key}`)
+    return stored
   } catch (error) {
     console.error('Failed to upload certificate to R2:', error)
     throw new Error('Failed to upload certificate. Please try again.')
@@ -76,29 +31,11 @@ export async function uploadCertificate(
 }
 
 /**
- * Delete certificate from Cloudflare R2 storage
+ * Delete certificate from R2 storage (private reference or legacy public URL)
  */
-export async function deleteCertificate(certificateUrl: string): Promise<void> {
-  const client = getR2Client()
-  const bucketName = process.env.R2_BUCKET_NAME
-  const publicUrl = process.env.R2_PUBLIC_URL
-
-  if (!client || !bucketName || !publicUrl) {
-    console.warn('R2 not configured - cannot delete certificate')
-    return
-  }
-
-  // Extract key from URL
-  const key = certificateUrl.replace(`${publicUrl}/`, '')
-
+export async function deleteCertificate(certificateRef: string): Promise<void> {
   try {
-    await client.send(
-      new DeleteObjectCommand({
-        Bucket: bucketName,
-        Key: key,
-      })
-    )
-    console.log(`Certificate deleted from R2: ${key}`)
+    await deleteSensitiveFile(certificateRef)
   } catch (error) {
     console.error('Failed to delete certificate from R2:', error)
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
-import { resolveModuleAccess } from '@/lib/subscription-tiers'
+import { luxSimpleEventLimit, resolveModuleAccess, sanitizeModuleOverrides } from '@/lib/subscription-tiers'
 
 export async function GET(
   request: NextRequest,
@@ -90,6 +90,10 @@ export async function GET(
           organization.modulesEnabled,
           organization.subscriptionTier
         ),
+        // Lux simple events per year: the effective number, and whether the
+        // master admin overrode the plan's default for this org
+        luxSimpleEventsLimit: luxSimpleEventLimit(organization.luxSettings, organization.subscriptionTier),
+        luxSimpleEventsLimitOverridden: hasLuxLimitOverride(organization.luxSettings),
         totalPayments: Number(paymentTotal._sum.amount || 0),
         totalRegistrations: organization._count.groupRegistrations + organization._count.individualRegistrations,
       },
@@ -160,7 +164,22 @@ export async function PUT(
     if (body.status !== undefined) updateData.status = body.status
     if (body.primaryColor !== undefined) updateData.primaryColor = toNullable(body.primaryColor)
     if (body.secondaryColor !== undefined) updateData.secondaryColor = toNullable(body.secondaryColor)
-    if (body.modulesEnabled !== undefined) updateData.modulesEnabled = body.modulesEnabled
+    if (body.modulesEnabled !== undefined) updateData.modulesEnabled = sanitizeModuleOverrides(body.modulesEnabled)
+    // Lux simple events per year: a number, -1 for unlimited, or null to go
+    // back to the plan's default
+    if (body.luxSimpleEventsLimit !== undefined) {
+      const current = await prisma.organization.findUnique({ where: { id: orgId }, select: { luxSettings: true } })
+      const settings = { ...((current?.luxSettings as Record<string, unknown>) || {}) }
+      const limits = { ...((settings.limits as Record<string, unknown>) || {}) }
+      if (body.luxSimpleEventsLimit === null || body.luxSimpleEventsLimit === '') {
+        delete limits.simpleEventsPerYear
+      } else {
+        const value = Number(body.luxSimpleEventsLimit)
+        limits.simpleEventsPerYear = value < 0 ? null : Math.floor(value)
+      }
+      settings.limits = limits
+      updateData.luxSettings = settings
+    }
     if (body.notes !== undefined) updateData.notes = toNullable(body.notes)
     if (body.legalEntityName !== undefined) updateData.legalEntityName = toNullable(body.legalEntityName)
     if (body.taxId !== undefined) updateData.taxId = toNullable(body.taxId)
@@ -192,4 +211,9 @@ export async function PUT(
       { status: 500 }
     )
   }
+}
+
+function hasLuxLimitOverride(luxSettings: unknown): boolean {
+  const limits = (luxSettings as { limits?: Record<string, unknown> } | null)?.limits
+  return !!limits && 'simpleEventsPerYear' in limits
 }

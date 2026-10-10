@@ -77,14 +77,14 @@ export async function verifyEventAccess(
   })
 
   // Step 1b: Try multiple fallbacks to get user ID
-  let overrideUserId = getClerkUserIdFromHeader(request)
+  let overrideUserId = await getClerkUserIdFromHeader(request)
   console.log(`${logPrefix} 🔑 Override userId from JWT header:`, overrideUserId || 'none')
 
   // If Clerk auth() failed and no JWT header, try extracting from cookies directly
   // This handles the case where publishable key suffix doesn't match cookies
   if (!clerkAuth.userId && !overrideUserId) {
     console.log(`${logPrefix} 🔄 Clerk auth failed, trying cookie fallback...`)
-    const cookieUserId = getClerkUserIdFromCookies(request)
+    const cookieUserId = await getClerkUserIdFromCookies(request)
     if (cookieUserId) {
       console.log(`${logPrefix} ✅ Found userId from cookie fallback:`, cookieUserId)
       overrideUserId = cookieUserId
@@ -237,7 +237,7 @@ export async function verifyAdminAccess(
 ): Promise<{ error: NextResponse | null; user: AuthUser | null; effectiveOrgId: string | null }> {
   console.log(`${logPrefix} Starting admin access verification`)
 
-  const overrideUserId = getClerkUserIdFromHeader(request)
+  const overrideUserId = await getClerkUserIdFromHeader(request)
   const user = await getCurrentUser(overrideUserId)
 
   if (!user) {

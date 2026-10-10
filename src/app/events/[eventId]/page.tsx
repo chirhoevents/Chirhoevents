@@ -7,11 +7,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Calendar, MapPin, Users } from 'lucide-react'
 import EventLandingClient from './EventLandingClient'
 import { PortalAccessSection } from '@/components/PortalAccessSection'
+import SimpleEventPublicPage from '@/components/lux/public/SimpleEventPublicPage'
 
 interface EventPageProps {
   params: Promise<{
     eventId: string
   }>
+  searchParams?: Promise<{ cancelled?: string; r?: string }>
 }
 
 // Generate dynamic metadata for each event
@@ -56,7 +58,7 @@ export async function generateMetadata({
     title: event.name,
     description,
     openGraph: {
-      title: `${event.name} | ChiRho Events`,
+      title: `${event.name} | ${event.mode === 'simple' ? event.organization.name : 'ChiRho Events'}`,
       description,
       type: 'website',
       images: event.settings?.backgroundImageUrl
@@ -81,7 +83,7 @@ export async function generateMetadata({
   }
 }
 
-export default async function EventLandingPage({ params }: EventPageProps) {
+export default async function EventLandingPage({ params, searchParams }: EventPageProps) {
   const { eventId } = await params
 
   // Check if eventId is a UUID (id) or a slug
@@ -110,6 +112,11 @@ export default async function EventLandingPage({ params }: EventPageProps) {
   // status enum is independent — see registration-status.ts:62-64.)
   if (!event.isPublished || event.archivedAt || event.organization.status !== 'active') {
     notFound()
+  }
+
+  // Lux simple events have their own one-page sign-up
+  if (event.mode === 'simple') {
+    return <SimpleEventPublicPage eventId={event.id} searchParams={(await searchParams) ?? {}} />
   }
 
   // Get registration status

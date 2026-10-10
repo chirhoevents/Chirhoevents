@@ -7,7 +7,7 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 export async function GET(request: NextRequest) {
   try {
     // Get override user ID from JWT token if cookies not available
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {

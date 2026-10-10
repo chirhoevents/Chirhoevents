@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 const EDITABLE_FIELDS = [
   'businessName',
@@ -49,5 +50,7 @@ export async function PATCH(
     data: updates,
   })
 
-  return NextResponse.json({ vendor: updated })
+  return NextResponse.json({
+    vendor: { ...updated, safeEnvironmentCertUrl: secureFileLink('vendor-cert', updated.id, updated.safeEnvironmentCertUrl) },
+  })
 }

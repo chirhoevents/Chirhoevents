@@ -4,42 +4,19 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { countEventsUsedInCurrentPeriod } from '@/lib/event-usage'
+import { getTier, getTierDisplayName, migrateOldTierKey } from '@/lib/subscription-tiers'
 
-// Tier limits and pricing.
-const TIER_LIMITS: Record<string, { events: number; monthlyPrice: number }> = {
-  chapel: { events: 3, monthlyPrice: 39 },
-  parish: { events: 5, monthlyPrice: 59 },
-  cathedral: { events: 10, monthlyPrice: 109 },
-  shrine: { events: 20, monthlyPrice: 159 },
-  basilica: { events: 999, monthlyPrice: 1250 },
-  // Legacy tier names for backward compatibility
-  starter: { events: 3, monthlyPrice: 39 },
-  small_diocese: { events: 5, monthlyPrice: 59 },
-  growing: { events: 10, monthlyPrice: 109 },
-  conference: { events: 20, monthlyPrice: 159 },
-  enterprise: { events: 999, monthlyPrice: 1250 },
-  test: { events: 999, monthlyPrice: 0 },
-}
-
-const TIER_LABELS: Record<string, string> = {
-  chapel: 'Chapel',
-  parish: 'Parish',
-  cathedral: 'Cathedral',
-  shrine: 'Shrine',
-  basilica: 'Basilica',
-  // Legacy tier names for backward compatibility
-  starter: 'Chapel',
-  small_diocese: 'Parish',
-  growing: 'Cathedral',
-  conference: 'Shrine',
-  enterprise: 'Basilica',
-  test: 'Test',
+// Limits and prices come from the plan definitions so this check can't drift
+// from what the pricing page and onboarding say. null eventsPerYear = unlimited.
+function tierEventLimit(tierKey: string): number {
+  const events = getTier(tierKey)?.eventsPerYear
+  return events === null || events === undefined ? 999 : events
 }
 
 function getUpgradeTiers(currentTier: string) {
   const tierOrder = ['chapel', 'parish', 'cathedral', 'shrine', 'basilica']
   // Normalize legacy tier keys to current keys before indexing.
-  const normalizedTier = currentTier === 'starter' ? 'chapel' : currentTier
+  const normalizedTier = migrateOldTierKey(currentTier)
   const currentIndex = tierOrder.indexOf(normalizedTier)
 
   if (currentIndex === -1 || currentIndex >= tierOrder.length - 1) {
@@ -48,16 +25,16 @@ function getUpgradeTiers(currentTier: string) {
 
   return tierOrder.slice(currentIndex + 1).map(tier => ({
     id: tier,
-    name: TIER_LABELS[tier],
-    events: TIER_LIMITS[tier].events,
-    monthlyPrice: TIER_LIMITS[tier].monthlyPrice,
+    name: getTierDisplayName(tier),
+    events: tierEventLimit(tier),
+    monthlyPrice: getTier(tier)?.monthlyPrice ?? 0,
   }))
 }
 
 export async function GET(request: NextRequest) {
   try {
     // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
@@ -90,7 +67,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const limit = organization.eventsPerYearLimit ?? TIER_LIMITS[organization.subscriptionTier]?.events ?? 2
+    const limit = organization.eventsPerYearLimit ?? tierEventLimit(organization.subscriptionTier)
     const used = await countEventsUsedInCurrentPeriod(
       organizationId,
       organization.subscriptionStartedAt ?? organization.createdAt
@@ -111,7 +88,7 @@ export async function GET(request: NextRequest) {
         limit: limit,
         remaining: 0,
         tier: organization.subscriptionTier,
-        tierLabel: TIER_LABELS[organization.subscriptionTier] || organization.subscriptionTier,
+        tierLabel: getTierDisplayName(organization.subscriptionTier),
         options: {
           overage: {
             available: true,
@@ -133,7 +110,7 @@ export async function GET(request: NextRequest) {
       limit: limit,
       remaining: remaining,
       tier: organization.subscriptionTier,
-      tierLabel: TIER_LABELS[organization.subscriptionTier] || organization.subscriptionTier,
+      tierLabel: getTierDisplayName(organization.subscriptionTier),
     })
   } catch (error) {
     console.error('Error checking event limit:', error)

@@ -11,7 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 export async function POST(request: NextRequest) {
   try {
     // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     // Only org_admin or master_admin can configure Stripe

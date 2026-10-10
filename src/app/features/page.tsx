@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Home, Clipboard, Heart, BarChart3, Check, Shield, Clock, Smartphone } from "lucide-react";
+import { LuxMark } from "@/components/lux/LuxLogo";
 import Link from "next/link";
 import { PublicNav } from "@/components/PublicNav";
 
@@ -75,6 +76,57 @@ export default function FeaturesPage() {
             <h2 className="text-3xl sm:text-4xl font-bold text-center text-navy mb-12">
               Comprehensive Feature Set
             </h2>
+
+            {/* Lux for Parishes */}
+            <div className="mb-16" id="lux">
+              <Card className="border-2 border-gold bg-[#FFFDF8]">
+                <CardHeader>
+                  <div className="flex items-start gap-4">
+                    <LuxMark className="h-12 w-12 flex-shrink-0" />
+                    <div>
+                      <CardTitle className="text-2xl mb-2">Lux for Parishes</CardTitle>
+                      <CardDescription className="text-base">
+                        Simple registration for parish life, on the Chapel and Parish plans. No conference options to wade through.
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-semibold text-navy mb-3">Faith Formation &amp; Sacraments</h4>
+                      <ul className="space-y-2 text-gray-600">
+                        <li>• Templates for Faith Formation, Family Faith Formation, First Communion, Confirmation, Baptism Preparation and OCIA</li>
+                        <li>• One form for the whole family: children, adults, or everyone together for one family fee</li>
+                        <li>• Class times by day or grade, each with its own limit</li>
+                        <li>• Sibling discounts and a family maximum, calculated automatically</li>
+                        <li>• Baptismal and First Communion certificates, sponsor and godparent letters, stored privately in one place</li>
+                        <li>• Pay online, pay at the office, or quietly ask for fee assistance</li>
+                        <li>• Returning families sign in with an emailed link, no password</li>
+                        <li>• Rosters, document checklists, refunds and one-click reminders</li>
+                        <li>• English or Spanish for families, with one click</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-navy mb-3">Simple Events &amp; Sign-Ups</h4>
+                      <ul className="space-y-2 text-gray-600">
+                        <li>• A sign-up page in a couple of minutes</li>
+                        <li>• Ticket types, limits and custom questions</li>
+                        <li>• Free events, card payments or pay at the office</li>
+                        <li>• Optional waiver and allergy questions</li>
+                        <li>• Your own parish page with your photo, welcome and colors, plus a button for your website</li>
+                        <li>• Confirmations and receipts from Lux, with replies going to your office</li>
+                        <li>• Need group registration or housing? Move to the Cathedral plan and convert it to a full event</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                    <Link href="/get-started?tier=chapel"><Button>Get started with Lux</Button></Link>
+                    <Link href="/docs?section=lux-overview"><Button variant="outline">Read the Lux guide</Button></Link>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Registration System */}
             <div className="mb-16">

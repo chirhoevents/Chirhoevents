@@ -32,9 +32,14 @@ export async function POST(request: NextRequest) {
 
     // Map events per year to numeric estimate
     const eventsEstimate: Record<string, number> = {
+      'lux-5': 5,
+      'lux-10': 10,
+      '1-5': 5,
+      '6-10': 10,
+      '10+': 25,
+      // Older form values
       '1-3': 3,
       '4-5': 5,
-      '6-10': 10,
       '11-25': 25,
       '25+': 50,
     }

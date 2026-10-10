@@ -22,6 +22,10 @@
     {
       "path": "/api/cron/annual-renewal-reminders",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/lux-retention",
+      "schedule": "30 7 * * *"
     }
   ]
 }

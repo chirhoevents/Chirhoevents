@@ -29,7 +29,7 @@ export async function POST(
 ) {
   try {
     // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     // Check admin access
     const user = await getCurrentUser(overrideUserId)
     if (!user || !isAdmin(user)) {

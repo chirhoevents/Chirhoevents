@@ -5,6 +5,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { parseDateTimeInTimezone } from '@/lib/timezone'
 import { countEventsUsedInCurrentPeriod } from '@/lib/event-usage'
+import { resolveModuleAccess } from '@/lib/subscription-tiers'
 import { blockedEventModuleMessage } from '@/lib/event-module-guard'
 
 // Treat a datetime-local string from the form as wall-clock time in the event's
@@ -17,7 +18,7 @@ const parseEventDateTime = (value: string | null | undefined, timezone: string) 
 export async function POST(request: NextRequest) {
   try {
     // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
         subscriptionStartedAt: true,
         eventsPerYearLimit: true,
         subscriptionTier: true,
+        modulesEnabled: true,
       },
     })
 
@@ -57,6 +59,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Organization not found' },
         { status: 404 }
+      )
+    }
+
+    // Lux-only orgs (Chapel/Parish plans) don't have the full Events portal;
+    // they create simple events in Lux instead
+    if (!resolveModuleAccess(organization.modulesEnabled, organization.subscriptionTier).events) {
+      return NextResponse.json(
+        { error: "Your plan uses Lux for events. Create your event from the Lux dashboard, or contact ChiRho Events support to add the full Events portal." },
+        { status: 403 }
       )
     }
 

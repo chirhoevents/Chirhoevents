@@ -16,7 +16,7 @@ import { getEffectiveOrgId } from '@/lib/get-effective-org'
  */
 export async function POST(request: NextRequest) {
   try {
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user) {
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user) {

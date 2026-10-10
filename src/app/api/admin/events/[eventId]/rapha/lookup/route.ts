@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
     if (!user || !isAdmin(user)) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })

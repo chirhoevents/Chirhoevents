@@ -19,16 +19,22 @@ export function getUsagePeriodStart(anchor: Date, now: Date = new Date()): Date 
  * Live count of non-draft events created in the org's current usage period.
  * Used instead of trusting the stored `eventsUsed` counter, which historically
  * only ever incremented and never reset across periods.
+ *
+ * mode 'full' (the default) counts Events portal events against
+ * eventsPerYearLimit; mode 'simple' counts Lux simple events against the
+ * plan's Lux limit. Neither counts against the other.
  */
 export async function countEventsUsedInCurrentPeriod(
   organizationId: string,
   anchor: Date,
-  now: Date = new Date()
+  now: Date = new Date(),
+  mode: 'full' | 'simple' = 'full'
 ): Promise<number> {
   const periodStart = getUsagePeriodStart(anchor, now)
   return prisma.event.count({
     where: {
       organizationId,
+      mode,
       status: { not: 'draft' },
       createdAt: { gte: periodStart },
     },

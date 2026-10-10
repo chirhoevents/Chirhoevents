@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,7 +66,10 @@ export async function GET(request: NextRequest) {
       participantName: `${participant.firstName} ${participant.lastName}`,
       participantEmail: participant.email,
       status: participant.safeEnvironmentCertStatus,
-      certificates: participant.safeEnvironmentCertificates,
+      certificates: participant.safeEnvironmentCertificates.map((cert: any) => ({
+        ...cert,
+        fileUrl: secureFileLink('safe-env-cert', cert.id, cert.fileUrl),
+      })),
     }))
 
     return NextResponse.json({

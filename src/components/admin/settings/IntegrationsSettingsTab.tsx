@@ -459,10 +459,10 @@ export default function IntegrationsSettingsTab() {
                             <li>For &quot;Product description&quot;, enter something like:</li>
                           </ol>
                           <div className="mt-2 p-3 bg-gray-100 rounded-lg font-mono text-xs">
-                            &quot;Event registration fees for religious retreats, conferences, and youth ministry programs.&quot;
+                            &quot;Registration fees for parish programs, religious education, retreats, conferences and events.&quot;
                           </div>
                           <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                            <p className="text-blue-700"><strong>Keep it simple:</strong> Just describe that you collect registration fees for events. This helps Stripe understand your business.</p>
+                            <p className="text-blue-700"><strong>Keep it simple:</strong> Just describe that you collect registration fees. This helps Stripe understand your business.</p>
                           </div>
                         </div>
                       </SetupInstructionItem>
@@ -569,7 +569,7 @@ export default function IntegrationsSettingsTab() {
           ) : (
             <div className="py-4 space-y-5">
               <p className="text-gray-600">
-                Connect your Stripe account to accept online payments for event registrations.
+                Connect your Stripe account to accept online payments for registrations.
               </p>
               <div className="space-y-2 max-w-sm">
                 <Label htmlFor="stripe-email" className="text-sm font-medium text-[#1E3A5F]">

@@ -9,7 +9,7 @@ import { incrementOrgStorage } from '@/lib/storage/track-storage'
 export async function POST(request: NextRequest) {
   try {
     // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {

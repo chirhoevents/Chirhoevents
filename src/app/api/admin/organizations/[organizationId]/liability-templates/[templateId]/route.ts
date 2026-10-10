@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     // Get userId from Authorization header as fallback (for client-side requests)
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
@@ -61,7 +61,7 @@ export async function PUT(
 ) {
   try {
     // Get userId from Authorization header as fallback (for client-side requests)
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
@@ -142,7 +142,7 @@ export async function DELETE(
 ) {
   try {
     // Get userId from Authorization header as fallback (for client-side requests)
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {

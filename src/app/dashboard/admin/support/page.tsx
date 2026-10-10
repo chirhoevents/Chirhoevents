@@ -80,6 +80,8 @@ const categories = [
 
 export default function SupportPage() {
   const pathname = usePathname()
+  // Also rendered inside the Lux dashboard at /dashboard/lux/support
+  const supportBase = pathname?.startsWith('/dashboard/lux') ? '/dashboard/lux/support' : '/dashboard/admin/support'
   const searchParams = useSearchParams()
   const router = useRouter()
   const [tickets, setTickets] = useState<SupportTicket[]>([])
@@ -119,7 +121,7 @@ export default function SupportPage() {
     if (searchParams.get('new') === 'true') {
       setShowNewTicket(true)
       // Clean up the URL
-      router.replace('/dashboard/admin/support', { scroll: false })
+      router.replace(supportBase, { scroll: false })
     }
   }, [searchParams, router])
 
@@ -358,7 +360,7 @@ export default function SupportPage() {
               return (
                 <Link
                   key={ticket.id}
-                  href={`/dashboard/admin/support/${ticket.id}`}
+                  href={`${supportBase}/${ticket.id}`}
                   className="block p-4 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-4">

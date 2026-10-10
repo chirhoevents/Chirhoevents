@@ -11,7 +11,7 @@ export async function DELETE(
 ) {
   try {
     // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     // Check admin access
     const user = await getCurrentUser(overrideUserId)
     if (!user || !isAdmin(user)) {
@@ -94,7 +94,7 @@ export async function GET(
 ) {
   try {
     // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     // Check admin access
     const user = await getCurrentUser(overrideUserId)
     if (!user || !isAdmin(user)) {
@@ -173,7 +173,7 @@ export async function PATCH(
   { params }: { params: Promise<{ entryId: string }> }
 ) {
   try {
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
     if (!user || !isAdmin(user)) {
       return NextResponse.json(

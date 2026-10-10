@@ -74,6 +74,16 @@ const ROLES = [
   { value: 'staff', icon: User },
 ]
 
+// Lux-only parishes keep it to two: someone who runs things, and someone who looks
+const LUX_ROLES = [
+  { value: 'org_admin', icon: ShieldCheck },
+  { value: 'staff', icon: User },
+]
+const LUX_ROLE_TEXT: Record<string, { name: string; description: string }> = {
+  org_admin: { name: 'Admin', description: 'Can do everything: programs, events, families, payments, refunds and settings' },
+  staff: { name: 'Staff (view only)', description: 'Can see programs, families and documents, but can’t change anything' },
+}
+
 // Portal access options that can be added to any role
 const PORTAL_ACCESS_OPTIONS = [
   {
@@ -96,8 +106,12 @@ const PORTAL_ACCESS_OPTIONS = [
   },
 ]
 
-export default function TeamSettingsTab() {
+export default function TeamSettingsTab({ variant = 'events' }: { variant?: 'events' | 'lux' } = {}) {
   const { getToken } = useAuth()
+  const lux = variant === 'lux'
+  const roleOptions = lux ? LUX_ROLES : ROLES
+  const roleName = (role: string) => (lux && LUX_ROLE_TEXT[role]?.name) || getRoleName(role as UserRole)
+  const roleDescription = (role: string) => (lux && LUX_ROLE_TEXT[role]?.description) || getRoleDescription(role as UserRole)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [pendingInvites, setPendingInvites] = useState<TeamMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -311,14 +325,14 @@ export default function TeamSettingsTab() {
   }
 
   const getRoleBadge = (role: string) => {
-    const roleConfig = ROLES.find(r => r.value === role)
+    const roleConfig = [...ROLES, ...LUX_ROLES].find(r => r.value === role)
     const Icon = roleConfig?.icon || Shield
 
     if (role === 'master_admin') {
       return (
         <Badge className="bg-[#1E3A5F] text-white">
           <ShieldCheck className="h-3 w-3 mr-1" />
-          {getRoleName(role as UserRole)}
+          {roleName(role)}
         </Badge>
       )
     }
@@ -326,14 +340,14 @@ export default function TeamSettingsTab() {
       return (
         <Badge className="bg-[#9C8466] text-white">
           <Icon className="h-3 w-3 mr-1" />
-          {getRoleName(role as UserRole)}
+          {roleName(role)}
         </Badge>
       )
     }
     return (
       <Badge variant="outline" className="border-[#9C8466] text-[#9C8466]">
         <Icon className="h-3 w-3 mr-1" />
-        {getRoleName(role as UserRole)}
+        {roleName(role)}
       </Badge>
     )
   }
@@ -384,7 +398,9 @@ export default function TeamSettingsTab() {
         <div>
           <h2 className="text-lg font-semibold text-[#1E3A5F]">Team Members</h2>
           <p className="text-sm text-gray-500">
-            Manage who has access to your organization&apos;s admin dashboard
+            {lux
+              ? 'Who can sign in to your Lux dashboard. Admins can change anything; staff can look but not change.'
+              : <>Manage who has access to your organization&apos;s admin dashboard</>}
           </p>
         </div>
         <Button
@@ -643,7 +659,7 @@ export default function TeamSettingsTab() {
               </div>
 
               <div>
-                <Label htmlFor="role">Base Role *</Label>
+                <Label htmlFor="role">{lux ? 'Access *' : 'Base Role *'}</Label>
                 <Select
                   value={inviteData.role}
                   onValueChange={(value) =>
@@ -654,15 +670,15 @@ export default function TeamSettingsTab() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLES.map((role) => {
+                    {roleOptions.map((role) => {
                       const Icon = role.icon
                       return (
                         <SelectItem key={role.value} value={role.value}>
                           <div className="flex items-start gap-2">
                             <Icon className="h-4 w-4 mt-0.5 text-[#9C8466]" />
                             <div className="flex flex-col">
-                              <span>{getRoleName(role.value as UserRole)}</span>
-                              <span className="text-xs text-gray-500">{getRoleDescription(role.value as UserRole)}</span>
+                              <span>{roleName(role.value)}</span>
+                              <span className="text-xs text-gray-500">{roleDescription(role.value)}</span>
                             </div>
                           </div>
                         </SelectItem>
@@ -673,7 +689,7 @@ export default function TeamSettingsTab() {
               </div>
 
               {/* Additional Portal Access */}
-              <div className="border rounded-lg p-4 bg-gray-50">
+              <div className={`border rounded-lg p-4 bg-gray-50 ${lux ? 'hidden' : ''}`}>
                 <Label className="text-sm font-medium">Additional Portal Access</Label>
                 <p className="text-xs text-gray-500 mb-3">
                   Grant access to additional portals beyond what the base role provides
@@ -755,7 +771,7 @@ export default function TeamSettingsTab() {
             )}
 
             <div>
-              <Label htmlFor="editRole">Base Role *</Label>
+              <Label htmlFor="editRole">{lux ? 'Access *' : 'Base Role *'}</Label>
               <Select
                 value={editData.role}
                 onValueChange={(value) =>
@@ -766,15 +782,17 @@ export default function TeamSettingsTab() {
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((role) => {
+                  {(lux && editingMember && !roleOptions.some(r => r.value === editingMember.role) && editingMember.role !== 'master_admin'
+                    ? [...roleOptions, { value: editingMember.role, icon: Shield }]
+                    : roleOptions).map((role) => {
                     const Icon = role.icon
                     return (
                       <SelectItem key={role.value} value={role.value}>
                         <div className="flex items-start gap-2">
                           <Icon className="h-4 w-4 mt-0.5 text-[#9C8466]" />
                           <div className="flex flex-col">
-                            <span>{getRoleName(role.value as UserRole)}</span>
-                            <span className="text-xs text-gray-500">{getRoleDescription(role.value as UserRole)}</span>
+                            <span>{roleName(role.value)}</span>
+                            <span className="text-xs text-gray-500">{roleDescription(role.value)}</span>
                           </div>
                         </div>
                       </SelectItem>
@@ -785,7 +803,7 @@ export default function TeamSettingsTab() {
             </div>
 
             {/* Additional Portal Access */}
-            <div className="border rounded-lg p-4 bg-gray-50">
+            <div className={`border rounded-lg p-4 bg-gray-50 ${lux ? 'hidden' : ''}`}>
               <Label className="text-sm font-medium">Additional Portal Access</Label>
               <p className="text-xs text-gray-500 mb-3">
                 Grant access to additional portals beyond what the base role provides

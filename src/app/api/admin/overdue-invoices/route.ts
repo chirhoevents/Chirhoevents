@@ -11,7 +11,7 @@ function generatePaymentToken(): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {

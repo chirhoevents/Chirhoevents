@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 export async function GET(
   request: NextRequest,
@@ -71,6 +72,7 @@ export async function GET(
     // Attach answers to staff records
     const staffWithAnswers = staff.map((s) => ({
       ...s,
+      safeEnvironmentCertUrl: secureFileLink('staff-cert', s.id, s.safeEnvironmentCertUrl),
       customAnswers: (answersByRegistration[s.id] || []).map((a) => ({
         questionText: a.question.questionText,
         answerText: a.answerText,

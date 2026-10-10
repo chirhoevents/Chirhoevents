@@ -5,6 +5,7 @@ import { verifyEventAccess } from '@/lib/api-auth'
 import { uploadSafeEnvCert } from '@/lib/r2/upload-safe-env-cert'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -107,5 +108,5 @@ export async function POST(
     console.error('[Admin Upload Safe Env Cert - Staff] Failed to send confirmation email:', emailErr)
   }
 
-  return NextResponse.json({ success: true, url })
+  return NextResponse.json({ success: true, url: secureFileLink('staff-cert', staff.id, url) })
 }

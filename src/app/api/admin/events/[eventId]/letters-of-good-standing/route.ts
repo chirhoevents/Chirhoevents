@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsViewAccess } from '@/lib/api-auth'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 // GET /api/admin/events/[eventId]/letters-of-good-standing
 // Query params:
@@ -70,7 +71,10 @@ export async function GET(
       rejected: letters.filter((l) => l.status === 'rejected').length,
     }
 
-    return NextResponse.json({ letters, summary })
+    return NextResponse.json({
+      letters: letters.map((l) => ({ ...l, fileUrl: secureFileLink('letter', l.id, l.fileUrl) })),
+      summary,
+    })
   } catch (err) {
     console.error('[LettersOfGoodStanding GET] error:', err)
     return NextResponse.json({ error: 'Failed to fetch letters' }, { status: 500 })

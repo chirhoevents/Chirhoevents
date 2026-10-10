@@ -207,7 +207,7 @@ export default function BrandingSettingsTab() {
         <CardContent className="space-y-4">
           <p className="text-sm text-gray-600">
             Upload a square logo (recommended: 200x200px). Your logo appears in the sidebar,
-            on event pages, and in emails.
+            on your registration pages, and in emails.
           </p>
 
           <div className="flex items-start gap-6">

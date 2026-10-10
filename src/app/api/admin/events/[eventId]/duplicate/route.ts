@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { countEventsUsedInCurrentPeriod } from '@/lib/event-usage'
+import { resolveModuleAccess } from '@/lib/subscription-tiers'
 
 function shiftDateByOneYear(date: Date | null | undefined): Date | null {
   if (!date) return null
@@ -18,7 +19,7 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {
@@ -57,11 +58,21 @@ export async function POST(
         subscriptionStartedAt: true,
         eventsPerYearLimit: true,
         subscriptionTier: true,
+        modulesEnabled: true,
       },
     })
 
     if (!organization) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
+
+    // Lux-only orgs (Chapel/Parish plans) don't have the full Events portal;
+    // they create simple events in Lux instead
+    if (!resolveModuleAccess(organization.modulesEnabled, organization.subscriptionTier).events) {
+      return NextResponse.json(
+        { error: "Your plan uses Lux for events. Create your event from the Lux dashboard, or contact ChiRho Events support to add the full Events portal." },
+        { status: 403 }
+      )
     }
 
     // Usage resets each subscription-year period, not once ever, so count

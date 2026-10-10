@@ -126,7 +126,25 @@ export function generateOrgAdminOnboardingEmail({
       : tier.includesSetupCall
         ? 'Email support + a 1-hour onboarding call'
         : 'Email support'
-  const planHtml = tier
+  // Chapel and Parish are Lux plans: no full Events portal, so the checklist
+  // walks them through Lux instead of the event wizard
+  const luxOnly = !!modules?.lux && !modules.events
+  const luxEvents = tier?.luxSimpleEventsPerYear ?? null
+  const planHtml = tier && luxOnly
+    ? `
+    <div style="margin: 30px 0;">
+      <h2 style="color: #1E3A5F; margin: 0 0 10px 0; font-size: 20px;">Your plan at a glance</h2>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size: 15px;">
+        ${planRow('Plan', `${tier.name} (Lux)${planPrice ? ` &mdash; ${formatMoney(planPrice)}/${cycleUnit}` : ''}`)}
+        ${planRow('Faith formation &amp; sacrament programs', 'Unlimited')}
+        ${planRow('Simple events &amp; sign-ups per year', luxEvents === null ? 'Unlimited' : String(luxEvents))}
+        ${planRow('Family registration, sibling discounts &amp; fee assistance', 'Included')}
+        ${planRow('Private document storage (baptismal certificates)', 'Included')}
+        ${planRow('File storage', `${tier.storageGb} GB`)}
+        ${planRow('Support', supportLabel)}
+      </table>
+    </div>`
+    : tier
     ? `
     <div style="margin: 30px 0;">
       <h2 style="color: #1E3A5F; margin: 0 0 10px 0; font-size: 20px;">Your plan at a glance</h2>
@@ -138,6 +156,7 @@ export function generateOrgAdminOnboardingEmail({
         ${modules ? planRow('Poros housing &amp; room assignments', included(modules.poros)) : ''}
         ${modules ? planRow('SALVE check-in &amp; name tags', included(modules.salve)) : ''}
         ${modules ? planRow('Rapha medical &amp; incident tracking', included(modules.rapha)) : ''}
+        ${modules?.lux ? planRow('Lux (faith formation &amp; parish sign-ups)', included(true)) : ''}
         ${planRow('Support', supportLabel)}
       </table>
     </div>`
@@ -178,8 +197,8 @@ export function generateOrgAdminOnboardingEmail({
 
   const profileStep = step(
     'Complete your organization profile',
-    `<p style="margin: 0 0 8px 0;">From your dashboard, open ${where('Settings &rarr; Organization')} and check your organization's name, contact details, and address.</p>
-    <p style="margin: 0;">Then open ${where('Settings &rarr; Branding')} to upload your logo and choose your colors. They appear on your public registration pages.</p>
+    `<p style="margin: 0 0 8px 0;">From your dashboard, open ${where(luxOnly ? 'Settings &rarr; Parish' : 'Settings &rarr; Organization')} and check your organization's name, contact details, and address.${luxOnly ? ' Families\' replies to Lux emails go to your contact email.' : ''}</p>
+    <p style="margin: 0;">Then open ${where(luxOnly ? 'Settings &rarr; Logo &amp; colors' : 'Settings &rarr; Branding')} to upload your logo and choose your colors. They appear on your public registration pages.</p>
     ${guides([['setup', 'Setting Up Your Organization']])}`
   )
 
@@ -187,7 +206,7 @@ export function generateOrgAdminOnboardingEmail({
     'Connect Stripe so you can collect registration payments',
     `<p style="margin: 0 0 8px 0;">Registration payments go straight from your attendees to your organization's bank account through Stripe. ChiRho Events never holds your money. To turn on online payments:</p>
     <ol style="margin: 0 0 8px 0; padding-left: 22px;">
-      <li style="margin-bottom: 6px;">Go to ${where('Settings &rarr; Integrations')}</li>
+      <li style="margin-bottom: 6px;">Go to ${where(luxOnly ? 'Settings &rarr; Card payments' : 'Settings &rarr; Integrations')}</li>
       <li style="margin-bottom: 6px;">Confirm the <strong>Stripe Account Email</strong>, then click <strong>Connect Stripe</strong></li>
       <li style="margin-bottom: 6px;">Stripe will ask for your organization's legal name, EIN (tax ID), the bank account for payouts, and to verify your identity. Have those handy; it takes about 15 minutes</li>
       <li style="margin-bottom: 6px;">When Stripe sends you back, click <strong>Sync Status from Stripe</strong></li>
@@ -246,9 +265,37 @@ export function generateOrgAdminOnboardingEmail({
     ])}`
   )
 
+  const luxFeesStep = step(
+    'Set your fees and office instructions',
+    `<p style="margin: 0 0 8px 0;">Open ${where('Settings &rarr; Lux')}. Set your <strong>sibling discount</strong> (an amount or a percent off each additional child) and a <strong>family maximum</strong> if you have one. Lux applies them automatically when families register.</p>
+    <p style="margin: 0;">Then write short instructions for <strong>paying at the parish office</strong>, such as office hours and who to make checks out to. Families see them when they choose to pay in person.</p>
+    ${guides([['lux-fees', 'Tuition, Sibling Discounts &amp; Family Maximum'], ['lux-payments', 'Payments &amp; Fee Assistance']])}`
+  )
+
+  const luxBuildStep = step(
+    'Set up your first program or event',
+    `<p style="margin: 0 0 8px 0;">Click <strong>Set something up</strong> on your Lux dashboard and pick one:</p>
+    <ul style="margin: 0 0 8px 0; padding-left: 22px;">
+      <li style="margin-bottom: 6px;"><strong>A class or sacrament program</strong>: start from the Faith Formation, First Communion or Confirmation template, then set the grades, tuition, documents to collect (like a baptismal certificate) and any questions. Programs are unlimited.</li>
+      <li style="margin-bottom: 6px;"><strong>An event or sign-up</strong>: fish fry, Bible study, retreat or picnic. Add tickets, a few questions and how people pay.${luxEvents === null ? '' : ` Your plan includes ${luxEvents} published events per year.`}</li>
+    </ul>
+    <p style="margin: 0;">Nothing is public until you open registration or publish.</p>
+    ${guides([['lux-programs', 'Faith Formation &amp; Sacrament Programs'], ['lux-simple-events', 'Simple Events &amp; Sign-Ups']])}`
+  )
+
+  const luxShareStep = step(
+    'Share your parish page',
+    `<p style="margin: 0 0 8px 0;">Your parish has one public page listing everything open for registration. Copy its link from your Lux ${where('Home')} page and share it in the bulletin, on your website and in parish emails.</p>
+    <p style="margin: 0;">As families register, review uploaded documents under ${where('Documents')}, record office payments and decide fee assistance under ${where('Payments')}, and download rosters from ${where('Exports')}.</p>
+    ${guides([['lux-documents', 'Baptismal Certificates &amp; Documents'], ['lux-households', 'Households &amp; Returning Families'], ['lux-exports', 'Rosters &amp; Exports']])}`
+  )
+
   const teamStep = step(
     'Invite your team (optional)',
-    `<p style="margin: 0;">Have others helping you run the event? Go to ${where('Settings &rarr; Team')} and click <strong>Invite Team Member</strong>. You choose what each person can do, from full admin access down to view-only, and they'll get their own email invitation.</p>
+    luxOnly
+      ? `<p style="margin: 0;">Add your pastor, DRE or office staff under ${where('Settings &rarr; Team')}. Everyone you invite can see all of Lux, including families' documents and fee assistance requests, so only invite people who should. The <strong>Staff</strong> role is view-only.</p>
+    ${guides([['lux-privacy', 'Who Can See What'], ['team', 'Managing Your Team']])}`
+      : `<p style="margin: 0;">Have others helping you run the event? Go to ${where('Settings &rarr; Team')} and click <strong>Invite Team Member</strong>. You choose what each person can do, from full admin access down to view-only, and they'll get their own email invitation.</p>
     ${guides([['team', 'Managing Your Team']])}`
   )
 
@@ -262,6 +309,32 @@ export function generateOrgAdminOnboardingEmail({
   if (modules?.poros) moduleDocs.push(['poros-enable', 'Enabling Poros (housing) for an event'])
   if (modules?.salve) moduleDocs.push(['salve-checkin', 'Using SALVE for check-in'])
   if (modules?.rapha) moduleDocs.push(['rapha-medical', 'Using Rapha for medical info'])
+
+  const luxDocsHtml = `
+    <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 24px; margin: 10px 0 30px 0;">
+      <h2 style="color: #1E3A5F; margin: 0 0 8px 0; font-size: 20px;">Everything else is in the help docs</h2>
+      <p style="margin: 0 0 14px 0;">Every part of Lux has a short guide. Go to <a href="${appUrl}/docs" style="color: #9C8466;">${appUrl.replace(/^https?:\/\//, '')}/docs</a> (or <strong>How to use Lux</strong> in your dashboard menu) and look under <em>Lux for Parishes</em>.</p>
+      <div>${button(docsUrl('lux-overview'), 'Open the Lux Guide')}</div>
+      ${docGroup('Getting set up', [
+        ['lux-overview', 'What is Lux?'],
+        ['lux-setup', 'Setting Up Lux'],
+        ['stripe-connect', 'Connecting Stripe to Accept Payments'],
+        ['subscription-billing', 'How Subscription Billing Works'],
+      ])}
+      ${docGroup('Programs &amp; events', [
+        ['lux-programs', 'Faith Formation &amp; Sacrament Programs'],
+        ['lux-fees', 'Tuition, Sibling Discounts &amp; Family Maximum'],
+        ['lux-simple-events', 'Simple Events &amp; Sign-Ups'],
+      ])}
+      ${docGroup('Running registration', [
+        ['lux-documents', 'Baptismal Certificates &amp; Documents'],
+        ['lux-payments', 'Payments, Pay at the Office &amp; Fee Assistance'],
+        ['lux-households', 'Households &amp; Returning Families'],
+        ['lux-exports', 'Rosters &amp; Exports'],
+        ['lux-privacy', 'Who Can See What'],
+      ])}
+      <p style="margin: 18px 0 0 0; font-size: 14px; color: #555;"><strong>For families:</strong> the ${docLink('family-register', 'For Parish Families')} guides explain registering, uploading documents and paying. Feel free to share them.</p>
+    </div>`
 
   const docsHtml = `
     <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 24px; margin: 10px 0 30px 0;">
@@ -363,11 +436,10 @@ export function generateOrgAdminOnboardingEmail({
     ${billingStep}
     ${profileStep}
     ${stripeStep}
-    ${eventStep}
-    ${registrationStep}
+    ${luxOnly ? `${luxFeesStep}${luxBuildStep}${luxShareStep}` : `${eventStep}${registrationStep}`}
     ${teamStep}
 
-    ${docsHtml}
+    ${luxOnly ? luxDocsHtml : docsHtml}
 
     ${supportHtml}
 

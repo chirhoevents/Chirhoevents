@@ -21,10 +21,15 @@ export interface SubscriptionTier {
   setupFeeLabel: 'Basic Access Fee' | 'Setup Fee' | 'Custom';
   isSelfServe: boolean; // true = no onboarding call included
   includesSetupCall: boolean; // true = includes 1-hour setup phone call
-  eventsPerYear: number | null; // null = unlimited
+  eventsPerYear: number | null; // null = unlimited (full Events portal events)
   maxPeoplePerYear: number | null; // null = unlimited
+  // Lux simple events per subscription year (null = unlimited). Faith
+  // formation programs are never counted against this.
+  luxSimpleEventsPerYear: number | null;
   storageGb: number;
   features: {
+    lux: boolean; // Lux: simple events + faith formation
+    events: boolean; // Full Events portal (group registration, housing, staff/vendors...)
     poros: boolean; // Housing management
     salve: boolean; // Check-in system
     rapha: boolean; // Medical/health module
@@ -42,7 +47,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
   chapel: {
     key: 'chapel',
     name: 'Chapel',
-    description: 'Self-serve access for small parishes running a single event each year',
+    description: 'Lux for small parishes: simple events, sign-ups and faith formation registration',
     monthlyPrice: 39,
     annualPrice: null, // Monthly only
     setupFee: 50,
@@ -50,9 +55,12 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     isSelfServe: true,
     includesSetupCall: false,
     eventsPerYear: 1,
-    maxPeoplePerYear: 500,
+    maxPeoplePerYear: null,
+    luxSimpleEventsPerYear: 5,
     storageGb: 5,
     features: {
+      lux: true,
+      events: false,
       poros: false,
       salve: false,
       rapha: false,
@@ -66,7 +74,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
   parish: {
     key: 'parish',
     name: 'Parish',
-    description: 'Self-serve access for parishes running a handful of events each year',
+    description: 'Lux for active parishes: more simple events, sign-ups and faith formation registration',
     monthlyPrice: 59,
     annualPrice: null, // Monthly only
     setupFee: 50,
@@ -74,9 +82,12 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     isSelfServe: true,
     includesSetupCall: false,
     eventsPerYear: 3,
-    maxPeoplePerYear: 750,
+    maxPeoplePerYear: null,
+    luxSimpleEventsPerYear: 10,
     storageGb: 10,
     features: {
+      lux: true,
+      events: false,
       poros: false,
       salve: false,
       rapha: false,
@@ -99,8 +110,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     includesSetupCall: true,
     eventsPerYear: 5,
     maxPeoplePerYear: 1250,
+    luxSimpleEventsPerYear: null,
     storageGb: 25,
     features: {
+      lux: false,
+      events: true,
       poros: true,
       salve: true,
       rapha: true,
@@ -124,8 +138,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     includesSetupCall: true,
     eventsPerYear: 10,
     maxPeoplePerYear: 3000,
+    luxSimpleEventsPerYear: null,
     storageGb: 100,
     features: {
+      lux: false,
+      events: true,
       poros: true,
       salve: true,
       rapha: true,
@@ -148,8 +165,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     includesSetupCall: true,
     eventsPerYear: null, // Unlimited
     maxPeoplePerYear: null, // Custom
+    luxSimpleEventsPerYear: null,
     storageGb: 500,
     features: {
+      lux: false,
+      events: true,
       poros: true,
       salve: true,
       rapha: true,
@@ -173,8 +193,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     includesSetupCall: false,
     eventsPerYear: 1,
     maxPeoplePerYear: 100,
+    luxSimpleEventsPerYear: null,
     storageGb: 1,
     features: {
+      lux: true,
+      events: true,
       poros: true,
       salve: true,
       rapha: true,
@@ -253,10 +276,15 @@ export function tierHasRapha(tierKey: string): boolean {
   return tierHasFeature(tierKey, 'rapha');
 }
 
+// Add-on modules switched on per event
 export type ModuleKey = 'poros' | 'salve' | 'rapha';
-export type ModuleAccess = Record<ModuleKey, boolean>;
+// Which dashboards the org has: Lux and/or the full Events portal
+export type ProductKey = 'lux' | 'events';
+export type ModuleAccess = Record<ModuleKey | ProductKey, boolean>;
 
-const MODULE_KEYS: ModuleKey[] = ['poros', 'salve', 'rapha'];
+export const MODULE_KEYS: ModuleKey[] = ['poros', 'salve', 'rapha'];
+export const PRODUCT_KEYS: ProductKey[] = ['lux', 'events'];
+const ALL_ACCESS_KEYS: Array<ModuleKey | ProductKey> = [...PRODUCT_KEYS, ...MODULE_KEYS];
 
 /**
  * Resolve the effective module access for an org.
@@ -276,6 +304,9 @@ export function resolveModuleAccess(
 ): ModuleAccess {
   const tier = getTier(tierKey);
   const tierDefaults: ModuleAccess = {
+    lux: tier?.features.lux ?? false,
+    // Unknown tiers keep the Events portal so nobody is locked out
+    events: tier?.features.events ?? true,
     poros: tier?.features.poros ?? false,
     salve: tier?.features.salve ?? false,
     rapha: tier?.features.rapha ?? false,
@@ -287,7 +318,7 @@ export function resolveModuleAccess(
 
   const overrides = modulesEnabled as Record<string, unknown>;
   const result = { ...tierDefaults };
-  for (const key of MODULE_KEYS) {
+  for (const key of ALL_ACCESS_KEYS) {
     if (typeof overrides[key] === 'boolean') {
       result[key] = overrides[key] as boolean;
     }
@@ -300,6 +331,42 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   salve: 'SALVE Check-In',
   rapha: 'Rapha Medical',
 };
+
+export const PRODUCT_LABELS: Record<ProductKey, string> = {
+  lux: 'Lux (simple events & faith formation)',
+  events: 'Full Events portal',
+};
+
+/**
+ * Keep only recognized module/product switches with boolean values, for
+ * saving master-admin overrides to Organization.modulesEnabled.
+ */
+export function sanitizeModuleOverrides(input: unknown): Record<string, boolean> {
+  if (!input || typeof input !== 'object') return {};
+  const overrides = input as Record<string, unknown>;
+  const cleaned: Record<string, boolean> = {};
+  for (const key of ALL_ACCESS_KEYS) {
+    if (typeof overrides[key] === 'boolean') cleaned[key] = overrides[key] as boolean;
+  }
+  return cleaned;
+}
+
+/**
+ * Lux simple events allowed per subscription year for an org: the per-org
+ * override in luxSettings.limits.simpleEventsPerYear when the master admin
+ * set one (null = unlimited), otherwise the plan's number.
+ */
+export function luxSimpleEventLimit(luxSettings: unknown, tierKey: string): number | null {
+  const limits = (luxSettings && typeof luxSettings === 'object'
+    ? (luxSettings as Record<string, unknown>).limits
+    : undefined) as Record<string, unknown> | undefined;
+  if (limits && 'simpleEventsPerYear' in limits) {
+    const value = limits.simpleEventsPerYear;
+    if (value === null) return null;
+    if (typeof value === 'number' && value >= 0) return value;
+  }
+  return getTier(tierKey)?.luxSimpleEventsPerYear ?? null;
+}
 
 /**
  * Names of the public tiers that include a module by default, cheapest first.

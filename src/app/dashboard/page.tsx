@@ -122,7 +122,11 @@ export default function DashboardRedirect() {
           'rapha_coordinator': '/coordinator/rapha',
         }
 
-        const destination = routes[role] || '/dashboard/group-leader'
+        // Org staff of a Lux org: Lux-only orgs open Lux, orgs with both
+        // open whichever dashboard this person used last
+        const destination = data.dashboard === 'lux'
+          ? '/dashboard/lux'
+          : routes[role] || '/dashboard/group-leader'
         setStatus(`Redirecting to ${role ? role.replace('_', ' ') : 'group leader'} dashboard...`)
         hasRedirected.current = true
         router.replace(destination)

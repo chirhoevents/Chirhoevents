@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { verifyFormsEditAccess } from '@/lib/api-auth'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
 import { incrementOrgStorage } from '@/lib/storage/track-storage'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 const ALLOWED_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp']
 const MAX_SIZE = 10 * 1024 * 1024 // 10MB
@@ -112,7 +113,10 @@ export async function POST(
       },
     })
 
-    return NextResponse.json({ success: true, certificate })
+    return NextResponse.json({
+      success: true,
+      certificate: { ...certificate, fileUrl: secureFileLink('safe-env-cert', certificate.id, certificate.fileUrl) },
+    })
   } catch (error) {
     console.error('Admin certificate upload error:', error)
     return NextResponse.json(

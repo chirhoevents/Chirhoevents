@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsViewAccess } from '@/lib/api-auth'
+import { secureFileLink } from '@/lib/r2/private-files'
 
 export async function GET(
   request: NextRequest,
@@ -96,7 +97,7 @@ export async function GET(
       expirationDate: cert.expirationDate?.toISOString() || null,
       certificateNumber: null,
       issuingOrganization: null,
-      fileUrl: cert.fileUrl,
+      fileUrl: secureFileLink('safe-env-cert', cert.id, cert.fileUrl),
       originalFilename: cert.originalFilename,
       verificationStatus: cert.status,
       verifiedAt: cert.verifiedAt?.toISOString() || null,

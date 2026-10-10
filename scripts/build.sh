@@ -153,6 +153,22 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='poros_adoration_enabled') THEN
     RAISE EXCEPTION 'Schema drift after db push: event_settings.poros_adoration_enabled is missing';
   END IF;
+  -- Lux: every events / individual registration query selects these
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='mode') THEN
+    RAISE EXCEPTION 'Schema drift after db push: events.mode is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='individual_registrations' AND column_name='ticket_quantity') THEN
+    RAISE EXCEPTION 'Schema drift after db push: individual_registrations.ticket_quantity is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='lux_programs' AND column_name='audience') THEN
+    RAISE EXCEPTION 'Schema drift after db push: lux_programs.audience is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='lux_program_registrations' AND column_name='session_id') THEN
+    RAISE EXCEPTION 'Schema drift after db push: lux_program_registrations.session_id is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='organizations' AND column_name='lux_settings') THEN
+    RAISE EXCEPTION 'Schema drift after db push: organizations.lux_settings is missing';
+  END IF;
 END $$;
 SQLEOF
 npx prisma db execute --file /tmp/schema-canary.sql --schema prisma/schema.prisma
@@ -246,6 +262,22 @@ SET "registration_acknowledgment_enabled" = true,
     ]'::jsonb
 WHERE "event_id" = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1'
   AND "registration_acknowledgment_items" IS NULL;
+COMMIT;
+
+-- Lux launch: Chapel and Parish became Lux plans without the full Events
+-- portal. Grandfather the Events portal for every org that exists before
+-- Lux so nobody loses events they already run (including big events on
+-- Chapel). Runs exactly once, guarded by a platform_settings marker; orgs
+-- created afterwards get their plan's default, and the master admin board
+-- can still switch either module on or off per org.
+BEGIN;
+UPDATE "organizations"
+SET "modules_enabled" = COALESCE("modules_enabled", '{}'::jsonb) || '{"events": true}'::jsonb
+WHERE NOT (COALESCE("modules_enabled", '{}'::jsonb) ? 'events')
+  AND NOT EXISTS (SELECT 1 FROM "platform_settings" WHERE "setting_key" = 'lux_events_grandfathered');
+INSERT INTO "platform_settings" ("id", "setting_key", "setting_value", "updated_at")
+SELECT gen_random_uuid(), 'lux_events_grandfathered', NOW()::text, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM "platform_settings" WHERE "setting_key" = 'lux_events_grandfathered');
 COMMIT;
 
 -- Mount 2000 2027 is checks-only this year (internal financial restructuring).
