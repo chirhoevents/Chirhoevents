@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { getTier, SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 import { generateOrgAdminOnboardingEmail, type OnboardingBilling } from '@/emails/org-admin-onboarding'
+import { describeNeeds } from '@/lib/onboarding-needs'
 
 interface OnboardingRequest {
   id: string
@@ -40,7 +41,35 @@ interface OnboardingRequest {
   additionalNotes: string | null
   estimatedEventsPerYear: number | null
   estimatedRegistrationsPerYear: number | null
+  contactJobTitle: string | null
+  legalEntityName: string | null
+  taxId: string | null
+  billingAddress: string | null
+  website: string | null
+  howDidYouHear: string | null
+  howDidYouHearOther: string | null
+  needs: unknown
   createdAt: string
+}
+
+const ORG_TYPE_LABELS: Record<string, string> = {
+  diocese: 'Diocese', archdiocese: 'Archdiocese', parish: 'Parish', seminary: 'Seminary', ministry: 'Ministry',
+  retreat_center: 'Retreat center', school: 'School', other: 'Other',
+}
+const HOW_HEARD_LABELS: Record<string, string> = {
+  google_search: 'Google search', referral: 'Referral from another organization', social_media: 'Social media',
+  conference_event: 'Conference or event', other: 'Other',
+}
+
+/** A label/value line in the request details, skipped when empty */
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  if (value === null || value === undefined || value === '') return null
+  return (
+    <div className="flex justify-between gap-4 text-sm">
+      <span className="text-gray-600 shrink-0">{label}</span>
+      <span className="font-medium text-right whitespace-pre-line break-words min-w-0">{value}</span>
+    </div>
+  )
 }
 
 type BillingCycle = 'monthly' | 'annual'
@@ -106,6 +135,9 @@ export default function PendingRequestsPage() {
         if (response.ok) {
           const data = await response.json()
           setRequests(data.requests)
+          const wanted = new URLSearchParams(window.location.search).get('request')
+          const match = wanted && data.requests.find((r: OnboardingRequest) => r.id === wanted && r.status === 'pending')
+          if (match) setSelectedRequest(match)
         }
       } catch (error) {
         console.error('Failed to fetch requests:', error)
@@ -416,6 +448,18 @@ export default function PendingRequestsPage() {
               </div>
 
               <div className="space-y-6">
+                {/* Organization */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Organization</h3>
+                  <div className="space-y-2">
+                    <DetailRow label="Type" value={ORG_TYPE_LABELS[selectedRequest.organizationType] ?? selectedRequest.organizationType} />
+                    <DetailRow label="Website" value={selectedRequest.website && (
+                      <a href={/^https?:\/\//.test(selectedRequest.website) ? selectedRequest.website : `https://${selectedRequest.website}`}
+                        target="_blank" rel="noreferrer" className="text-purple-600 hover:text-purple-800">{selectedRequest.website}</a>
+                    )} />
+                  </div>
+                </div>
+
                 {/* Contact Info */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-2">Contact Information</h3>
@@ -434,23 +478,41 @@ export default function PendingRequestsPage() {
                       <Phone className="h-4 w-4 text-gray-400" />
                       <span>{selectedRequest.contactPhone}</span>
                     </div>
+                    {selectedRequest.contactJobTitle && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Building2 className="h-4 w-4 text-gray-400" />
+                        <span>{selectedRequest.contactJobTitle}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Usage Estimates */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Usage Estimates</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Events per year:</span>
-                      <span className="font-medium">{selectedRequest.estimatedEventsPerYear || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Registrations per year:</span>
-                      <span className="font-medium">{selectedRequest.estimatedRegistrationsPerYear?.toLocaleString() || 'N/A'}</span>
+                {/* What they need (Get Started answers) */}
+                {describeNeeds(selectedRequest.needs).length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">What They Need</h3>
+                    <div className="space-y-2">
+                      {describeNeeds(selectedRequest.needs).map(row => <DetailRow key={row.label} label={row.label} value={row.value} />)}
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* Usage Estimates (requests from before the needs questions) */}
+                {describeNeeds(selectedRequest.needs).length === 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Usage Estimates</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Events per year:</span>
+                        <span className="font-medium">{selectedRequest.estimatedEventsPerYear || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Registrations per year:</span>
+                        <span className="font-medium">{selectedRequest.estimatedRegistrationsPerYear?.toLocaleString() || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Billing Preferences */}
                 <div>
@@ -464,8 +526,21 @@ export default function PendingRequestsPage() {
                       <span className="text-gray-600">Billing cycle:</span>
                       <span className="font-medium">{selectedRequest.billingCyclePreference === 'monthly' ? 'Monthly' : 'Annual'}</span>
                     </div>
+                    <DetailRow label="Legal name:" value={selectedRequest.legalEntityName} />
+                    <DetailRow label="Tax ID / EIN:" value={selectedRequest.taxId} />
+                    <DetailRow label="Billing address:" value={selectedRequest.billingAddress} />
                   </div>
                 </div>
+
+                {selectedRequest.howDidYouHear && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">How They Heard About Us</h3>
+                    <p className="text-sm text-gray-700">
+                      {HOW_HEARD_LABELS[selectedRequest.howDidYouHear] ?? selectedRequest.howDidYouHear}
+                      {selectedRequest.howDidYouHearOther ? `: ${selectedRequest.howDidYouHearOther}` : ''}
+                    </p>
+                  </div>
+                )}
 
                 {selectedRequest.additionalNotes && (
                   <div>

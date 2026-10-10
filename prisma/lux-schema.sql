@@ -855,3 +855,8 @@ BEGIN
   END IF;
 END $$;
 COMMIT;
+
+-- Not Lux, same reason: answers from the Get Started form
+BEGIN;
+ALTER TABLE "organization_onboarding_requests" ADD COLUMN IF NOT EXISTS "needs" JSONB;
+COMMIT;

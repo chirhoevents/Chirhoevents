@@ -7,6 +7,14 @@ import crypto from 'crypto'
 import { SUBSCRIPTION_TIERS, getTier } from '@/lib/subscription-tiers'
 import { generateOrgAdminOnboardingEmail, type OnboardingBilling } from '@/emails/org-admin-onboarding'
 
+const ORG_TYPES = ['diocese', 'archdiocese', 'parish', 'seminary', 'retreat_center', 'other']
+
+/** The applicant asked for Lux (alone or with larger events) on the Get Started form */
+function wantsLux(needs: unknown): boolean {
+  const kind = needs && typeof needs === 'object' ? (needs as { kind?: unknown }).kind : null
+  return kind === 'lux' || kind === 'both'
+}
+
 const resend = new Resend(process.env.RESEND_API_KEY!)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
 
@@ -198,7 +206,10 @@ export async function POST(
 
     const organizationData = {
       name: onboardingRequest.organizationName,
-      type: (onboardingRequest.organizationType as 'diocese' | 'archdiocese' | 'parish' | 'seminary' | 'retreat_center' | 'other') || 'parish',
+      // The form also offers ministry and school, which organizations store as "other"
+      type: (ORG_TYPES.includes(onboardingRequest.organizationType ?? '')
+        ? onboardingRequest.organizationType
+        : onboardingRequest.organizationType ? 'other' : 'parish') as 'diocese' | 'archdiocese' | 'parish' | 'seminary' | 'retreat_center' | 'other',
       contactName: `${onboardingRequest.contactFirstName} ${onboardingRequest.contactLastName}`,
       contactEmail: onboardingRequest.contactEmail,
       contactPhone: onboardingRequest.contactPhone,
@@ -221,10 +232,10 @@ export async function POST(
       website: onboardingRequest.website,
       primaryColor: '#1E3A5F',
       secondaryColor: '#9C8466',
-      // No explicit module overrides; access falls back to tier defaults
-      // (Chapel/Parish: none; Cathedral/Shrine/Basilica: all). The master
-      // admin can override per-org from the master admin board.
-      modulesEnabled: {},
+      // Access comes from the plan's defaults. Someone who asked for Lux on a
+      // larger plan (where it's off by default) gets it turned on. The master
+      // admin can change modules per org from the master admin board.
+      modulesEnabled: wantsLux(onboardingRequest.needs) && !getTier(requestedTier)?.features.lux ? { lux: true } : {},
       createdByUserId: masterAdmin.id,
       subscriptionStartedAt: new Date(),
       subscriptionRenewsAt: new Date(Date.now() + (billingCycle === 'monthly' ? 30 : 365) * 24 * 60 * 60 * 1000),
