@@ -13,8 +13,10 @@ import {
   Check,
   Bell,
   Trash2,
+  Sparkles,
 } from 'lucide-react'
 import MasterAdminNotificationsTab from '@/components/master-admin/MasterAdminNotificationsTab'
+import MasterAdminLuxBrandTab from '@/components/master-admin/MasterAdminLuxBrandTab'
 
 interface SettingsData {
   platform_name: string
@@ -55,7 +57,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'platform' | 'notifications'>('platform')
+  const [activeTab, setActiveTab] = useState<'platform' | 'notifications' | 'lux'>('platform')
   const [clearingTestData, setClearingTestData] = useState(false)
   const [clearResult, setClearResult] = useState<string | null>(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
@@ -193,10 +195,23 @@ export default function SettingsPage() {
             <Bell className="h-4 w-4" />
             Notifications
           </button>
+          <button
+            onClick={() => setActiveTab('lux')}
+            className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'lux'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            Lux
+          </button>
         </nav>
       </div>
 
-      {activeTab === 'notifications' ? (
+      {activeTab === 'lux' ? (
+        <MasterAdminLuxBrandTab />
+      ) : activeTab === 'notifications' ? (
         <MasterAdminNotificationsTab />
       ) : (
         <>

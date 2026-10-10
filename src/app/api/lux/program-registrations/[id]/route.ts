@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const registration = await prisma.luxProgramRegistration.findFirst({
     where: { id, organizationId: ctx.organizationId },
-    include: { order: true },
+    include: { order: true, program: { select: { feeType: true } } },
   })
   if (!registration) return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
 
@@ -32,10 +32,30 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           .filter(Boolean).join('\n') || null,
       },
     })
+    // A family fee stays with the family while anyone is still registered:
+    // move it to another family member in the same registration
+    const fee = Number(registration.feeAmount)
+    let feeMoved = false
+    if (registration.program.feeType === 'per_family' && fee > 0 && registration.orderId) {
+      const other = await prisma.luxProgramRegistration.findFirst({
+        where: { orderId: registration.orderId, programId: registration.programId, cancelledAt: null, id: { not: id } },
+        orderBy: { createdAt: 'asc' },
+      })
+      if (other) {
+        await prisma.$transaction([
+          prisma.luxProgramRegistration.update({
+            where: { id: other.id },
+            data: { feeAmount: registration.feeAmount, discountAmount: registration.discountAmount },
+          }),
+          prisma.luxProgramRegistration.update({ where: { id }, data: { feeAmount: 0, discountAmount: 0 } }),
+        ])
+        feeMoved = true
+      }
+    }
+
     const order = registration.order
-    if (order && ['office_pending', 'assistance_requested', 'pending_payment'].includes(order.status)) {
-      // Take this child's fee off what's still owed
-      const fee = Number(registration.feeAmount)
+    if (!feeMoved && order && ['office_pending', 'assistance_requested', 'pending_payment'].includes(order.status)) {
+      // Take this person's fee off what's still owed
       const newDue = Math.max(Number(order.amountPaid), Math.round((Number(order.amountDue) - fee) * 100) / 100)
       const stillActive = await prisma.luxProgramRegistration.count({ where: { orderId: order.id, cancelledAt: null } })
       await prisma.luxOrder.update({

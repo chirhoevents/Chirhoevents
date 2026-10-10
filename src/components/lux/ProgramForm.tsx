@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Trash2, FileText, Users, CreditCard, Building2, HandHeart } from 'lucide-react'
+import { Plus, Trash2, FileText, Users, CreditCard, Building2, HandHeart, Baby, UserRound, Home, Clock } from 'lucide-react'
 import { useLux, useLuxApi } from '@/contexts/LuxContext'
 import { toast } from '@/lib/toast'
 import QuestionEditor, { type EditableQuestion } from '@/components/lux/QuestionEditor'
 import { Button, Card, ErrorNote, Field, Select, TextArea, TextInput, Toggle, cx } from '@/components/lux/ui'
 import { GRADE_OPTIONS, gradeLabel } from '@/lib/lux/format'
-import type { ProgramQuestion, ProgramTemplate } from '@/lib/lux/program-templates'
+import type { ProgramAudience, ProgramFeeType, ProgramQuestion, ProgramSession, ProgramTemplate } from '@/lib/lux/program-templates'
 
 export interface ProgramFormValue {
   id?: string
@@ -36,7 +36,17 @@ export interface ProgramFormValue {
   confirmationMessage: string
   documentRetentionDays: number | null
   requirements: Array<{ id?: string; key: string; label: string; description: string; required: boolean; allowParishLookup: boolean }>
+  audience: ProgramAudience
+  feeType: ProgramFeeType
+  sessions: ProgramSession[]
+  language: string | null
 }
+
+const AUDIENCE_OPTIONS: Array<{ value: ProgramAudience; label: string; hint: string; icon: typeof Baby }> = [
+  { value: 'children', label: 'Children', hint: 'Parents register their kids', icon: Baby },
+  { value: 'families', label: 'Whole families', hint: 'The family attends together', icon: Home },
+  { value: 'adults', label: 'Adults', hint: 'OCIA, adult faith formation', icon: UserRound },
+]
 
 const key = () => Math.random().toString(36).slice(2, 10)
 
@@ -69,6 +79,10 @@ export function programValueFromTemplate(template: ProgramTemplate, term: string
     confirmationMessage: d.confirmationMessage,
     documentRetentionDays: null,
     requirements: d.requirements.map(r => ({ ...r })),
+    audience: d.audience,
+    feeType: d.feeType,
+    sessions: [],
+    language: null,
   }
 }
 
@@ -137,10 +151,39 @@ export default function ProgramForm({ initial, suggestedFees = [], feeRulesSumma
   const updateReq = (index: number, p: Partial<ProgramFormValue['requirements'][number]>) =>
     patch({ requirements: v.requirements.map((r, i) => (i === index ? { ...r, ...p } : r)) })
   const unusedSuggestions = suggestedFees.filter(name => !v.feeItems.some(f => f.name.toLowerCase() === name.toLowerCase()))
+  const updateSession = (index: number, p: Partial<ProgramSession>) =>
+    patch({ sessions: v.sessions.map((sess, i) => (i === index ? { ...sess, ...p } : sess)) })
+  const toggleSessionGrade = (index: number, grade: string) => {
+    const current = v.sessions[index].grades ?? []
+    const next = current.includes(grade) ? current.filter(g => g !== grade) : [...current, grade]
+    updateSession(index, { grades: next.length ? GRADE_OPTIONS.filter(g => next.includes(g)) : null })
+  }
+  const perFamily = v.feeType === 'per_family'
+  const who = v.audience === 'adults' ? 'person' : v.audience === 'families' ? 'person' : 'child'
+  const feeUnit = perFamily ? 'family' : who
 
   return (
     <div className="space-y-5 max-w-3xl">
       <ErrorNote message={error} />
+
+      <Card title="Who is this program for?">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {AUDIENCE_OPTIONS.map(o => (
+            <button key={o.value} type="button"
+              onClick={() => patch({
+                audience: o.value,
+                ...(o.value === 'adults' ? { grades: null, siblingDiscountApplies: false } : {}),
+                ...(o.value === 'families' && v.audience !== 'families' ? { feeType: 'per_family' as const } : {}),
+                ...(o.value !== 'families' && v.audience === 'families' ? { feeType: 'per_person' as const } : {}),
+              })}
+              className={cx('flex items-start gap-3 rounded-lg border p-3 text-left transition-colors',
+                v.audience === o.value ? 'border-[#C8A24A] bg-[#FFFDF8] ring-1 ring-[#C8A24A]' : 'border-[#E8E2D4] hover:border-[#C8A24A]')}>
+              <o.icon className="h-5 w-5 text-[#9C8466] mt-0.5" />
+              <span><span className="block font-medium text-[#1E3A5F]">{o.label}</span><span className="block text-xs text-gray-500">{o.hint}</span></span>
+            </button>
+          ))}
+        </div>
+      </Card>
 
       <Card title="The basics">
         <div className="space-y-4">
@@ -152,10 +195,18 @@ export default function ProgramForm({ initial, suggestedFees = [], feeRulesSumma
               <TextInput value={v.term} onChange={e => patch({ term: e.target.value })} placeholder="2026–2027" />
             </Field>
           </div>
-          <Field label="Description for families" hint="Shown on your parish registration page.">
+          <Field label={v.audience === 'adults' ? 'Description' : 'Description for families'} hint="Shown on your parish registration page. You can write it in English and Spanish.">
             <TextArea value={v.description} onChange={e => patch({ description: e.target.value })} rows={3} />
           </Field>
-          <div>
+          <Field label="Classes are taught in" className="sm:w-72">
+            <Select value={v.language ?? ''} onChange={e => patch({ language: e.target.value || null })}>
+              <option value="">Not specified</option>
+              <option value="en">English</option>
+              <option value="es">Spanish (Español)</option>
+              <option value="bilingual">English and Spanish</option>
+            </Select>
+          </Field>
+          {v.audience !== 'adults' && <div>
             <p className="text-sm font-medium text-gray-800 mb-2">Grades <span className="font-normal text-gray-500">(leave all off for any grade)</span></p>
             <div className="flex flex-wrap gap-2">
               {GRADE_OPTIONS.map(g => {
@@ -169,10 +220,10 @@ export default function ProgramForm({ initial, suggestedFees = [], feeRulesSumma
                 )
               })}
             </div>
-            {v.grades && <p className="text-xs text-gray-500 mt-2">For: {v.grades.map(gradeLabel).join(', ')}</p>}
-          </div>
+            {v.grades && <p className="text-xs text-gray-500 mt-2">For: {v.grades.map(g => gradeLabel(g)).join(', ')}</p>}
+          </div>}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Field label="Capacity" hint="Children. Blank = no limit.">
+            <Field label="Capacity" hint={`${v.audience === 'children' ? 'Children' : 'People'}. Blank = no limit.`}>
               <TextInput type="number" min="1" value={v.capacity ?? ''} onChange={e => patch({ capacity: e.target.value ? Number(e.target.value) : null })} placeholder="No limit" />
             </Field>
             <Field label="Registration opens" hint="Blank = when you open it">
@@ -185,9 +236,52 @@ export default function ProgramForm({ initial, suggestedFees = [], feeRulesSumma
         </div>
       </Card>
 
-      <Card title="Fees" description="Per child. Use 0 for a free program.">
+      <Card title={<span className="flex items-center gap-2"><Clock className="h-5 w-5 text-[#C8A24A]" /> Class times</span>}
+        description="Optional. If you offer more than one day, time or group, families pick one when they register.">
+        <div className="space-y-3">
+          {v.sessions.map((sess, i) => (
+            <div key={sess.id} className="rounded-lg border border-[#E8E2D4] p-3 bg-[#FFFDF8] space-y-2">
+              <div className="grid grid-cols-12 gap-2 items-center">
+                <TextInput className="col-span-12 sm:col-span-4" value={sess.name} onChange={e => updateSession(i, { name: e.target.value })} placeholder="Sunday 9:00am" aria-label="Class time name" />
+                <TextInput className="col-span-12 sm:col-span-5" value={sess.schedule} onChange={e => updateSession(i, { schedule: e.target.value })} placeholder="Sept 14 – May 3, Room 4 (optional)" aria-label="Dates or details" />
+                <TextInput className="col-span-9 sm:col-span-2" type="number" min="1" value={sess.capacity ?? ''} onChange={e => updateSession(i, { capacity: e.target.value ? Number(e.target.value) : null })} placeholder="No limit" aria-label="Capacity" />
+                <button type="button" onClick={() => patch({ sessions: v.sessions.filter((_, j) => j !== i) })}
+                  className="col-span-3 sm:col-span-1 p-2 text-red-600 hover:bg-red-50 rounded justify-self-end" aria-label="Remove class time"><Trash2 className="h-4 w-4" /></button>
+              </div>
+              {v.audience === 'children' && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-gray-500 mr-1">Grades (optional):</span>
+                  {(v.grades ?? GRADE_OPTIONS.filter(g => g !== 'Adult')).map(g => {
+                    const on = sess.grades?.includes(g)
+                    return (
+                      <button key={g} type="button" onClick={() => toggleSessionGrade(i, g)}
+                        className={cx('px-2 py-0.5 rounded-full text-xs border', on ? 'bg-[#1E3A5F] text-white border-[#1E3A5F]' : 'bg-white text-gray-600 border-[#D9D2C2]')}>
+                        {g === 'PK' ? 'Pre-K' : g}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+          <Button variant="secondary" onClick={() => patch({ sessions: [...v.sessions, { id: key(), name: '', schedule: '', grades: null, capacity: null }] })}>
+            <Plus className="h-4 w-4" /> Add a class time
+          </Button>
+        </div>
+      </Card>
+
+      <Card title="Fees" description={`Per ${feeUnit}. Use 0 for a free program.`}>
         <div className="space-y-4">
-          <Field label="Tuition per child" className="sm:w-48">
+          <div className="flex flex-wrap gap-2">
+            {([['per_person', v.audience === 'children' ? 'Per child' : 'Per person'], ['per_family', 'Once per family']] as const).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => patch({ feeType: value })}
+                className={cx('px-3 py-1.5 rounded-full text-sm border', v.feeType === value ? 'bg-[#1E3A5F] text-white border-[#1E3A5F]' : 'bg-white text-gray-700 border-[#D9D2C2]')}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {perFamily && <p className="text-sm text-gray-600">Each family pays once for this program, however many of them attend. The sibling discount doesn’t apply.</p>}
+          <Field label={`${perFamily ? 'Fee' : 'Tuition'} per ${feeUnit}`} className="sm:w-48">
             <div className="relative">
               <span className="absolute left-3 top-2 text-sm text-gray-400">$</span>
               <TextInput type="number" min="0" step="0.01" className="pl-6" value={v.tuitionPerChild}
@@ -195,7 +289,7 @@ export default function ProgramForm({ initial, suggestedFees = [], feeRulesSumma
             </div>
           </Field>
           <div>
-            <p className="text-sm font-medium text-gray-800 mb-2">Extra fees per child</p>
+            <p className="text-sm font-medium text-gray-800 mb-2">Extra fees per {feeUnit}</p>
             {v.feeItems.length === 0 && <p className="text-sm text-gray-500 mb-2">Books, retreat, sacrament fee… add any you charge.</p>}
             <div className="space-y-2">
               {v.feeItems.map((f, i) => (
@@ -233,7 +327,9 @@ export default function ProgramForm({ initial, suggestedFees = [], feeRulesSumma
               Your parish’s sibling discount and family maximum: <strong>{feeRulesSummary || 'none set'}</strong>.{' '}
               <Link href="/dashboard/lux/settings" className="underline text-[#9C8466]">Change</Link>
             </p>
-            <Toggle checked={v.siblingDiscountApplies} onChange={c => patch({ siblingDiscountApplies: c })} label="Sibling discount applies to this program" />
+            {!perFamily && v.audience !== 'adults' && (
+              <Toggle checked={v.siblingDiscountApplies} onChange={c => patch({ siblingDiscountApplies: c })} label="Sibling discount applies to this program" />
+            )}
             <Toggle checked={v.countsTowardFamilyCap} onChange={c => patch({ countsTowardFamilyCap: c })} label="Counts toward the family maximum" />
           </div>
         </div>
@@ -287,7 +383,7 @@ export default function ProgramForm({ initial, suggestedFees = [], feeRulesSumma
                   <TextInput value={r.description} onChange={e => updateReq(i, { description: e.target.value })} placeholder="Short explanation for families (optional)" aria-label="Description" />
                   <div className="flex flex-wrap gap-4 text-sm text-gray-700">
                     <label className="flex items-center gap-2"><input type="checkbox" checked={r.required} onChange={e => updateReq(i, { required: e.target.checked })} /> Required</label>
-                    <label className="flex items-center gap-2"><input type="checkbox" checked={r.allowParishLookup} onChange={e => updateReq(i, { allowParishLookup: e.target.checked })} /> Offer “We’ll look it up” for children baptized here</label>
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={r.allowParishLookup} onChange={e => updateReq(i, { allowParishLookup: e.target.checked })} /> Offer “We’ll look it up” for people baptized here</label>
                   </div>
                 </div>
                 <button type="button" onClick={() => patch({ requirements: v.requirements.filter((_, j) => j !== i) })}

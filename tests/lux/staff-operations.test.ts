@@ -89,7 +89,7 @@ async function main() {
     const rest = await recordOrderOfficePayment({ organizationId: org.id, orderId: a.orderId, userId: user.id, amount: 25, method: 'cash' })
     check('paying the rest marks it paid', rest.remaining === 0 && (await order(a.orderId)).status === 'paid')
     const checkPayment = await prisma.payment.findFirst({ where: { registrationId: a.orderId, checkNumber: '1042' } })
-    check('check number and who recorded it are kept', checkPayment?.processedByUserId === user.id && checkPayment.processedVia === 'manual')
+    check('check number and who recorded it are kept', checkPayment?.processedByUserId === user.id && checkPayment?.processedVia === 'manual')
     check('nothing more can be recorded once paid',
       await fails(() => recordOrderOfficePayment({ organizationId: org.id, orderId: a.orderId, userId: user.id, amount: 1, method: 'cash' }), /Nothing is owed/))
 

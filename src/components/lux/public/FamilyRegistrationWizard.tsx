@@ -118,7 +118,7 @@ export default function FamilyRegistrationWizard(props: {
       if (!c.programId) return `Choose a program for ${name}.`
       const program = programById.get(c.programId)!
       if (!c.grade) return `Choose ${name}’s grade.`
-      if (program.grades && !program.grades.includes(c.grade)) return `${program.name} is for ${program.grades.map(gradeLabel).join(', ')}.`
+      if (program.grades && !program.grades.includes(c.grade)) return `${program.name} is for ${program.grades.map(g => gradeLabel(g)).join(', ')}.`
       for (const q of program.questions) {
         const a = c.answers[q.id]
         if (q.required && (!a || (Array.isArray(a) && a.length === 0))) return `Please answer “${q.label}” for ${name}.`

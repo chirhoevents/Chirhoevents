@@ -6,7 +6,9 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { slugify, uniqueSlug } from '@/lib/lux/slug'
 import { GRADE_OPTIONS } from '@/lib/lux/format'
-import type { ProgramQuestion } from '@/lib/lux/program-templates'
+import { parseSessions, type ProgramAudience, type ProgramFeeType, type ProgramQuestion, type ProgramSession } from '@/lib/lux/program-templates'
+
+export { parseSessions }
 
 export interface FeeItemInput { id: string; name: string; amount: number; siblingDiscount: boolean }
 export interface RequirementInput { id?: string; key: string; label: string; description: string | null; required: boolean; allowParishLookup: boolean }
@@ -34,9 +36,15 @@ export interface ProgramInput {
   confirmationMessage: string | null
   documentRetentionDays: number | null
   requirements: RequirementInput[]
+  audience: ProgramAudience
+  feeType: ProgramFeeType
+  sessions: ProgramSession[]
+  language: string | null
 }
 
-const TEMPLATE_KEYS = ['faith_formation', 'first_communion', 'confirmation', 'custom']
+const TEMPLATE_KEYS = ['faith_formation', 'family_faith_formation', 'first_communion', 'confirmation', 'ocia', 'custom']
+const AUDIENCES: ProgramAudience[] = ['children', 'adults', 'families']
+const LANGUAGES = ['en', 'es', 'bilingual']
 const QUESTION_TYPES = ['text', 'yes_no', 'dropdown', 'multiple_choice', 'multi_select']
 
 const str = (v: unknown, max: number): string | null => {
@@ -126,6 +134,33 @@ export function validateProgramInput(raw: any): { ok: true; value: ProgramInput 
     })
   }
 
+  const audience: ProgramAudience = AUDIENCES.includes(raw?.audience) ? raw.audience : 'children'
+  const feeType: ProgramFeeType = raw?.feeType === 'per_family' ? 'per_family' : 'per_person'
+
+  const sessions: ProgramSession[] = []
+  const sessionIds = new Set<string>()
+  for (const item of Array.isArray(raw?.sessions) ? raw.sessions : []) {
+    const sessionName = str(item?.name, 120)
+    if (!sessionName && !str(item?.schedule, 255)) continue
+    if (!sessionName) return { ok: false, error: 'Every class time needs a name, e.g. Sunday 9:00am.' }
+    const sessionCapacity = optionalInt(item?.capacity, 1)
+    if (sessionCapacity === 'invalid') return { ok: false, error: `Capacity for ${sessionName} must be a whole number, or left blank.` }
+    const sessionGrades = Array.isArray(item?.grades)
+      ? item.grades.filter((g: unknown) => typeof g === 'string' && GRADE_OPTIONS.includes(g))
+      : []
+    let id = typeof item?.id === 'string' && /^[a-z0-9]{4,20}$/i.test(item.id) ? item.id : randomId()
+    while (sessionIds.has(id)) id = randomId()
+    sessionIds.add(id)
+    sessions.push({
+      id,
+      name: sessionName,
+      schedule: str(item?.schedule, 255) ?? '',
+      grades: audience === 'children' && sessionGrades.length ? sessionGrades : null,
+      capacity: sessionCapacity,
+    })
+  }
+  if (sessions.length > 20) return { ok: false, error: 'Up to 20 class times per program.' }
+
   const hasFees = tuition > 0 || feeItems.some(i => i.amount > 0)
   const online = raw?.onlinePaymentEnabled !== false
   const office = raw?.payAtOfficeEnabled !== false
@@ -141,7 +176,8 @@ export function validateProgramInput(raw: any): { ok: true; value: ProgramInput 
       registrationOpensAt: opens,
       registrationClosesAt: closes,
       capacity,
-      grades: grades && grades.length ? grades : null,
+      // Adult programs aren't sorted by grade
+      grades: audience !== 'adults' && grades && grades.length ? grades : null,
       tuitionPerChild: tuition,
       feeItems,
       siblingDiscountApplies: raw?.siblingDiscountApplies !== false,
@@ -156,6 +192,10 @@ export function validateProgramInput(raw: any): { ok: true; value: ProgramInput 
       confirmationMessage: str(raw?.confirmationMessage, 5000),
       documentRetentionDays,
       requirements,
+      audience,
+      feeType,
+      sessions,
+      language: LANGUAGES.includes(raw?.language) ? raw.language : null,
     },
   }
 }
@@ -183,6 +223,10 @@ function programFields(input: ProgramInput) {
     questions: input.questions as any,
     confirmationMessage: input.confirmationMessage,
     documentRetentionDays: input.documentRetentionDays,
+    audience: input.audience,
+    feeType: input.feeType,
+    sessions: input.sessions as any,
+    language: input.language,
   }
 }
 
@@ -228,7 +272,24 @@ export async function updateProgram(organizationId: string, programId: string, i
 
   if (input.capacity !== null) {
     const active = await prisma.luxProgramRegistration.count({ where: { programId, cancelledAt: null } })
-    if (input.capacity < active) return { ok: false, error: `${active} children are already registered, so capacity can't be lower than that.` }
+    if (input.capacity < active) return { ok: false, error: `${active} people are already registered, so capacity can't be lower than that.` }
+  }
+
+  // Class times people already chose can't disappear or shrink below who's in them
+  const bySession = await prisma.luxProgramRegistration.groupBy({
+    by: ['sessionId'],
+    where: { programId, cancelledAt: null, sessionId: { not: null } },
+    _count: { _all: true },
+  })
+  const current = await prisma.luxProgram.findUnique({ where: { id: programId }, select: { sessions: true } })
+  const currentSessions = (Array.isArray(current?.sessions) ? current!.sessions : []) as unknown as ProgramSession[]
+  for (const group of bySession) {
+    const kept = input.sessions.find(sess => sess.id === group.sessionId)
+    const name = currentSessions.find(sess => sess.id === group.sessionId)?.name ?? 'A class time'
+    if (!kept) return { ok: false, error: `${name} has ${group._count._all} registered, so it can't be removed. Edit it instead.` }
+    if (kept.capacity !== null && kept.capacity < group._count._all) {
+      return { ok: false, error: `${group._count._all} are already registered for ${kept.name}, so its capacity can't be lower than that.` }
+    }
   }
 
   const activeRegistrations = await prisma.luxProgramRegistration.findMany({
@@ -291,6 +352,9 @@ export async function loadProgramForEditor(organizationId: string, programId: st
     feeItems: (Array.isArray(program.feeItems) ? program.feeItems : []) as unknown as FeeItemInput[],
     grades: (Array.isArray(program.grades) ? program.grades : null) as string[] | null,
     questions: (Array.isArray(program.questions) ? program.questions : []) as unknown as ProgramQuestion[],
+    sessions: parseSessions(program.sessions),
+    audience: program.audience as ProgramAudience,
+    feeType: program.feeType as ProgramFeeType,
     requirements: program.requirements.map(r => ({
       id: r.id, key: r.key, label: r.label, description: r.description ?? '', required: r.required, allowParishLookup: r.allowParishLookup,
     })),

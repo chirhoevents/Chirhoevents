@@ -245,7 +245,7 @@ export default function LandingPage() {
       <section id="lux" className="py-16 sm:py-20 bg-[#FBF8F1] border-y border-[#EDE6D6]">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="flex justify-center mb-4"><LuxLogo size="lg" /></div>
+            <div className="flex justify-center mb-6"><LuxLogo size="xl" /></div>
             <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">
               Simple registration for parish life
             </h2>

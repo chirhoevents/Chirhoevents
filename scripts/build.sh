@@ -160,6 +160,12 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='individual_registrations' AND column_name='ticket_quantity') THEN
     RAISE EXCEPTION 'Schema drift after db push: individual_registrations.ticket_quantity is missing';
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='lux_programs' AND column_name='audience') THEN
+    RAISE EXCEPTION 'Schema drift after db push: lux_programs.audience is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='lux_program_registrations' AND column_name='session_id') THEN
+    RAISE EXCEPTION 'Schema drift after db push: lux_program_registrations.session_id is missing';
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='organizations' AND column_name='lux_settings') THEN
     RAISE EXCEPTION 'Schema drift after db push: organizations.lux_settings is missing';
   END IF;

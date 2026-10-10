@@ -5,10 +5,10 @@ export function formatMoney(amount: number | string | null | undefined): string 
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
 
-/** "Saturday, October 24, 2026" for a @db.Date value (stored as UTC midnight) */
-export function formatEventDate(date: Date | string, options: Intl.DateTimeFormatOptions = {}): string {
+/** "Saturday, October 24, 2026" for a @db.Date value (stored as UTC midnight); 'es' for Spanish */
+export function formatEventDate(date: Date | string, options: Intl.DateTimeFormatOptions = {}, lang: 'en' | 'es' = 'en'): string {
   const d = typeof date === 'string' ? new Date(date.length === 10 ? `${date}T00:00:00Z` : date) : date
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(lang === 'es' ? 'es-US' : 'en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -18,8 +18,8 @@ export function formatEventDate(date: Date | string, options: Intl.DateTimeForma
   })
 }
 
-export function formatShortDate(date: Date | string): string {
-  return formatEventDate(date, { weekday: undefined, month: 'short' })
+export function formatShortDate(date: Date | string, lang: 'en' | 'es' = 'en'): string {
+  return formatEventDate(date, { weekday: undefined, month: 'short' }, lang)
 }
 
 /** "7:00 PM" from "19:00" */
@@ -38,19 +38,26 @@ export function formatTimeRange(start: string | null | undefined, end: string | 
 }
 
 /** Date and time; pass the event's time zone when rendering on the server */
-export function formatDateTime(date: Date | string | null | undefined, timeZone?: string | null): string {
+export function formatDateTime(date: Date | string | null | undefined, timeZone?: string | null, lang: 'en' | 'es' = 'en'): string {
   if (!date) return ''
+  const locale = lang === 'es' ? 'es-US' : 'en-US'
   const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }
   try {
-    return new Date(date).toLocaleString('en-US', timeZone ? { ...options, timeZone } : options)
+    return new Date(date).toLocaleString(locale, timeZone ? { ...options, timeZone } : options)
   } catch {
-    return new Date(date).toLocaleString('en-US', options) // unknown time zone
+    return new Date(date).toLocaleString(locale, options) // unknown time zone
   }
 }
 
-/** Grade value → label: "K" → "Kindergarten", "3" → "3rd grade" */
-export function gradeLabel(grade: string | null | undefined): string {
+/** Grade value → label: "K" → "Kindergarten", "3" → "3rd grade" ('es': "Kínder", "3.º grado") */
+export function gradeLabel(grade: string | null | undefined, lang: 'en' | 'es' = 'en'): string {
   if (!grade) return ''
+  if (lang === 'es') {
+    if (grade === 'PK') return 'Prekínder'
+    if (grade === 'K') return 'Kínder'
+    if (grade === 'Adult') return 'Adulto'
+    return Number.isInteger(Number(grade)) ? `${grade}.º grado` : grade
+  }
   if (grade === 'PK') return 'Pre-K'
   if (grade === 'K') return 'Kindergarten'
   if (grade === 'Adult') return 'Adult'

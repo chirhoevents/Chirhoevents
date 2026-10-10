@@ -8,6 +8,7 @@
 import { Resend } from '@/lib/resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { escapeHtml, formatEventDate, formatMoney, formatTimeRange } from '@/lib/lux/format'
+import { absoluteAssetUrl, getLuxBrand } from '@/lib/lux/brand'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -43,6 +44,8 @@ export interface SendLuxEmailOptions {
 }
 
 export async function sendLuxEmail(options: SendLuxEmailOptions): Promise<boolean> {
+  const logoUrl = absoluteAssetUrl((await getLuxBrand()).logo)
+  options = { ...options, html: options.html.split('__LUX_LOGO_URL__').join(escapeHtml(logoUrl)) }
   const log = {
     organizationId: options.organizationId,
     eventId: options.eventId,
@@ -76,6 +79,9 @@ export async function sendLuxEmail(options: SendLuxEmailOptions): Promise<boolea
 // Layout
 // ---------------------------------------------------------------------------
 
+// Replaced with the current Lux logo's absolute URL when the email is sent
+const LUX_LOGO_TOKEN = '__LUX_LOGO_URL__'
+
 export function luxEmailLayout(content: string, options: { organizationName: string; preheader?: string }): string {
   const org = escapeHtml(options.organizationName)
   return `<!DOCTYPE html>
@@ -101,8 +107,8 @@ export function luxEmailLayout(content: string, options: { organizationName: str
       <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #E8E2D4;">
         <tr><td style="padding:24px 32px;border-bottom:3px solid #C8A24A;background:#FFFDF8;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-            <td style="font-family:Georgia,'Times New Roman',serif;font-size:26px;color:#1E3A5F;">
-              <span style="color:#C8A24A;">&#9728;</span>&nbsp;Lux
+            <td>
+              <img src="${LUX_LOGO_TOKEN}" alt="Lux" height="40" style="height:40px;width:auto;display:block;border:0;" />
             </td>
             <td align="right" style="font-size:14px;color:#6B5B3E;font-weight:600;">${org}</td>
           </tr></table>

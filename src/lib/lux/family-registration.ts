@@ -1,7 +1,12 @@
 /**
  * Family registration for faith formation: one household, one or more
- * children, each child into a program (different children can pick
- * different programs). Household details are entered once.
+ * people, each into a program (different people can pick different
+ * programs). Household details are entered once.
+ *
+ * Programs can be for children (parents register their kids), adults (OCIA:
+ * the person registers themselves) or whole families. A program can charge
+ * per person or once per family, and can offer class times to choose from.
+ * The "children" naming below is historical: an entry can be an adult.
  */
 
 import { randomBytes } from 'crypto'
@@ -9,7 +14,7 @@ import { prisma } from '@/lib/prisma'
 import { GRADE_OPTIONS } from '@/lib/lux/format'
 import { calculateFamilyFees, type FeeItem, type FeeRules } from '@/lib/lux/family-fees'
 import { programIsOpen } from '@/lib/lux/program-server'
-import type { ProgramQuestion } from '@/lib/lux/program-templates'
+import { parseSessions, type ProgramQuestion } from '@/lib/lux/program-templates'
 import type { FamilySession } from '@/lib/lux/family-session'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -54,6 +59,9 @@ export interface ChildInput {
   allergies: string | null
   medicalNotes: string | null
   programId: string
+  // Set from the program: adults register for adult programs
+  isAdult: boolean
+  sessionId: string | null
   answers: Record<string, string | string[]>
   sponsor: { name: string; email: string; phone: string; parish: string; relationship: string } | null
 }
@@ -63,6 +71,8 @@ export interface FamilyRegistrationInput {
   children: ChildInput[]
   paymentMethod: 'card' | 'office'
   feeAssistance: { requested: boolean; note: string | null }
+  // The language the family registered in; Lux emails them in it
+  language: 'en' | 'es'
 }
 
 const s = (v: unknown, max: number): string | null => {
@@ -100,14 +110,14 @@ export function parseFamilyInput(raw: any): { ok: true; value: FamilyRegistratio
   if (household.guardian2Email && !EMAIL_RE.test(household.guardian2Email)) return { ok: false, error: 'The second guardian’s email doesn’t look right.' }
 
   const rawChildren: any[] = Array.isArray(raw?.children) ? raw.children : []
-  if (rawChildren.length === 0) return { ok: false, error: 'Add at least one child.' }
-  if (rawChildren.length > 12) return { ok: false, error: 'Please register up to 12 children at a time.' }
+  if (rawChildren.length === 0) return { ok: false, error: 'Add at least one person to register.' }
+  if (rawChildren.length > 15) return { ok: false, error: 'Please register up to 15 people at a time.' }
 
   const children: ChildInput[] = []
   for (const [index, c] of rawChildren.entries()) {
     const firstName = s(c?.firstName, 100)
     const lastName = s(c?.lastName, 100) ?? household.guardian1LastName
-    if (!firstName) return { ok: false, error: `Please enter child ${index + 1}’s first name.` }
+    if (!firstName) return { ok: false, error: `Please enter person ${index + 1}’s first name.` }
     if (typeof c?.programId !== 'string' || !c.programId) return { ok: false, error: `Choose a program for ${firstName}.` }
     const grade = typeof c?.grade === 'string' && GRADE_OPTIONS.includes(c.grade) ? c.grade : null
     const answers: Record<string, string | string[]> = {}
@@ -145,6 +155,8 @@ export function parseFamilyInput(raw: any): { ok: true; value: FamilyRegistratio
       allergies: s(c?.allergies, 2000),
       medicalNotes: s(c?.medicalNotes, 2000),
       programId: c.programId,
+      isAdult: c?.isAdult === true,
+      sessionId: typeof c?.sessionId === 'string' && c.sessionId ? c.sessionId.slice(0, 40) : null,
       answers,
       sponsor,
     })
@@ -157,6 +169,7 @@ export function parseFamilyInput(raw: any): { ok: true; value: FamilyRegistratio
       children,
       paymentMethod: raw?.paymentMethod === 'office' ? 'office' : 'card',
       feeAssistance: { requested: raw?.feeAssistance?.requested === true, note: s(raw?.feeAssistance?.note, 2000) },
+      language: raw?.language === 'es' ? 'es' : 'en',
     },
   }
 }
@@ -172,21 +185,29 @@ export async function loadOpenPrograms(organizationId: string, ids?: string[]) {
     orderBy: [{ term: 'desc' }, { name: 'asc' }],
   })
   const counts = await prisma.luxProgramRegistration.groupBy({
-    by: ['programId'],
+    by: ['programId', 'sessionId'],
     where: { programId: { in: programs.map(p => p.id) }, cancelledAt: null },
     _count: { _all: true },
   })
   return programs
     .filter(p => programIsOpen(p))
     .map(p => {
-      const registered = counts.find(c => c.programId === p.id)?._count._all ?? 0
+      const mine = counts.filter(c => c.programId === p.id)
+      const registered = mine.reduce((sum, c) => sum + c._count._all, 0)
+      const spotsLeft = p.capacity === null ? null : Math.max(0, p.capacity - registered)
       return {
         ...p,
         registered,
-        spotsLeft: p.capacity === null ? null : Math.max(0, p.capacity - registered),
+        spotsLeft,
         feeItemsList: (Array.isArray(p.feeItems) ? p.feeItems : []) as unknown as FeeItem[],
         questionsList: (Array.isArray(p.questions) ? p.questions : []) as unknown as ProgramQuestion[],
         gradesList: (Array.isArray(p.grades) ? p.grades : null) as string[] | null,
+        sessionsList: parseSessions(p.sessions).map(sess => {
+          const taken = mine.find(c => c.sessionId === sess.id)?._count._all ?? 0
+          const left = sess.capacity === null ? null : Math.max(0, sess.capacity - taken)
+          return { ...sess, spotsLeft: spotsLeft !== null && (left === null || spotsLeft < left) ? spotsLeft : left }
+        }),
+        perFamily: p.feeType === 'per_family',
       }
     })
 }
@@ -197,10 +218,12 @@ async function priorsForTerm(householdId: string | null, term: string, excludeCh
   if (!householdId) return { priorDiscountedChildren: 0, priorChargesTowardCap: 0 }
   const existing = await prisma.luxProgramRegistration.findMany({
     where: { householdId, term, cancelledAt: null, status: { not: 'cancelled' } },
-    select: { childId: true, feeAmount: true, program: { select: { siblingDiscountApplies: true, countsTowardFamilyCap: true } } },
+    select: { childId: true, feeAmount: true, program: { select: { siblingDiscountApplies: true, countsTowardFamilyCap: true, feeType: true } } },
   })
   const discountedChildren = new Set(
-    existing.filter(r => r.program.siblingDiscountApplies && !excludeChildIds.includes(r.childId)).map(r => r.childId)
+    existing
+      .filter(r => r.program.siblingDiscountApplies && r.program.feeType !== 'per_family' && !excludeChildIds.includes(r.childId))
+      .map(r => r.childId)
   )
   return {
     priorDiscountedChildren: discountedChildren.size,
@@ -221,6 +244,11 @@ export interface QuoteLine {
   siblingDiscount: number
   capAdjustment: number
   total: number
+  // One fee per family: carried by the first person; the rest are covered
+  perFamily?: boolean
+  coveredByFamilyFee?: boolean
+  // The family already paid this program's family fee on an earlier registration
+  familyFeeAlreadyPaid?: boolean
 }
 
 export interface Quote {
@@ -249,6 +277,17 @@ export async function quoteFamily(params: {
     byTerm.set(program.term, [...(byTerm.get(program.term) || []), child])
   }
 
+  // Family-fee programs this household already paid for (someone is registered)
+  const familyPrograms = params.programs.filter(p => p.feeType === 'per_family').map(p => p.id)
+  const paidFamilyPrograms = new Set(
+    params.householdId && familyPrograms.length
+      ? (await prisma.luxProgramRegistration.findMany({
+          where: { householdId: params.householdId, programId: { in: familyPrograms }, cancelledAt: null, status: 'registered' },
+          select: { programId: true },
+        })).map(r => r.programId)
+      : []
+  )
+
   const lines: QuoteLine[] = []
   for (const [term, children] of byTerm) {
     const childKey = (c: (typeof children)[number]) =>
@@ -258,38 +297,71 @@ export async function quoteFamily(params: {
       term,
       children.map(c => c.existingChildId).filter(Boolean) as string[]
     )
+    const programOf = (c: (typeof children)[number]) => params.programs.find(p => p.id === c.programId)!
+    const perPerson = children.filter(c => programOf(c).feeType !== 'per_family')
+    const familyGroups = new Map<string, typeof children>()
+    for (const c of children.filter(c => programOf(c).feeType === 'per_family')) {
+      familyGroups.set(c.programId, [...(familyGroups.get(c.programId) || []), c])
+    }
+
     const result = calculateFamilyFees({
       rules: params.rules,
       ...priors,
-      lines: children.map(c => {
-        const program = params.programs.find(p => p.id === c.programId)!
-        return {
-          key: c.key,
-          childKey: childKey(c),
-          tuition: Number(program.tuitionPerChild),
-          feeItems: program.feeItemsList,
-          siblingDiscountApplies: program.siblingDiscountApplies,
-          countsTowardFamilyCap: program.countsTowardFamilyCap,
-        }
-      }),
+      lines: [
+        ...perPerson.map(c => {
+          const program = programOf(c)
+          return {
+            key: c.key,
+            childKey: childKey(c),
+            tuition: Number(program.tuitionPerChild),
+            feeItems: program.feeItemsList,
+            siblingDiscountApplies: program.siblingDiscountApplies,
+            countsTowardFamilyCap: program.countsTowardFamilyCap,
+          }
+        }),
+        ...[...familyGroups.keys()].map(programId => {
+          const program = params.programs.find(p => p.id === programId)!
+          const alreadyPaid = paidFamilyPrograms.has(programId)
+          return {
+            key: `family:${programId}`,
+            childKey: `family:${programId}`,
+            tuition: alreadyPaid ? 0 : Number(program.tuitionPerChild),
+            feeItems: alreadyPaid ? [] : program.feeItemsList,
+            siblingDiscountApplies: false,
+            countsTowardFamilyCap: program.countsTowardFamilyCap,
+          }
+        }),
+      ],
     })
-    for (const line of result.lines) {
-      const child = children.find(c => c.key === line.key)!
-      const program = params.programs.find(p => p.id === child.programId)!
-      lines.push({
-        key: line.key,
-        childKey: line.childKey,
-        childName: `${child.firstName} ${child.lastName}`.trim(),
+
+    const zero = { base: 0, siblingDiscount: 0, capAdjustment: 0, total: 0 }
+    for (const c of children) {
+      const program = programOf(c)
+      const base = {
+        key: c.key,
+        childName: `${c.firstName} ${c.lastName}`.trim(),
         programId: program.id,
         programName: program.name,
         term,
         tuition: Number(program.tuitionPerChild),
         feeItems: program.feeItemsList,
-        base: line.base,
-        siblingDiscount: line.siblingDiscount,
-        capAdjustment: line.capAdjustment,
-        total: line.total,
-      })
+      }
+      if (program.feeType === 'per_family') {
+        const group = familyGroups.get(program.id)!
+        const line = result.lines.find(l => l.key === `family:${program.id}`)!
+        const first = group[0].key === c.key
+        lines.push({
+          ...base,
+          childKey: line.childKey,
+          ...(first ? { base: line.base, siblingDiscount: line.siblingDiscount, capAdjustment: line.capAdjustment, total: line.total } : zero),
+          perFamily: true,
+          coveredByFamilyFee: !first,
+          familyFeeAlreadyPaid: paidFamilyPrograms.has(program.id),
+        })
+      } else {
+        const line = result.lines.find(l => l.key === c.key)!
+        lines.push({ ...base, childKey: line.childKey, base: line.base, siblingDiscount: line.siblingDiscount, capAdjustment: line.capAdjustment, total: line.total })
+      }
     }
   }
 
@@ -309,8 +381,15 @@ export function checkChildrenAgainstPrograms(children: ChildInput[], programs: O
   for (const child of children) {
     const program = programs.find(p => p.id === child.programId)
     if (!program) return `${child.firstName}’s program isn’t open for registration right now.`
-    if (program.gradesList && (!child.grade || !program.gradesList.includes(child.grade))) {
+    if (!child.isAdult && program.gradesList && (!child.grade || !program.gradesList.includes(child.grade))) {
       return `${program.name} is for grades ${program.gradesList.join(', ')}. Please check ${child.firstName}’s grade.`
+    }
+    if (program.sessionsList.length > 0) {
+      const session = program.sessionsList.find(sess => sess.id === child.sessionId)
+      if (!session) return `Choose a class time for ${child.firstName} in ${program.name}.`
+      if (!child.isAdult && session.grades && (!child.grade || !session.grades.includes(child.grade))) {
+        return `${session.name} is for grades ${session.grades.join(', ')}. Please choose another class time for ${child.firstName}.`
+      }
     }
     const dupKey = `${child.childId || `${child.firstName.toLowerCase()}|${child.lastName.toLowerCase()}`}|${child.programId}`
     if (seen.has(dupKey)) return `${child.firstName} is listed twice for ${program.name}.`
@@ -354,11 +433,12 @@ function childData(c: ChildInput) {
     firstCommunionParish: c.firstCommunionParish,
     allergies: c.allergies,
     medicalNotes: c.medicalNotes,
+    isAdult: c.isAdult,
   }
 }
 
-function householdData(h: HouseholdInput) {
-  return { ...h, emailNormalized: h.email.trim().toLowerCase() }
+function householdData(h: HouseholdInput, language: 'en' | 'es') {
+  return { ...h, emailNormalized: h.email.trim().toLowerCase(), preferredLanguage: language }
 }
 
 export class RegistrationError extends Error {}
@@ -393,6 +473,13 @@ export async function registerFamily(params: {
   const { organizationId, input, rules } = params
   const programIds = [...new Set(input.children.map(c => c.programId))]
   const programs = await loadOpenPrograms(organizationId, programIds)
+  // Adults register for adult programs; everyone else is a child here
+  for (const c of input.children) {
+    const program = programs.find(p => p.id === c.programId)
+    c.isAdult = program?.audience === 'adults'
+    if (c.isAdult) c.grade = null
+    if (program && program.sessionsList.length === 0) c.sessionId = null
+  }
   const problem = checkChildrenAgainstPrograms(input.children, programs)
   if (problem) throw new RegistrationError(problem)
 
@@ -414,9 +501,9 @@ export async function registerFamily(params: {
         throw new RegistrationError('That email is already used by another family on file. Please contact the parish office.')
       }
     }
-    household = await prisma.luxHousehold.update({ where: { id: household.id }, data: householdData(input.household) })
+    household = await prisma.luxHousehold.update({ where: { id: household.id }, data: householdData(input.household, input.language) })
   } else if (!household) {
-    household = await prisma.luxHousehold.create({ data: { organizationId, ...householdData(input.household) } })
+    household = await prisma.luxHousehold.create({ data: { organizationId, ...householdData(input.household, input.language) } })
   }
   const householdId = household.id
 
@@ -505,6 +592,20 @@ export async function registerFamily(params: {
           : `Sorry, ${program.name} only has ${left} spot${left === 1 ? '' : 's'} left.`)
       }
     }
+    for (const program of chosen) {
+      for (const session of program.sessionsList) {
+        if (session.capacity === null) continue
+        const adding = input.children.filter(c => c.programId === program.id && c.sessionId === session.id).length
+        if (!adding) continue
+        const taken = await tx.luxProgramRegistration.count({ where: { programId: program.id, sessionId: session.id, cancelledAt: null } })
+        if (taken + adding > session.capacity) {
+          const left = Math.max(0, session.capacity - taken)
+          throw new RegistrationError(left === 0
+            ? `Sorry, ${session.name} (${program.name}) is full. Please choose another class time.`
+            : `Sorry, ${session.name} (${program.name}) only has ${left} spot${left === 1 ? '' : 's'} left.`)
+        }
+      }
+    }
 
     const order = await tx.luxOrder.create({
       data: {
@@ -539,6 +640,7 @@ export async function registerFamily(params: {
         term: program.term,
         status: registrationStatus,
         grade: c.grade,
+        sessionId: c.sessionId,
         feeAmount: line.total,
         discountAmount: Math.round((line.siblingDiscount + line.capAdjustment) * 100) / 100,
         answers: c.answers as any,

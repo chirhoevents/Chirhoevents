@@ -3279,6 +3279,8 @@ model LuxHousehold {
   emergencyContactName  String?  @map("emergency_contact_name") @db.VarChar(255)
   emergencyContactPhone String?  @map("emergency_contact_phone") @db.VarChar(30)
   registeredParishioner Boolean? @map("registered_parishioner")
+  // en | es: the language Lux emails this family in
+  preferredLanguage     String?  @map("preferred_language") @db.VarChar(5)
   staffNotes            String?  @map("staff_notes") @db.Text
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -3317,6 +3319,8 @@ model LuxChild {
   firstCommunionParish String?   @map("first_communion_parish") @db.VarChar(255)
   allergies            String?   @db.Text
   medicalNotes         String?   @map("medical_notes") @db.Text
+  // An adult registering for themselves (OCIA, adult faith formation)
+  isAdult              Boolean   @default(false) @map("is_adult")
   archivedAt           DateTime? @map("archived_at") @db.Timestamptz(6)
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -3362,6 +3366,14 @@ model LuxProgram {
   serviceHoursRequired   Int?      @map("service_hours_required")
   // Program-specific questions: [{id, label, type, options, required}]
   questions              Json      @default("[]") @db.JsonB
+  // Who registers: children | adults (OCIA, adult confirmation) | families
+  audience               String    @default("children") @db.VarChar(20)
+  // per_person | per_family (one fee per family, however many attend)
+  feeType                String    @default("per_person") @map("fee_type") @db.VarChar(20)
+  // Class times or groups families choose from: [{id, name, schedule, grades, capacity}]
+  sessions               Json      @default("[]") @db.JsonB
+  // Language the classes are taught in: en | es | bilingual (null = not said)
+  language               String?   @db.VarChar(20)
   confirmationMessage    String?   @map("confirmation_message") @db.Text
   // null = keep documents until the parish deletes them
   documentRetentionDays  Int?      @map("document_retention_days")
@@ -3428,6 +3440,8 @@ model LuxProgramRegistration {
   // pending_payment | registered | cancelled
   status                String    @default("pending_payment") @db.VarChar(20)
   grade                 String?   @db.VarChar(10)
+  // Which class time/group they picked (an id from LuxProgram.sessions)
+  sessionId             String?   @map("session_id") @db.VarChar(40)
   feeAmount             Decimal   @default(0) @map("fee_amount") @db.Decimal(10, 2)
   discountAmount        Decimal   @default(0) @map("discount_amount") @db.Decimal(10, 2)
   answers               Json?     @db.JsonB

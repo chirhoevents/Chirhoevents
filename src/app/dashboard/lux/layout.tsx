@@ -208,7 +208,7 @@ export default function LuxLayout({ children }: { children: React.ReactNode }) {
           >
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between h-20 px-5 border-b border-[#E8E2D4]">
-                <Link href="/dashboard/lux"><LuxLogo /></Link>
+                <Link href="/dashboard/lux"><LuxLogo size="md" subtitle /></Link>
                 <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-[#1E3A5F]" aria-label="Close menu">
                   <X className="h-6 w-6" />
                 </button>

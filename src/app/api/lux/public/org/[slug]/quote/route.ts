@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const body = await request.json().catch(() => ({}))
   const children = (Array.isArray(body.children) ? body.children : [])
     .filter((c: any) => typeof c?.programId === 'string' && typeof c?.firstName === 'string')
-    .slice(0, 12)
+    .slice(0, 15)
     .map((c: any, i: number) => ({
       key: String(c.key ?? i).slice(0, 40),
       firstName: String(c.firstName).slice(0, 100),
