@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const [org, programs, events, toReview, missing, owingOrders, assistance, recentOrders, recentEventRegs] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: orgId },
-      select: { stripeAccountId: true, stripeChargesEnabled: true, publicSlug: true, luxSettings: true, logoUrl: true, contactEmail: true },
+      select: { stripeAccountId: true, stripeChargesEnabled: true, publicSlug: true, luxSettings: true, logoUrl: true, contactEmail: true, status: true },
     }),
     prisma.luxProgram.findMany({
       where: { organizationId: orgId, status: { in: ['draft', 'open', 'closed'] } },
@@ -114,6 +114,8 @@ export async function GET(request: NextRequest) {
       paymentsReady: !!org?.stripeAccountId && !!org?.stripeChargesEnabled,
       documentStorageReady: privateBucketConfigured(),
       publicSlug: org?.publicSlug ?? null,
+      // The public parish page (and registration) only works for active orgs
+      orgStatus: org?.status ?? 'active',
       hasLogo: !!org?.logoUrl,
       hasContactEmail: !!org?.contactEmail,
       feeRulesSet: settings.feeRules.siblingDiscount.type !== 'none' || settings.feeRules.familyCap !== null,

@@ -29,6 +29,7 @@ interface Overview {
     paymentsReady: boolean
     documentStorageReady: boolean
     publicSlug: string | null
+    orgStatus: string
     hasLogo: boolean
     hasContactEmail: boolean
     feeRulesSet: boolean
@@ -122,6 +123,12 @@ export default function LuxHomePage() {
               <Button variant="ghost" href={`/lux/${setup.publicSlug}`}><ExternalLink className="h-4 w-4" /> Open</Button>
             </div>
           </div>
+          {setup.orgStatus !== 'active' && (
+            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <strong>Families can&apos;t see this page yet.</strong> This account&apos;s status is <strong>{setup.orgStatus}</strong>, so the page shows
+              &quot;not found&quot; until the account is active. Contact <a href="mailto:support@chirhoevents.com" className="underline">support@chirhoevents.com</a>.
+            </p>
+          )}
         </Card>
       )}
 

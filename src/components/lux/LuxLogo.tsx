@@ -26,10 +26,12 @@ export function useLuxBrand(initial?: LuxBrand | null): LuxBrand {
 const HEIGHTS = { sm: 24, md: 34, lg: 52, xl: 72 } as const
 
 /** The Lux logo. variant "white" is for navy backgrounds; "mark" is the arch alone. */
-export default function LuxLogo({ size = 'md', variant = 'color', subtitle = false, brand: given, className }: {
+export default function LuxLogo({ size = 'md', variant = 'color', subtitle = false, center = false, brand: given, className }: {
   size?: keyof typeof HEIGHTS
   variant?: 'color' | 'white' | 'mark'
   subtitle?: boolean
+  // Center the subtitle under the logo instead of lining it up on the left
+  center?: boolean
   brand?: LuxBrand | null
   className?: string
 }) {
@@ -37,7 +39,7 @@ export default function LuxLogo({ size = 'md', variant = 'color', subtitle = fal
   const src = variant === 'white' ? brand.logoWhite : variant === 'mark' ? brand.mark : brand.logo
   const height = HEIGHTS[size]
   return (
-    <span className={`inline-flex flex-col items-start leading-none ${className ?? ''}`}>
+    <span className={`inline-flex flex-col ${center ? 'items-center' : 'items-start'} leading-none ${className ?? ''}`}>
       {/* eslint-disable-next-line @next/next/no-img-element -- can be an uploaded URL */}
       <img src={src} alt="Lux" style={{ height }} className="w-auto" />
       {subtitle && <span className="text-[10px] uppercase tracking-[0.18em] text-[#9C8466] mt-1.5">by ChiRho Events</span>}
