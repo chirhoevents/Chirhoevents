@@ -14,6 +14,7 @@ import { SIMPLE_EVENT_STATUS_LABELS, type SimpleEventStatus } from '@/lib/lux/si
 import {
   Badge, Button, Card, ErrorNote, Field, Modal, PageHeader, Select, Spinner, StatCard, TextArea, TextInput,
 } from '@/components/lux/ui'
+import RecordPaymentModal from '@/components/lux/RecordPaymentModal'
 
 interface EventDetail {
   id: string
@@ -337,74 +338,18 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
         </Card>
       )}
 
-      <RecordPaymentModal registration={paying} onClose={() => setPaying(null)} onDone={load} />
+      <RecordPaymentModal
+        open={!!paying}
+        title={`Record payment – ${paying?.firstName ?? ''} ${paying?.lastName ?? ''}`}
+        endpoint={`/api/lux/registrations/${paying?.id}/payments`}
+        owed={paying?.balance?.amountRemaining ?? 0}
+        onClose={() => setPaying(null)}
+        onDone={load}
+      />
       <CancelModal registration={cancelling} onClose={() => setCancelling(null)} onDone={load} />
       <RefundModal registration={refunding} onClose={() => setRefunding(null)} onDone={load} />
       <ConvertModal open={converting} eventId={id} onClose={() => setConverting(false)} />
     </div>
-  )
-}
-
-function RecordPaymentModal({ registration, onClose, onDone }: { registration: Registration | null; onClose: () => void; onDone: () => void }) {
-  const api = useLuxApi()
-  const [amount, setAmount] = useState('')
-  const [method, setMethod] = useState('cash')
-  const [checkNumber, setCheckNumber] = useState('')
-  const [note, setNote] = useState('')
-  const [sendEmail, setSendEmail] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (registration) {
-      setAmount(String(registration.balance?.amountRemaining ?? ''))
-      setMethod('cash'); setCheckNumber(''); setNote(''); setError(null); setSendEmail(true)
-    }
-  }, [registration])
-
-  const save = async () => {
-    if (!registration) return
-    setSaving(true)
-    setError(null)
-    try {
-      await api(`/api/lux/registrations/${registration.id}/payments`, {
-        method: 'POST',
-        json: { amount: Number(amount), method, checkNumber, note, sendEmail },
-      })
-      toast.success('Payment recorded')
-      onClose()
-      onDone()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Modal open={!!registration} onClose={onClose} title={`Record payment – ${registration?.firstName ?? ''} ${registration?.lastName ?? ''}`}
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={save} loading={saving}>Record payment</Button></>}>
-      <div className="space-y-4">
-        <ErrorNote message={error} />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Amount"><TextInput type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /></Field>
-          <Field label="Paid by">
-            <Select value={method} onChange={e => setMethod(e.target.value)}>
-              <option value="cash">Cash</option>
-              <option value="check">Check</option>
-              <option value="card">Card at the office</option>
-              <option value="other">Other</option>
-            </Select>
-          </Field>
-        </div>
-        {method === 'check' && <Field label="Check number"><TextInput value={checkNumber} onChange={e => setCheckNumber(e.target.value)} /></Field>}
-        <Field label="Note" hint="Optional, only staff see this"><TextArea rows={2} value={note} onChange={e => setNote(e.target.value)} /></Field>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} className="rounded border-gray-300" />
-          Email them a receipt
-        </label>
-      </div>
-    </Modal>
   )
 }
 

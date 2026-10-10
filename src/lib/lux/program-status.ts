@@ -9,6 +9,14 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 }
 
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: 'Cash',
+  check: 'Check',
+  card: 'Card',
+  bank_transfer: 'Bank transfer',
+  other: 'Other',
+}
+
 export const DOCUMENT_STATUS_LABELS: Record<string, string> = {
   missing: 'Missing',
   received: 'Received – needs review',

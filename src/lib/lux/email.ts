@@ -276,6 +276,14 @@ export function programOrderEmail(data: {
   return { subject: `Registration received – ${data.organizationName}`, html }
 }
 
+function linkLifetime(minutes: number): string {
+  if (minutes >= 1440) {
+    const days = Math.round(minutes / 1440)
+    return `${days} day${days === 1 ? '' : 's'}`
+  }
+  return `${minutes} minutes`
+}
+
 export function familyLinkEmail(data: {
   organizationName: string
   guardianFirstName: string
@@ -287,7 +295,7 @@ export function familyLinkEmail(data: {
     <p>Hi ${escapeHtml(data.guardianFirstName)},</p>
     <p>Use the button below to open your family page for ${escapeHtml(data.organizationName)}. From there you can update your information, register your children for this year, and upload any documents that are still needed.</p>
     ${button(data.link, 'Open my family page')}
-    <p style="color:#6B6B6B;font-size:14px;">This link works once and expires in ${data.expiresMinutes} minutes. If you didn't ask for it, you can ignore this email.</p>`,
+    <p style="color:#6B6B6B;font-size:14px;">This link works once and expires in ${linkLifetime(data.expiresMinutes)}. If you didn't ask for it, you can ignore this email.</p>`,
     { organizationName: data.organizationName, preheader: 'Your sign-in link' }
   )
   return { subject: `Your family page link – ${data.organizationName}`, html }

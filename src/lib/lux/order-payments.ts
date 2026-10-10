@@ -1,6 +1,23 @@
 import { prisma } from '@/lib/prisma'
 import { cancelUnpaidOrders } from '@/lib/lux/family-registration'
 import { sendOrderConfirmation } from '@/lib/lux/order-emails'
+import { expireCheckoutSession } from '@/lib/lux/stripe-checkout'
+
+/**
+ * Close any card checkout still open for an order. Used when staff change
+ * what's owed (office payment, fee assistance) so the family can't pay the
+ * old amount on a checkout page left open in another tab.
+ */
+export async function closeOpenCheckouts(orderId: string): Promise<void> {
+  const open = await prisma.payment.findMany({
+    where: { registrationId: orderId, registrationType: 'lux_order', paymentStatus: 'pending' },
+    select: { id: true, stripePaymentIntentId: true },
+  })
+  for (const p of open) {
+    if (p.stripePaymentIntentId?.startsWith('cs_')) await expireCheckoutSession(p.stripePaymentIntentId)
+    await prisma.payment.update({ where: { id: p.id }, data: { paymentStatus: 'expired' } })
+  }
+}
 
 /**
  * Recompute what's been paid on a faith formation order from its succeeded

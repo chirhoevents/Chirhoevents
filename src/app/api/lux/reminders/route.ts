@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       requirement: { required: true },
       programRegistration: {
         cancelledAt: null,
+        program: { status: { not: 'archived' } },
         ...(typeof body.programId === 'string' ? { programId: body.programId } : {}),
       },
       ...(ids(body.householdIds) ? { householdId: { in: ids(body.householdIds) } } : {}),

@@ -72,21 +72,31 @@ export async function deleteFileIfUnused(storageRef: string, sizeBytes: number |
 }
 
 /**
- * Remove the files for these submissions (staff "delete documents", or the
- * retention setting) and mark them missing again.
+ * Remove the files for these submissions and mark them needed again. With
+ * keepApproved (deleting a family's records, or the retention setting),
+ * documents the parish already approved stay approved so the family isn't
+ * asked for them again.
  */
-export async function deleteSubmissionFiles(submissionIds: string[], organizationId: string): Promise<number> {
+export async function deleteSubmissionFiles(
+  submissionIds: string[],
+  organizationId: string,
+  options: { keepApproved?: boolean; note?: string } = {}
+): Promise<number> {
   const submissions = await prisma.luxDocumentSubmission.findMany({
     where: { id: { in: submissionIds }, organizationId, storageRef: { not: null } },
-    select: { id: true, storageRef: true, sizeBytes: true },
+    select: { id: true, storageRef: true, sizeBytes: true, status: true },
   })
-  await prisma.luxDocumentSubmission.updateMany({
-    where: { id: { in: submissions.map(s => s.id) } },
-    data: {
-      storageRef: null, fileName: null, contentType: null, sizeBytes: null, uploadedAt: null, uploadedVia: null,
-      status: 'missing', reviewerNote: 'File deleted',
-    },
-  })
+  const cleared = {
+    storageRef: null, fileName: null, contentType: null, sizeBytes: null, uploadedAt: null, uploadedVia: null,
+    reviewerNote: options.note ?? 'File deleted',
+  }
+  const keep = (status: string) => !!options.keepApproved && status === 'approved'
+  const approved = submissions.filter(s => keep(s.status)).map(s => s.id)
+  const others = submissions.filter(s => !keep(s.status)).map(s => s.id)
+  await prisma.$transaction([
+    prisma.luxDocumentSubmission.updateMany({ where: { id: { in: approved } }, data: cleared }),
+    prisma.luxDocumentSubmission.updateMany({ where: { id: { in: others } }, data: { ...cleared, status: 'missing' } }),
+  ])
   const refs = new Map(submissions.map(s => [s.storageRef!, s.sizeBytes]))
   for (const [ref, size] of refs) await deleteFileIfUnused(ref, size, organizationId)
   return submissions.length

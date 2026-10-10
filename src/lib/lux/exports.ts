@@ -78,7 +78,7 @@ export async function exportOutstandingDocuments(organizationId: string, q: URLS
     where: {
       organizationId,
       status: { in: ['missing', 'needs_resubmission', 'parish_lookup'] },
-      programRegistration: { cancelledAt: null, ...(programId ? { programId } : {}) },
+      programRegistration: { cancelledAt: null, program: { status: { not: 'archived' } }, ...(programId ? { programId } : {}) },
     },
     include: {
       requirement: { select: { label: true, required: true } },
