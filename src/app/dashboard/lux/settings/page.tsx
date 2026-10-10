@@ -164,6 +164,7 @@ function SettingsInner() {
   const router = useRouter()
   const search = useSearchParams()
   const { userRole } = useAdminContext()
+  const { info } = useLux()
   const canAccessIntegrations = userRole === 'org_admin' || userRole === 'master_admin'
   const canAccessTeam = userRole ? canManageTeam(userRole) : false
 
@@ -174,7 +175,8 @@ function SettingsInner() {
     { value: 'team', label: <span className="flex items-center gap-1.5"><Users className="h-4 w-4" /> Team</span>, show: canAccessTeam },
     { value: 'integrations', label: <span className="flex items-center gap-1.5"><Plug className="h-4 w-4" /> Card payments</span>, show: canAccessIntegrations },
     { value: 'billing', label: <span className="flex items-center gap-1.5"><CreditCard className="h-4 w-4" /> Plan &amp; billing</span>, show: canAccessIntegrations },
-    { value: 'notifications', label: <span className="flex items-center gap-1.5"><Bell className="h-4 w-4" /> Notifications</span>, show: true },
+    // The weekly digest and group leader emails are about full events
+    { value: 'notifications', label: <span className="flex items-center gap-1.5"><Bell className="h-4 w-4" /> Notifications</span>, show: info.modulesEnabled.events },
   ]
   const visible = tabs.filter(t => t.show)
   const requested = search.get('tab') as TabKey | null
@@ -195,9 +197,11 @@ function SettingsInner() {
       {tab === 'lux' && <LuxSettingsTab />}
       {tab === 'organization' && <OrganizationSettingsTab />}
       {tab === 'branding' && <BrandingSettingsTab />}
-      {tab === 'team' && <TeamSettingsTab />}
+      {tab === 'team' && <TeamSettingsTab variant={info.modulesEnabled.events ? 'events' : 'lux'} />}
       {tab === 'integrations' && <IntegrationsSettingsTab />}
-      {tab === 'billing' && <BillingSettingsTab />}
+      {tab === 'billing' && (
+        <BillingSettingsTab luxUsage={info.modulesEnabled.events ? undefined : { simpleEventsUsed: info.simpleEvents.used, simpleEventsLimit: info.simpleEvents.limit }} />
+      )}
       {tab === 'notifications' && <NotificationsSettingsTab />}
     </div>
   )

@@ -33,6 +33,7 @@ interface Overview {
     hasContactEmail: boolean
     feeRulesSet: boolean
     officeInstructionsSet: boolean
+    pageCustomized: boolean
     hasPrograms: boolean
     hasEvents: boolean
   }
@@ -62,6 +63,7 @@ export default function LuxHomePage() {
     { done: setup.feeRulesSet, label: 'Set your sibling discount or family maximum', href: '/dashboard/lux/settings', optional: 'If your parish offers one' },
     { done: setup.officeInstructionsSet, label: 'Add instructions for paying at the office', href: '/dashboard/lux/settings' },
     { done: setup.hasLogo, label: 'Add your parish logo', href: '/dashboard/lux/settings?tab=branding' },
+    { done: setup.pageCustomized, label: 'Make your parish page your own with a photo and a welcome', href: '/dashboard/lux/settings', optional: 'Optional' },
     { done: setup.hasContactEmail, label: 'Add a contact email so families can reply to you', href: '/dashboard/lux/settings?tab=organization' },
   ]
   const remaining = steps.filter(s => !s.done)
@@ -111,7 +113,8 @@ export default function LuxHomePage() {
       )}
 
       {setup.publicSlug && (
-        <Card title="Your parish page" description="Share this link in the bulletin, on your website or in an email. Families register for everything here.">
+        <Card title="Your parish page" description="Share this link in the bulletin, on your website or in an email. Families register for everything here."
+          actions={<Link href="/dashboard/lux/settings" className="text-sm text-[#9C8466] hover:text-[#1E3A5F]">Customize · Add to your website</Link>}>
           <div className="flex flex-col sm:flex-row gap-2">
             <code className="flex-1 rounded-lg bg-[#FAF8F3] border border-[#E8E2D4] px-3 py-2 text-sm text-[#1E3A5F] truncate">{parishUrl}</code>
             <div className="flex gap-2">
@@ -126,7 +129,7 @@ export default function LuxHomePage() {
         <Card title={<span className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-[#C8A24A]" /> Programs</span>}
           actions={<Link href="/dashboard/lux/programs" className="text-sm text-[#9C8466] hover:text-[#1E3A5F]">See all</Link>}>
           {data.programs.length === 0 ? (
-            <EmptyState title="No programs yet" description="Faith Formation, First Communion, Confirmation and more."
+            <EmptyState title="No programs yet" description="Faith Formation, First Communion, Confirmation, Baptism Preparation, OCIA and more."
               action={info.canManage && <Button href="/dashboard/lux/programs/new">Set up a program</Button>} />
           ) : (
             <div className="divide-y divide-[#F0EBDF] -mx-5">

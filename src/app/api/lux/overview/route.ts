@@ -118,6 +118,7 @@ export async function GET(request: NextRequest) {
       hasContactEmail: !!org?.contactEmail,
       feeRulesSet: settings.feeRules.siblingDiscount.type !== 'none' || settings.feeRules.familyCap !== null,
       officeInstructionsSet: !!settings.officePaymentInstructions,
+      pageCustomized: !!(settings.page.headerImageUrl || settings.page.headline || settings.page.message),
       hasPrograms: programs.length > 0,
       hasEvents: events.length > 0,
     },

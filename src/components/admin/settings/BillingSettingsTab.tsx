@@ -74,7 +74,10 @@ const statusColors: Record<string, string> = {
   overdue: 'bg-red-100 text-red-800',
 }
 
-export default function BillingSettingsTab() {
+export default function BillingSettingsTab({ luxUsage }: {
+  // Lux-only parishes: show their parish events instead of conference events and registrations
+  luxUsage?: { simpleEventsUsed: number; simpleEventsLimit: number | null }
+} = {}) {
   const { getToken } = useAuth()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<BillingData | null>(null)
@@ -227,6 +230,27 @@ export default function BillingSettingsTab() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
+            {luxUsage && (
+              <>
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm font-medium">Parish events this year</span>
+                    <span className="text-sm text-gray-500">
+                      {luxUsage.simpleEventsUsed} / {luxUsage.simpleEventsLimit ?? 'Unlimited'}
+                    </span>
+                  </div>
+                  {luxUsage.simpleEventsLimit !== null && luxUsage.simpleEventsLimit > 0 && (
+                    <Progress value={Math.min(100, (luxUsage.simpleEventsUsed / luxUsage.simpleEventsLimit) * 100)} className="h-2" />
+                  )}
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Faith formation &amp; sacrament programs</span>
+                  <span className="text-sm text-gray-500">Unlimited</span>
+                </div>
+              </>
+            )}
+
+            {!luxUsage && (<>
             {/* Events */}
             <div>
               <div className="flex justify-between mb-2">
@@ -258,6 +282,8 @@ export default function BillingSettingsTab() {
                 />
               )}
             </div>
+
+            </>)}
 
             {/* Storage */}
             <div>
