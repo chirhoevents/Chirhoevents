@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   ArrowLeft,
   Send,
@@ -72,6 +73,9 @@ const priorityConfig = {
 
 export default function TicketDetailPage({ params }: { params: Promise<{ ticketId: string }> }) {
   const resolvedParams = use(params)
+  // Also rendered inside the Lux dashboard at /dashboard/lux/support
+  const pathname = usePathname()
+  const supportBase = pathname?.startsWith('/dashboard/lux') ? '/dashboard/lux/support' : '/dashboard/admin/support'
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [loading, setLoading] = useState(true)
   const [replyMessage, setReplyMessage] = useState('')
@@ -155,7 +159,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
       <div className="text-center py-12">
         <p className="text-gray-600">Ticket not found</p>
         <Link
-          href="/dashboard/admin/support"
+          href={supportBase}
           className="text-[#1E3A5F] hover:underline mt-2 inline-block"
         >
           Back to support
@@ -172,7 +176,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ ticketI
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link
-          href="/dashboard/admin/support"
+          href={supportBase}
           className="p-2 hover:bg-gray-100 rounded-lg"
         >
           <ArrowLeft className="h-5 w-5 text-gray-600" />

@@ -3,25 +3,10 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { generateOrgAdminOnboardingEmail } from '@/emails/org-admin-onboarding'
-import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
+import { SUBSCRIPTION_TIERS, sanitizeModuleOverrides } from '@/lib/subscription-tiers'
 import { verifyClerkSessionToken } from '@/lib/jwt-auth-helper'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
-
-// Sanitize master-admin-provided module overrides at org-creation time.
-// Only explicit booleans are persisted; missing keys fall back to tier
-// defaults via resolveModuleAccess at read time.
-function sanitizeModuleOverrides(input: unknown): Record<string, boolean> {
-  if (!input || typeof input !== 'object') return {}
-  const overrides = input as Record<string, unknown>
-  const cleaned: Record<string, boolean> = {}
-  for (const key of ['poros', 'salve', 'rapha']) {
-    if (typeof overrides[key] === 'boolean') {
-      cleaned[key] = overrides[key] as boolean
-    }
-  }
-  return cleaned
-}
 
 // Helper to get clerk user ID from auth or JWT token
 async function getClerkUserId(request: NextRequest): Promise<string | null> {
@@ -232,6 +217,8 @@ export async function POST(request: NextRequest) {
         website,
         primaryColor: primaryColor || '#1E3A5F',
         secondaryColor: secondaryColor || '#9C8466',
+        // Only explicit booleans are persisted; missing keys fall back to tier
+        // defaults via resolveModuleAccess at read time
         modulesEnabled: sanitizeModuleOverrides(modulesEnabled),
         notes,
         createdByUserId: masterAdmin.id,

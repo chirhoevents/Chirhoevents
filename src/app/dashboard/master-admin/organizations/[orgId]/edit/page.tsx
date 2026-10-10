@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/nextjs'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Loader2, Building2 } from 'lucide-react'
+import { getTier } from '@/lib/subscription-tiers'
 
 interface Organization {
   id: string
@@ -27,7 +28,9 @@ interface Organization {
   storageLimitGb: number
   primaryColor: string
   secondaryColor: string
-  modulesEnabled: { poros: boolean; salve: boolean; rapha: boolean }
+  modulesEnabled: { lux: boolean; events: boolean; poros: boolean; salve: boolean; rapha: boolean }
+  luxSimpleEventsLimit: number | null
+  luxSimpleEventsLimitOverridden: boolean
   notes: string | null
   legalEntityName: string | null
   website: string | null
@@ -37,8 +40,8 @@ interface Organization {
 
 // Standard tier pricing
 const tierPricing: Record<string, { monthly: number; annual: number; setupFee: number; eventsLimit: number; registrationsLimit: number; storageLimit: number }> = {
-  chapel: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: 500, storageLimit: 5 },
-  parish: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: 1000, storageLimit: 10 },
+  chapel: { monthly: 39, annual: 468, setupFee: 99, eventsLimit: 3, registrationsLimit: -1, storageLimit: 5 },
+  parish: { monthly: 59, annual: 708, setupFee: 199, eventsLimit: 5, registrationsLimit: -1, storageLimit: 10 },
   cathedral: { monthly: 109, annual: 1080, setupFee: 349, eventsLimit: 10, registrationsLimit: 2000, storageLimit: 25 },
   shrine: { monthly: 159, annual: 1908, setupFee: 499, eventsLimit: 20, registrationsLimit: 4000, storageLimit: 100 },
   basilica: { monthly: 1250, annual: 15000, setupFee: 0, eventsLimit: -1, registrationsLimit: -1, storageLimit: 500 },
@@ -83,7 +86,9 @@ export default function EditOrganizationPage() {
     primaryColor: '#1E3A5F',
     secondaryColor: '#9C8466',
     // Initialized before fetch; overwritten by the API's resolved value when org loads.
-    modulesEnabled: { poros: false, salve: false, rapha: false },
+    modulesEnabled: { lux: false, events: true, poros: false, salve: false, rapha: false },
+    // '' = use the plan's default; -1 = unlimited
+    luxSimpleEventsLimit: '' as number | '',
     notes: '',
     legalEntityName: '',
     website: '',
@@ -121,6 +126,7 @@ export default function EditOrganizationPage() {
             primaryColor: org.primaryColor,
             secondaryColor: org.secondaryColor,
             modulesEnabled: org.modulesEnabled,
+            luxSimpleEventsLimit: org.luxSimpleEventsLimitOverridden ? (org.luxSimpleEventsLimit ?? -1) : '',
             notes: org.notes || '',
             legalEntityName: org.legalEntityName || '',
             website: org.website || '',
@@ -152,6 +158,13 @@ export default function EditOrganizationPage() {
         eventsLimit: pricing.eventsLimit,
         registrationsLimit: pricing.registrationsLimit,
         storageLimitGb: pricing.storageLimit,
+        // Chapel/Parish are Lux plans; bigger plans have the Events portal
+        // and Lux only when switched on. Adjust below before saving.
+        modulesEnabled: {
+          ...prev.modulesEnabled,
+          lux: getTier(newTier)?.features.lux ?? prev.modulesEnabled.lux,
+          events: getTier(newTier)?.features.events ?? prev.modulesEnabled.events,
+        },
       }))
     }
   }
@@ -180,7 +193,10 @@ export default function EditOrganizationPage() {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          luxSimpleEventsLimit: formData.luxSimpleEventsLimit === '' ? null : formData.luxSimpleEventsLimit,
+        }),
       })
 
       if (response.ok) {
@@ -512,12 +528,64 @@ export default function EditOrganizationPage() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lux simple events per year
+              </label>
+              <input
+                type="number"
+                min={-1}
+                value={formData.luxSimpleEventsLimit}
+                placeholder={(() => {
+                  const planLimit = getTier(formData.subscriptionTier)?.luxSimpleEventsPerYear
+                  return `Plan default (${planLimit === null || planLimit === undefined ? 'unlimited' : planLimit})`
+                })()}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  luxSimpleEventsLimit: e.target.value === '' ? '' : Number(e.target.value),
+                })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Leave blank for the plan default, -1 for unlimited. Faith formation programs are never limited.</p>
+            </div>
           </div>
         </div>
 
         {/* Modules */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Enabled Modules</h2>
+          <div className="space-y-3 pb-4 mb-4 border-b border-gray-200">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.modulesEnabled.lux}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  modulesEnabled: { ...formData.modulesEnabled, lux: e.target.checked }
+                })}
+                className="h-4 w-4 mt-0.5 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">
+                <span className="font-medium">Lux</span> (simple events, sign-ups and faith formation)
+                <span className="block text-xs text-gray-500">Included with Chapel and Parish. Turn on for bigger plans only when the org asks for it.</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.modulesEnabled.events}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  modulesEnabled: { ...formData.modulesEnabled, events: e.target.checked }
+                })}
+                className="h-4 w-4 mt-0.5 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">
+                <span className="font-medium">Full Events portal</span> (group registration, housing, staff and vendors)
+                <span className="block text-xs text-gray-500">Off for new Chapel and Parish orgs. Orgs that existed before Lux keep it.</span>
+              </span>
+            </label>
+          </div>
           <div className="space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input

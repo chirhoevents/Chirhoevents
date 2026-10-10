@@ -5,6 +5,7 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 // Fix #14: Route pattern → rate limit config
 const RATE_LIMIT_RULES: Array<{ pattern: RegExp; configKey: keyof typeof RATE_LIMITS }> = [
   { pattern: /^\/api\/registration\//, configKey: 'registration' },
+  { pattern: /^\/api\/lux\/public\//, configKey: 'publicLookup' },  // Lux family pages (uploads etc.); family links also have their own DB-backed limits
   { pattern: /^\/api\/group-leader\/payments\//, configKey: 'payment' },
   { pattern: /^\/api\/admin\/virtual-terminal\//, configKey: 'payment' },
   { pattern: /^\/api\/invoices\//, configKey: 'payment' },
@@ -45,6 +46,9 @@ const isPublicRoute = createRouteMatcher([
   '/dashboard(.*)',  // All dashboard routes - they handle their own auth
   '/api/poros(.*)',  // Poros participant APIs - public, endpoints handle their own auth
   '/api/user/role',  // Needed by dashboard redirect page
+  '/api/user/last-dashboard',  // Events/Lux switcher - handles its own auth
+  '/lux(.*)',  // Public Lux parish pages, family registration and family links
+  '/api/lux(.*)',  // Lux APIs - staff routes check auth themselves, /api/lux/public is for families
   '/api/master-admin(.*)',  // Master admin APIs - handle their own auth
   '/api/admin(.*)',  // Admin APIs - handle their own auth
   '/api/group-leader(.*)',  // Group leader APIs - handle their own auth

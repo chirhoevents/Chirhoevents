@@ -10,6 +10,7 @@ import {
   releaseRegistrationAssignments,
   deleteRegistrationPermanently,
 } from '@/lib/registration-cleanup'
+import { releaseTicketOptionCapacity } from '@/lib/lux/registrations'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -76,6 +77,9 @@ export async function abandonUnpaidCheckout(
             roomType: true,
             ticketType: true,
             dayPassOptionId: true,
+            // Lux simple events: one registration can hold several tickets
+            ticketQuantity: true,
+            ticketSelections: true,
           },
         })
 
@@ -158,7 +162,9 @@ export async function abandonUnpaidCheckout(
   }
 
   // Give back what the registration route took, mirroring its decrements.
-  const count = type === 'group' ? (registration as { totalParticipants: number }).totalParticipants || 0 : 1
+  const count = type === 'group'
+    ? (registration as { totalParticipants: number }).totalParticipants || 0
+    : (registration as { ticketQuantity: number }).ticketQuantity || 1
   const roomType = type === 'individual' ? ((registration as { roomType: string | null }).roomType as RoomType | null) : null
 
   if (registration.ticketType === 'day_pass') {
@@ -174,9 +180,15 @@ export async function abandonUnpaidCheckout(
     SET capacity_remaining = LEAST(capacity_total, capacity_remaining + ${count})
     WHERE id = ${registration.eventId}::uuid AND capacity_remaining IS NOT NULL
   `
+  // Lux simple events also limit each ticket type
+  if (type === 'individual') {
+    await releaseTicketOptionCapacity((registration as { ticketSelections: unknown }).ticketSelections)
+  }
+  // registrationsUsed counts registrations for individuals (one per
+  // registration however many tickets it holds), people for groups
   await prisma.organization.update({
     where: { id: registration.organizationId },
-    data: { registrationsUsed: { decrement: count } },
+    data: { registrationsUsed: { decrement: type === 'group' ? count : 1 } },
   })
 
   // Give back coupon uses claimed at registration (deleted with the

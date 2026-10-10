@@ -8,6 +8,9 @@ import { generateGroupRegistrationConfirmationEmail, wrapEmail, emailInfoBox } f
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { markWaitlistAsRegistered } from '@/lib/waitlist-utils'
 import { buildIndividualConfirmedEmail } from '@/lib/individual-confirmation-email'
+import { parseSimpleEventConfig } from '@/lib/lux/simple-event'
+import { ticketLines } from '@/lib/lux/registrations'
+import { sendLuxEmail, simpleEventConfirmationEmail } from '@/lib/lux/email'
 import { abandonUnpaidCheckout } from '@/lib/abandoned-checkout'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -506,23 +509,28 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        // Send confirmation email with QR code
-        const confirmedEmail = buildIndividualConfirmedEmail({
-          registration: {
-            ...registration,
-            dayPassName: registration.dayPassOption?.name,
-            parentToken: registration.liabilityForms[0]?.parentToken,
-          },
-          event: registration.event,
-          payment: { method: 'card', receiptUrl: chargeReceiptUrl },
-        })
-        await resend.emails.send({
-          from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-          reply_to: resolveReplyTo(registration.event.settings, registration.event.organization),
-          to: registration.email,
-          subject: confirmedEmail.subject,
-          html: confirmedEmail.html,
-        })
+        if (registration.event.mode === 'simple') {
+          // Lux simple event: the confirmation comes from Lux, with tickets
+          await sendLuxSimpleEventConfirmation(registration, actualAmountPaid, chargeReceiptUrl)
+        } else {
+          // Send confirmation email with QR code
+          const confirmedEmail = buildIndividualConfirmedEmail({
+            registration: {
+              ...registration,
+              dayPassName: registration.dayPassOption?.name,
+              parentToken: registration.liabilityForms[0]?.parentToken,
+            },
+            event: registration.event,
+            payment: { method: 'card', receiptUrl: chargeReceiptUrl },
+          })
+          await resend.emails.send({
+            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
+            reply_to: resolveReplyTo(registration.event.settings, registration.event.organization),
+            to: registration.email,
+            subject: confirmedEmail.subject,
+            html: confirmedEmail.html,
+          })
+        }
 
         console.log('✅ Individual registration confirmed and email sent to:', registration.email)
 
@@ -1293,4 +1301,72 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ received: true })
+}
+
+/** Confirmation email for a paid Lux simple-event registration */
+async function sendLuxSimpleEventConfirmation(
+  registration: {
+    id: string
+    eventId: string
+    organizationId: string
+    firstName: string
+    lastName: string
+    email: string
+    confirmationCode: string | null
+    ticketSelections: unknown
+    event: {
+      name: string
+      slug: string
+      startDate: Date
+      endDate: Date
+      startTime: string | null
+      endTime: string | null
+      locationName: string | null
+      locationAddress: unknown
+      luxConfig: unknown
+      settings: { contactEmail: string | null } | null
+      organization: { name: string; contactEmail: string | null }
+    }
+  },
+  amountPaid: number,
+  receiptUrl: string | null
+) {
+  const config = parseSimpleEventConfig(registration.event.luxConfig)
+  const email = simpleEventConfirmationEmail({
+    organizationName: registration.event.organization.name,
+    firstName: registration.firstName,
+    confirmationCode: registration.confirmationCode || '',
+    event: {
+      name: registration.event.name,
+      slug: registration.event.slug,
+      startDate: registration.event.startDate,
+      endDate: registration.event.endDate,
+      startTime: registration.event.startTime,
+      endTime: registration.event.endTime,
+      locationName: registration.event.locationName,
+      locationAddress: (registration.event.locationAddress as { address?: string } | null)?.address ?? null,
+    },
+    lines: ticketLines(registration.ticketSelections).map(l => ({
+      name: l.name || 'Ticket',
+      quantity: Number(l.quantity) || 0,
+      unitPrice: Number(l.unitPrice) || 0,
+      amount: Number(l.amount) || 0,
+    })),
+    total: amountPaid,
+    payment: 'paid',
+    receiptUrl,
+    confirmationMessage: config.confirmationMessage,
+  })
+  await sendLuxEmail({
+    organizationId: registration.organizationId,
+    organizationName: registration.event.organization.name,
+    to: registration.email,
+    recipientName: `${registration.firstName} ${registration.lastName}`,
+    replyTo: resolveReplyTo(registration.event.settings, registration.event.organization),
+    eventId: registration.eventId,
+    registrationId: registration.id,
+    registrationType: 'individual',
+    emailType: 'lux_event_confirmation_paid',
+    ...email,
+  })
 }

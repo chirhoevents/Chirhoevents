@@ -29,6 +29,8 @@ import ImpersonationBanner from '@/components/admin/ImpersonationBanner'
 import SubscriptionPausedBanner from '@/components/admin/SubscriptionPausedBanner'
 import OverdueInvoicesModal from '@/components/admin/OverdueInvoicesModal'
 import { AdminProvider } from '@/contexts/AdminContext'
+import { type ModuleAccess } from '@/lib/subscription-tiers'
+import DashboardSwitcher from '@/components/lux/DashboardSwitcher'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,11 +44,7 @@ interface UserInfo {
   userRole: UserRole
   permissions?: string[]
   logoUrl?: string | null
-  modulesEnabled?: {
-    poros: boolean
-    salve: boolean
-    rapha: boolean
-  }
+  modulesEnabled?: ModuleAccess
   subscriptionTier?: string | null
   primaryColor?: string
   secondaryColor?: string
@@ -81,6 +79,20 @@ const allNavigation: NavItem[] = [
   { name: 'Support', href: '/dashboard/admin/support', icon: HelpCircle },
   { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings, permission: 'settings.view' },
 ]
+
+// Where a Lux-only org lands when it opens an Events portal link. Settings
+// (e.g. returning from Stripe Connect) and support have Lux equivalents.
+function luxEquivalentPath(): string {
+  if (typeof window === 'undefined') return '/dashboard/lux'
+  const { pathname, search } = window.location
+  for (const section of ['settings', 'support']) {
+    const prefix = `/dashboard/admin/${section}`
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+      return `/dashboard/lux/${section}${pathname.slice(prefix.length)}${search}`
+    }
+  }
+  return '/dashboard/lux'
+}
 
 export default function AdminLayout({
   children,
@@ -177,6 +189,11 @@ export default function AdminLayout({
           }
 
           const retryData = await retryResponse.json()
+          if (retryData.modulesEnabled && retryData.modulesEnabled.events === false && retryData.modulesEnabled.lux) {
+            hasRedirected.current = true
+            router.replace(luxEquivalentPath())
+            return
+          }
           setUserInfo({
             organizationId: retryData.organizationId,
             organizationName: retryData.organizationName,
@@ -204,6 +221,13 @@ export default function AdminLayout({
         }
 
         const data = await response.json()
+        // Orgs without the full Events portal (Chapel/Parish Lux plans) use
+        // the Lux dashboard instead
+        if (data.modulesEnabled && data.modulesEnabled.events === false && data.modulesEnabled.lux) {
+          hasRedirected.current = true
+          router.replace(luxEquivalentPath())
+          return
+        }
         console.log('✅ [Admin Layout] Auth successful!')
         console.log('✅ [Admin Layout] User:', data.email, '| Role:', data.userRole)
         console.log('✅ [Admin Layout] Org:', data.organizationName)
@@ -478,6 +502,11 @@ export default function AdminLayout({
             )}
 
             <div className="ml-auto flex items-center gap-4">
+              {/* Switch to Lux when the org has both dashboards */}
+              {userInfo?.modulesEnabled?.lux && (
+                <DashboardSwitcher current="events" />
+              )}
+
               {/* Quick Actions Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

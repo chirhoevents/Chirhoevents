@@ -2,6 +2,8 @@ import { NextResponse, NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { verifyClerkSessionToken } from '@/lib/jwt-auth-helper'
+import { resolveModuleAccess } from '@/lib/subscription-tiers'
+import { resolveLandingDashboard } from '@/lib/lux/routing'
 
 /**
  * GET /api/user/role
@@ -42,6 +44,8 @@ export async function GET(request: NextRequest) {
         email: true,
         role: true,
         organizationId: true,
+        lastDashboard: true,
+        organization: { select: { subscriptionTier: true, modulesEnabled: true } },
       },
     })
 
@@ -54,11 +58,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Lux-only orgs land on Lux; orgs with both land on the one used last
+    const dashboard = user.organization
+      ? resolveLandingDashboard({
+          role: user.role,
+          modules: resolveModuleAccess(user.organization.modulesEnabled, user.organization.subscriptionTier),
+          lastDashboard: user.lastDashboard,
+        })
+      : null
+
     return NextResponse.json({
       userId: user.id,
       email: user.email,
       role: user.role,
       hasOrganization: !!user.organizationId,
+      dashboard,
     })
   } catch (error) {
     console.error('Error getting user role:', error)
