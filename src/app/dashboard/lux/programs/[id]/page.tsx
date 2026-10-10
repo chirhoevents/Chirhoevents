@@ -22,6 +22,7 @@ interface RosterEntry {
   status: string
   cancelledAt: string | null
   grade: string | null
+  sessionId: string | null
   feeAmount: number
   discountAmount: number
   answers: Record<string, unknown> | null
@@ -32,6 +33,7 @@ interface RosterEntry {
     id: string; firstName: string; lastName: string; dateOfBirth: string | null; gender: string | null; baptized: boolean | null
     baptismDate: string | null; baptismParish: string | null; baptismCity: string | null; baptizedAtThisParish: boolean
     allergies: string | null; medicalNotes: string | null; school: string | null; firstCommunionDate: string | null; firstCommunionParish: string | null
+    isAdult: boolean
   }
   household: { id: string; guardian1FirstName: string; guardian1LastName: string; guardian2FirstName: string | null; guardian2LastName: string | null; email: string; phone: string }
   order: { id: string; status: string; confirmationCode: string; amountDue: number; amountPaid: number; feeAssistanceStatus: string } | null
@@ -39,7 +41,12 @@ interface RosterEntry {
   documentSummary: { required: number; done: number; outstandingFromFamily: number; awaitingStaff: number }
 }
 interface RosterData {
-  program: { id: string; name: string; term: string; collectSponsor: boolean; collectServiceHours: boolean; serviceHoursRequired: number | null; questions: Array<{ id: string; label: string }> }
+  program: {
+    id: string; name: string; term: string; collectSponsor: boolean; collectServiceHours: boolean; serviceHoursRequired: number | null
+    questions: Array<{ id: string; label: string }>
+    audience: 'children' | 'adults' | 'families'; feeType: 'per_person' | 'per_family'
+    sessions: Array<{ id: string; name: string; schedule: string; capacity: number | null }>
+  }
   requirements: Requirement[]
   registrations: RosterEntry[]
 }
@@ -62,6 +69,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
   const [grade, setGrade] = useState('')
   const [payment, setPayment] = useState('')
   const [docs, setDocs] = useState('')
+  const [session, setSession] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [panel, setPanel] = useState<{ doc: PanelDocument; label: string; childName: string } | null>(null)
   const [cancelling, setCancelling] = useState<RosterEntry | null>(null)
@@ -85,6 +93,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
     return data.registrations.filter(r => {
       if (q && !`${r.child.firstName} ${r.child.lastName} ${r.household.guardian1FirstName} ${r.household.guardian1LastName} ${r.household.email}`.toLowerCase().includes(q)) return false
       if (grade && r.grade !== grade) return false
+      if (session && r.sessionId !== session) return false
       if (payment === 'paid' && !['paid', 'waived'].includes(r.order?.status ?? '')) return false
       if (payment === 'owes' && ['paid', 'waived'].includes(r.order?.status ?? '')) return false
       if (payment === 'assistance' && r.order?.feeAssistanceStatus !== 'requested') return false
@@ -93,7 +102,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
       if (docs === 'review' && r.documentSummary.awaitingStaff === 0) return false
       return true
     })
-  }, [data, query, grade, payment, docs])
+  }, [data, query, grade, payment, docs, session])
 
   const stats = useMemo(() => {
     const regs = data?.registrations ?? []
@@ -192,18 +201,44 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
         <StatCard label="Waiting for your review" value={stats.toReview} tone={stats.toReview ? 'warn' : 'default'} hint="documents" />
       </div>
 
+      {data.program.sessions.length > 0 && (
+        <Card title="Class times">
+          <div className="flex flex-wrap gap-2">
+            {data.program.sessions.map(sess => {
+              const count = data.registrations.filter(r => !r.cancelledAt && r.sessionId === sess.id).length
+              const full = sess.capacity !== null && count >= sess.capacity
+              return (
+                <button key={sess.id} type="button" onClick={() => setSession(session === sess.id ? '' : sess.id)}
+                  className={`rounded-lg border px-3 py-2 text-left text-sm ${session === sess.id ? 'border-[#C8A24A] bg-[#FFFDF8]' : 'border-[#E8E2D4] hover:border-[#C8A24A]'}`}>
+                  <span className="block font-medium text-[#1E3A5F]">{sess.name}</span>
+                  <span className={`block text-xs ${full ? 'text-amber-700' : 'text-gray-500'}`}>{count}{sess.capacity !== null ? ` / ${sess.capacity}` : ''} registered{sess.schedule ? ` · ${sess.schedule}` : ''}</span>
+                </button>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+
       <Card>
         <Tabs value={tab} onChange={setTab} tabs={[{ value: 'roster', label: 'Roster' }, { value: 'documents', label: 'Documents checklist' }]} />
 
         <div className="flex flex-col lg:flex-row gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="h-4 w-4 text-gray-400 absolute left-3 top-2.5" />
-            <TextInput className="pl-9" placeholder="Search child or parent" value={query} onChange={e => setQuery(e.target.value)} />
+            <TextInput className="pl-9" placeholder={data.program.audience === 'adults' ? 'Search by name or email' : 'Search child or parent'} value={query} onChange={e => setQuery(e.target.value)} />
           </div>
-          <Select value={grade} onChange={e => setGrade(e.target.value)} className="lg:w-36">
-            <option value="">All grades</option>
-            {GRADE_OPTIONS.map(g => <option key={g} value={g}>{gradeLabel(g)}</option>)}
-          </Select>
+          {data.program.sessions.length > 0 && (
+            <Select value={session} onChange={e => setSession(e.target.value)} className="lg:w-44">
+              <option value="">All class times</option>
+              {data.program.sessions.map(sess => <option key={sess.id} value={sess.id}>{sess.name}</option>)}
+            </Select>
+          )}
+          {data.program.audience !== 'adults' && (
+            <Select value={grade} onChange={e => setGrade(e.target.value)} className="lg:w-36">
+              <option value="">All grades</option>
+              {GRADE_OPTIONS.map(g => <option key={g} value={g}>{gradeLabel(g)}</option>)}
+            </Select>
+          )}
           <Select value={payment} onChange={e => setPayment(e.target.value)} className="lg:w-44">
             <option value="">Any payment</option>
             <option value="paid">Paid</option>
@@ -219,7 +254,7 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          <Button variant="secondary" onClick={() => downloadFromApi(getToken, exportUrl('program-roster', grade ? `&grade=${grade}` : '') + (payment ? `&payment=${payment === 'assistance' ? 'owes' : payment}` : '') + (docs && docs !== 'review' ? `&docs=${docs}` : ''), 'roster.csv').catch(e => toast.error(e.message))}>
+          <Button variant="secondary" onClick={() => downloadFromApi(getToken, exportUrl('program-roster', (grade ? `&grade=${grade}` : '') + (session ? `&session=${session}` : '')) + (payment ? `&payment=${payment === 'assistance' ? 'owes' : payment}` : '') + (docs && docs !== 'review' ? `&docs=${docs}` : ''), 'roster.csv').catch(e => toast.error(e.message))}>
             <Download className="h-4 w-4" /> Export roster
           </Button>
           <Button variant="secondary" onClick={() => downloadFromApi(getToken, exportUrl('outstanding-documents'), 'outstanding-documents.csv').catch(e => toast.error(e.message))}>
@@ -244,7 +279,13 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
                     {open ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-[#1E3A5F] truncate">{r.child.firstName} {r.child.lastName}</p>
-                      <p className="text-xs text-gray-500 truncate">{gradeLabel(r.grade)} · {r.household.guardian1FirstName} {r.household.guardian1LastName}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {[
+                          r.child.isAdult ? 'Adult' : gradeLabel(r.grade),
+                          data.program.sessions.find(sess => sess.id === r.sessionId)?.name,
+                          r.child.isAdult ? r.household.email : `${r.household.guardian1FirstName} ${r.household.guardian1LastName}`,
+                        ].filter(Boolean).join(' · ')}
+                      </p>
                     </div>
                     <div className="hidden sm:block w-32 text-right">
                       <Badge tone={r.documentSummary.outstandingFromFamily ? 'amber' : r.documentSummary.awaitingStaff ? 'blue' : 'green'}>

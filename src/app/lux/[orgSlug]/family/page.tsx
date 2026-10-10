@@ -14,6 +14,7 @@ import DocumentUploadList from '@/components/lux/public/DocumentUploadList'
 import FamilyDetailsForm from '@/components/lux/public/FamilyDetailsForm'
 import FamilySignOut from '@/components/lux/public/FamilySignOut'
 import { getLuxLang } from '@/lib/lux/i18n-server'
+import { parseSessions } from '@/lib/lux/program-templates'
 import { dict } from '@/lib/lux/i18n'
 
 export const dynamic = 'force-dynamic'
@@ -66,7 +67,7 @@ export default async function FamilyPage({ params }: Props) {
       children: { where: { archivedAt: null }, orderBy: { dateOfBirth: 'asc' } },
       registrations: {
         where: { cancelledAt: null, program: { status: { not: 'archived' } } },
-        include: { program: { select: { name: true, term: true } } },
+        include: { program: { select: { name: true, term: true, sessions: true } } },
         orderBy: { createdAt: 'desc' },
       },
       orders: { where: { status: { not: 'cancelled' } }, orderBy: { createdAt: 'desc' } },
@@ -147,6 +148,7 @@ export default async function FamilyPage({ params }: Props) {
                     ) : regs.map(r => (
                       <p key={r.id} className="text-gray-700">
                         {r.program.name} <span className="text-gray-500">({r.program.term})</span>
+                        {(() => { const sess = parseSessions(r.program.sessions).find(x => x.id === r.sessionId); return sess ? <span className="block text-xs text-gray-500">{sess.name}{sess.schedule ? ` · ${sess.schedule}` : ''}</span> : null })()}
                         {r.status === 'pending_payment' && <span className="text-amber-700"> · {f.waitingPayment}</span>}
                       </p>
                     ))}

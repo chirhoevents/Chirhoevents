@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireLuxStaff, luxAudit, clientIp } from '@/lib/lux/access'
+import { parseSessions } from '@/lib/lux/program-templates'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       children: { orderBy: [{ archivedAt: 'asc' }, { dateOfBirth: 'asc' }] },
       registrations: {
         include: {
-          program: { select: { id: true, name: true, term: true, status: true } },
+          program: { select: { id: true, name: true, term: true, status: true, sessions: true } },
           documents: {
             include: { requirement: { select: { label: true, required: true, displayOrder: true } } },
           },
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       firstCommunionParish: c.firstCommunionParish,
       allergies: c.allergies,
       medicalNotes: c.medicalNotes,
+      isAdult: c.isAdult,
       archived: !!c.archivedAt,
     })),
     registrations: household.registrations.map(r => ({
@@ -88,6 +90,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       programArchived: r.program.status === 'archived',
       term: r.term,
       grade: r.grade,
+      session: parseSessions(r.program.sessions).find(sess => sess.id === r.sessionId)?.name ?? null,
       status: r.cancelledAt ? 'cancelled' : r.status,
       feeAmount: Number(r.feeAmount),
       documents: r.documents

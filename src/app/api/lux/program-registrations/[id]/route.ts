@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { clientIp, luxAudit, requireLuxStaff } from '@/lib/lux/access'
+import { cancelProgramRegistration, OrderActionError } from '@/lib/lux/order-staff-actions'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -17,56 +18,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const registration = await prisma.luxProgramRegistration.findFirst({
     where: { id, organizationId: ctx.organizationId },
-    include: { order: true, program: { select: { feeType: true } } },
+    select: { id: true },
   })
   if (!registration) return NextResponse.json({ error: 'Registration not found' }, { status: 404 })
 
   if (body.action === 'cancel') {
-    if (registration.cancelledAt) return NextResponse.json({ error: 'Already cancelled.' }, { status: 400 })
-    await prisma.luxProgramRegistration.update({
-      where: { id },
-      data: {
-        status: 'cancelled',
-        cancelledAt: new Date(),
-        staffNotes: [registration.staffNotes, typeof body.reason === 'string' && body.reason.trim() ? `Cancelled: ${body.reason.trim()}` : null]
-          .filter(Boolean).join('\n') || null,
-      },
-    })
-    // A family fee stays with the family while anyone is still registered:
-    // move it to another family member in the same registration
-    const fee = Number(registration.feeAmount)
-    let feeMoved = false
-    if (registration.program.feeType === 'per_family' && fee > 0 && registration.orderId) {
-      const other = await prisma.luxProgramRegistration.findFirst({
-        where: { orderId: registration.orderId, programId: registration.programId, cancelledAt: null, id: { not: id } },
-        orderBy: { createdAt: 'asc' },
-      })
-      if (other) {
-        await prisma.$transaction([
-          prisma.luxProgramRegistration.update({
-            where: { id: other.id },
-            data: { feeAmount: registration.feeAmount, discountAmount: registration.discountAmount },
-          }),
-          prisma.luxProgramRegistration.update({ where: { id }, data: { feeAmount: 0, discountAmount: 0 } }),
-        ])
-        feeMoved = true
-      }
-    }
-
-    const order = registration.order
-    if (!feeMoved && order && ['office_pending', 'assistance_requested', 'pending_payment'].includes(order.status)) {
-      // Take this person's fee off what's still owed
-      const newDue = Math.max(Number(order.amountPaid), Math.round((Number(order.amountDue) - fee) * 100) / 100)
-      const stillActive = await prisma.luxProgramRegistration.count({ where: { orderId: order.id, cancelledAt: null } })
-      await prisma.luxOrder.update({
-        where: { id: order.id },
-        data: {
-          amountDue: newDue,
-          total: Math.max(0, Math.round((Number(order.total) - fee) * 100) / 100),
-          status: stillActive === 0 && Number(order.amountPaid) === 0 ? 'cancelled'
-            : newDue <= Number(order.amountPaid) ? 'paid' : order.status,
-        },
-      })
+    try {
+      await cancelProgramRegistration({ organizationId: ctx.organizationId, registrationId: id, reason: body.reason })
+    } catch (e) {
+      if (e instanceof OrderActionError) return NextResponse.json({ error: e.message }, { status: e.status })
+      throw e
     }
     await luxAudit({
       organizationId: ctx.organizationId,

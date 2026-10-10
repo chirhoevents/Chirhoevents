@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { parseSessions } from '@/lib/lux/program-templates'
 import { prisma, prismaIncludingCancelled } from '@/lib/prisma'
 import { toCsv, csvResponse } from '@/lib/lux/csv'
 import { gradeLabel } from '@/lib/lux/format'
@@ -21,11 +22,14 @@ export async function exportProgramRoster(organizationId: string, q: URLSearchPa
     orderBy: [{ child: { lastName: 'asc' } }, { child: { firstName: 'asc' } }],
   })
   const questions = (Array.isArray(program.questions) ? program.questions : []) as Array<{ id: string; label: string }>
+  const sessions = parseSessions(program.sessions)
+  const sessionFilter = q.get('session')
   const payment = q.get('payment')
   const docs = q.get('docs')
 
   const rows = registrations
     .filter(r => {
+      if (sessionFilter && r.sessionId !== sessionFilter) return false
       if (payment === 'paid' && !['paid', 'waived'].includes(r.order?.status ?? '')) return false
       if (payment === 'owes' && ['paid', 'waived'].includes(r.order?.status ?? '')) return false
       const summary = documentsSummary(program.requirements, r.documents)
@@ -40,7 +44,9 @@ export async function exportProgramRoster(organizationId: string, q: URLSearchPa
       const sponsor = (r.sponsorInfo ?? {}) as Record<string, string>
       const answers = (r.answers ?? {}) as Record<string, unknown>
       return [
-        c.firstName, c.lastName, gradeLabel(r.grade || c.grade), day(c.dateOfBirth), c.gender ?? '',
+        c.firstName, c.lastName, c.isAdult ? 'Adult' : gradeLabel(r.grade || c.grade),
+        ...(sessions.length ? [sessions.find(sess => sess.id === r.sessionId)?.name ?? ''] : []),
+        day(c.dateOfBirth), c.gender ?? '',
         `${h.guardian1FirstName} ${h.guardian1LastName}`, h.guardian2FirstName ? `${h.guardian2FirstName} ${h.guardian2LastName ?? ''}`.trim() : '',
         h.email, h.phone, [h.street, h.city, h.state, h.zip].filter(Boolean).join(', '),
         c.baptized === null ? '' : c.baptized ? 'Yes' : 'No', day(c.baptismDate), c.baptizedAtThisParish ? 'This parish' : c.baptismParish ?? '',
@@ -62,7 +68,9 @@ export async function exportProgramRoster(organizationId: string, q: URLSearchPa
     })
 
   const headers = [
-    'Child first name', 'Child last name', 'Grade', 'Date of birth', 'Gender', 'Guardian', 'Second guardian',
+    program.audience === 'adults' ? 'First name' : 'Child first name', program.audience === 'adults' ? 'Last name' : 'Child last name', 'Grade',
+    ...(sessions.length ? ['Class time'] : []),
+    'Date of birth', 'Gender', program.audience === 'adults' ? 'Contact' : 'Guardian', 'Second guardian',
     'Email', 'Phone', 'Address', 'Baptized', 'Baptism date', 'Baptism parish', 'Allergies', 'Medical notes',
     ...(program.collectSponsor ? ['Sponsor', 'Sponsor email', 'Sponsor parish'] : []),
     ...(program.collectServiceHours ? ['Service hours'] : []),

@@ -26,11 +26,11 @@ interface Child {
   id: string; firstName: string; lastName: string; dateOfBirth: string | null; gender: string | null; grade: string | null
   school: string | null; baptized: boolean | null; baptismDate: string | null; baptismParish: string | null; baptismCity: string | null
   baptizedAtThisParish: boolean; firstCommunionDate: string | null; firstCommunionParish: string | null
-  allergies: string | null; medicalNotes: string | null; archived: boolean
+  allergies: string | null; medicalNotes: string | null; archived: boolean; isAdult: boolean
 }
 interface Registration {
   id: string; childId: string; orderId: string | null; programId: string; programName: string; programArchived: boolean
-  term: string; grade: string | null; status: string; feeAmount: number
+  term: string; grade: string | null; session: string | null; status: string; feeAmount: number
   documents: Array<PanelDocument & { label: string; required: boolean }>
 }
 interface Order {
@@ -142,8 +142,8 @@ export default function HouseholdDetailPage({ params }: { params: Promise<{ id: 
           {visibleChildren.map(c => {
             const regs = registrations.filter(r => r.childId === c.id && (!r.programArchived || r.status !== 'cancelled'))
             return (
-              <Card key={c.id} title={<span>{c.firstName} {c.lastName}{c.archived && <span className="ml-2"><Badge>Archived</Badge></span>}</span>}
-                description={[c.grade && gradeLabel(c.grade), age(c.dateOfBirth) && `age ${age(c.dateOfBirth)}`, c.dateOfBirth && `born ${formatShortDate(c.dateOfBirth)}`, c.school].filter(Boolean).join(' · ')}>
+              <Card key={c.id} title={<span>{c.firstName} {c.lastName}{c.isAdult && <span className="ml-2"><Badge tone="blue">Adult</Badge></span>}{c.archived && <span className="ml-2"><Badge>Archived</Badge></span>}</span>}
+                description={[!c.isAdult && c.grade && gradeLabel(c.grade), !c.isAdult && age(c.dateOfBirth) && `age ${age(c.dateOfBirth)}`, c.dateOfBirth && `born ${formatShortDate(c.dateOfBirth)}`, c.school].filter(Boolean).join(' · ')}>
                 <div className="space-y-4 text-sm">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <p className="flex gap-2"><Droplets className="h-4 w-4 text-[#C8A24A] shrink-0 mt-0.5" />
@@ -163,7 +163,7 @@ export default function HouseholdDetailPage({ params }: { params: Promise<{ id: 
                   {regs.length === 0 ? <p className="text-gray-500">Not registered for a current program.</p> : regs.map(r => (
                     <div key={r.id} className="rounded-lg border border-[#E8E2D4]">
                       <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#FAF8F3] rounded-t-lg">
-                        <Link href={`/dashboard/lux/programs/${r.programId}`} className="font-medium text-[#1E3A5F] hover:underline">{r.programName} <span className="font-normal text-gray-500">· {r.term}</span></Link>
+                        <Link href={`/dashboard/lux/programs/${r.programId}`} className="font-medium text-[#1E3A5F] hover:underline">{r.programName} <span className="font-normal text-gray-500">· {r.term}{r.session ? ` · ${r.session}` : ''}</span></Link>
                         <span className="flex items-center gap-2"><span className="text-gray-600">{formatMoney(r.feeAmount)}</span><Badge tone={REG_STATUS[r.status]?.tone}>{REG_STATUS[r.status]?.label ?? r.status}</Badge></span>
                       </div>
                       {r.documents.length > 0 && r.status !== 'cancelled' && (

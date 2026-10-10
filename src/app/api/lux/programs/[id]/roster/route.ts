@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireLuxStaff } from '@/lib/lux/access'
 import { documentsSummary } from '@/lib/lux/program-status'
+import { parseSessions } from '@/lib/lux/program-templates'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -48,6 +49,9 @@ export async function GET(request: NextRequest, { params }: Params) {
       collectServiceHours: program.collectServiceHours,
       serviceHoursRequired: program.serviceHoursRequired,
       questions: program.questions,
+      audience: program.audience,
+      feeType: program.feeType,
+      sessions: parseSessions(program.sessions).map(sess => ({ id: sess.id, name: sess.name, schedule: sess.schedule, capacity: sess.capacity })),
     },
     requirements: program.requirements.map(r => ({ id: r.id, key: r.key, label: r.label, required: r.required, allowParishLookup: r.allowParishLookup })),
     registrations: registrations.map(r => ({
@@ -55,6 +59,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       status: r.status,
       cancelledAt: r.cancelledAt,
       grade: r.grade ?? r.child.grade,
+      sessionId: r.sessionId,
       feeAmount: Number(r.feeAmount),
       discountAmount: Number(r.discountAmount),
       answers: r.answers,
@@ -67,7 +72,7 @@ export async function GET(request: NextRequest, { params }: Params) {
         gender: r.child.gender, baptized: r.child.baptized, baptismDate: r.child.baptismDate, baptismParish: r.child.baptismParish,
         baptismCity: r.child.baptismCity, baptizedAtThisParish: r.child.baptizedAtThisParish, allergies: r.child.allergies,
         medicalNotes: r.child.medicalNotes, school: r.child.school, firstCommunionDate: r.child.firstCommunionDate,
-        firstCommunionParish: r.child.firstCommunionParish,
+        firstCommunionParish: r.child.firstCommunionParish, isAdult: r.child.isAdult,
       },
       household: r.household,
       order: r.order && {
