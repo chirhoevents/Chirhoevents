@@ -166,15 +166,28 @@ export function calculateFamilyFees(input: {
 }
 
 /** One-line description of the parish's rules, for staff and family pages */
-export function describeFeeRules(rules: FeeRules): string {
+export function describeFeeRules(rules: FeeRules, lang: 'en' | 'es' = 'en'): string {
   const parts: string[] = []
   const sd = rules.siblingDiscount
   const fmt = (v: number) => (sd.type === 'percent' ? `${v}%` : `$${v.toFixed(2).replace(/\.00$/, '')}`)
+  const es = lang === 'es'
   if (sd.type !== 'none' && sd.value > 0) {
     parts.push(sd.thirdPlusValue !== null && sd.thirdPlusValue !== sd.value
-      ? `${fmt(sd.value)} off the second child, ${fmt(sd.thirdPlusValue)} off each child after that`
-      : `${fmt(sd.value)} off each additional child`)
+      ? es
+        ? `${fmt(sd.value)} de descuento para el segundo hijo y ${fmt(sd.thirdPlusValue)} para cada hijo después`
+        : `${fmt(sd.value)} off the second child, ${fmt(sd.thirdPlusValue)} off each child after that`
+      : es ? `${fmt(sd.value)} de descuento por cada hijo adicional` : `${fmt(sd.value)} off each additional child`)
   }
-  if (rules.familyCap !== null) parts.push(`no family pays more than $${rules.familyCap.toFixed(2).replace(/\.00$/, '')} per year`)
-  return parts.length ? parts.join('; ') : 'No sibling discount or family maximum'
+  if (rules.familyCap !== null) {
+    const cap = `$${rules.familyCap.toFixed(2).replace(/\.00$/, '')}`
+    parts.push(es ? `ninguna familia paga más de ${cap} al año` : `no family pays more than ${cap} per year`)
+  }
+  if (!parts.length) return es ? 'Sin descuento por hermanos ni máximo por familia' : 'No sibling discount or family maximum'
+  return parts.join('; ')
+}
+
+/** The policy line for family pages, or '' when there's nothing to say */
+export function feePolicyForFamilies(rules: FeeRules, lang: 'en' | 'es' = 'en'): string {
+  const hasRules = (rules.siblingDiscount.type !== 'none' && rules.siblingDiscount.value > 0) || rules.familyCap !== null
+  return hasRules ? describeFeeRules(rules, lang) : ''
 }

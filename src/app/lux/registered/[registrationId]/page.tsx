@@ -7,6 +7,9 @@ import { formatEventDate, formatMoney, formatTimeRange } from '@/lib/lux/format'
 import { parseSimpleEventConfig } from '@/lib/lux/simple-event'
 import { ticketLines } from '@/lib/lux/registrations'
 import { retrieveCheckoutSession } from '@/lib/lux/stripe-checkout'
+import { getLuxLang } from '@/lib/lux/i18n-server'
+import { dict } from '@/lib/lux/i18n'
+import { parseLuxSettings } from '@/lib/lux/settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +28,7 @@ export default async function LuxRegisteredPage({ params, searchParams }: {
     where: { id: registrationId },
     include: {
       event: {
-        include: { organization: { select: { name: true, logoUrl: true, publicSlug: true } } },
+        include: { organization: { select: { name: true, logoUrl: true, publicSlug: true, luxSettings: true } } },
       },
     },
   })
@@ -50,46 +53,48 @@ export default async function LuxRegisteredPage({ params, searchParams }: {
   const stillPaying = registration.registrationStatus === 'incomplete' && !paidPendingWebhook
   const owesOffice = registration.registrationStatus === 'pending_payment' && Number(balance?.amountRemaining ?? 0) > 0
   const event = registration.event
+  const lang = await getLuxLang()
+  const t = dict(lang)
   const timeRange = formatTimeRange(event.startTime, event.endTime)
 
   return (
-    <LuxPublicShell organizationName={event.organization.name} logoUrl={event.organization.logoUrl} parishSlug={event.organization.publicSlug}>
+    <LuxPublicShell organizationName={event.organization.name} logoUrl={event.organization.logoUrl} parishSlug={event.organization.publicSlug} accentColor={parseLuxSettings(event.organization.luxSettings).page.accentColor}>
       <div className="max-w-xl mx-auto bg-white rounded-2xl border border-[#E8E2D4] shadow-sm p-8 text-center">
         {stillPaying ? (
           <>
             <Clock className="h-14 w-14 text-amber-500 mx-auto" />
-            <h1 className="text-2xl font-semibold text-[#1E3A5F] mt-4">Payment not finished</h1>
-            <p className="text-gray-600 mt-2">Your spot is held for a little while. If you closed the payment page, you can register again.</p>
-            <Link href={`/events/${event.slug}?cancelled=1&r=${registration.id}`} className="inline-block mt-6 rounded-lg bg-[#1E3A5F] px-5 py-2.5 text-white">Try again</Link>
+            <h1 className="text-2xl font-semibold text-[#1E3A5F] mt-4">{t.registered.notFinished}</h1>
+            <p className="text-gray-600 mt-2">{t.event.stillPaying}</p>
+            <Link href={`/events/${event.slug}?cancelled=1&r=${registration.id}`} className="inline-block mt-6 rounded-lg bg-[#1E3A5F] px-5 py-2.5 text-white">{t.event.tryAgain}</Link>
           </>
         ) : (
           <>
             <CheckCircle2 className="h-14 w-14 text-green-600 mx-auto" />
-            <h1 className="text-2xl font-semibold text-[#1E3A5F] mt-4" style={{ fontFamily: 'Georgia, serif' }}>You’re registered!</h1>
-            <p className="text-gray-600 mt-2">A confirmation is on its way to <strong>{registration.email}</strong>.</p>
+            <h1 className="text-2xl font-semibold text-[#1E3A5F] mt-4" style={{ fontFamily: 'Georgia, serif' }}>{t.registered.done}</h1>
+            <p className="text-gray-600 mt-2">{t.registered.confirmationTo} <strong>{registration.email}</strong>.</p>
 
             <div className="text-left mt-6 rounded-xl bg-[#FAF8F3] p-5 space-y-2 text-sm">
               <p className="font-semibold text-[#1E3A5F] text-base">{event.name}</p>
-              <p>{formatEventDate(event.startDate)}{timeRange ? ` · ${timeRange}` : ''}</p>
+              <p>{formatEventDate(event.startDate, {}, lang)}{timeRange ? ` · ${timeRange}` : ''}</p>
               {event.locationName && <p>{event.locationName}</p>}
               <div className="border-t border-[#E8E2D4] pt-2 mt-2">
                 {lines.map((l, i) => (
-                  <p key={i} className="flex justify-between"><span>{l.quantity}× {l.name}</span><span>{Number(l.amount) > 0 ? formatMoney(Number(l.amount)) : 'Free'}</span></p>
+                  <p key={i} className="flex justify-between"><span>{l.quantity}× {l.name}</span><span>{Number(l.amount) > 0 ? formatMoney(Number(l.amount)) : t.common.free}</span></p>
                 ))}
-                {total > 0 && <p className="flex justify-between font-semibold mt-1"><span>Total</span><span>{formatMoney(total)}</span></p>}
+                {total > 0 && <p className="flex justify-between font-semibold mt-1"><span>{t.common.total}</span><span>{formatMoney(total)}</span></p>}
               </div>
-              <p className="text-gray-500">Confirmation #{registration.confirmationCode}</p>
+              <p className="text-gray-500">{t.common.confirmation(registration.confirmationCode ?? '')}</p>
             </div>
 
-            {paid && total > 0 && <p className="mt-4 text-green-700 font-medium">Paid in full. Thank you!</p>}
+            {paid && total > 0 && <p className="mt-4 text-green-700 font-medium">{t.registered.paidInFull}</p>}
             {owesOffice && (
               <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 text-left">
-                <p className="font-medium">Please pay {formatMoney(Number(balance?.amountRemaining))} at the parish office.</p>
+                <p className="font-medium">{t.registered.payAtOffice(formatMoney(Number(balance?.amountRemaining)))}</p>
                 {config.officePayment.instructions && <p className="mt-1">{config.officePayment.instructions}</p>}
               </div>
             )}
             {config.confirmationMessage && <p className="mt-4 text-gray-700 whitespace-pre-line text-left">{config.confirmationMessage}</p>}
-            <Link href={`/events/${event.slug}`} className="inline-block mt-6 text-sm text-[#9C8466] underline">Back to the event</Link>
+            <Link href={`/events/${event.slug}`} className="inline-block mt-6 text-sm text-[#9C8466] underline">{t.event.backToEvent}</Link>
           </>
         )}
       </div>

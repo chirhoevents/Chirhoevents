@@ -4,6 +4,7 @@ import { clientIp, luxAudit, requireLuxStaff } from '@/lib/lux/access'
 import { appUrl, documentReminderEmail, sendLuxEmail } from '@/lib/lux/email'
 import { createMagicLink, EMAILED_LINK_MINUTES, magicLinkUrl } from '@/lib/lux/family-session'
 import { FAMILY_OUTSTANDING } from '@/lib/lux/program-status'
+import { documentLabel } from '@/lib/lux/i18n'
 
 /**
  * POST /api/lux/reminders  { programId?, householdIds?, submissionIds? }
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     include: {
       requirement: { select: { label: true } },
       child: { select: { firstName: true } },
-      household: { select: { id: true, email: true, guardian1FirstName: true, guardian1LastName: true } },
+      household: { select: { id: true, email: true, guardian1FirstName: true, guardian1LastName: true, preferredLanguage: true } },
       programRegistration: { select: { program: { select: { name: true } } } },
     },
   })
@@ -44,14 +45,16 @@ export async function POST(request: NextRequest) {
   let sent = 0
   for (const [householdId, items] of byHousehold) {
     const household = items[0].household
+    const lang = household.preferredLanguage === 'es' ? 'es' : 'en'
     const token = await createMagicLink({ organizationId: ctx.organizationId, householdId, minutes: EMAILED_LINK_MINUTES })
     const email = documentReminderEmail({
+      lang,
       organizationName: org!.name,
       guardianFirstName: household.guardian1FirstName,
       items: items.map(i => ({
         childName: i.child.firstName,
         programName: i.programRegistration.program.name,
-        label: i.requirement.label,
+        label: documentLabel(lang, i.requirement.label),
         note: i.status === 'needs_resubmission' ? i.reviewerNote : null,
         needsResubmission: i.status === 'needs_resubmission',
       })),

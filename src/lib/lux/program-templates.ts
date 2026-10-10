@@ -32,7 +32,7 @@ export interface ProgramSession {
 }
 
 export interface ProgramTemplate {
-  key: 'faith_formation' | 'family_faith_formation' | 'first_communion' | 'confirmation' | 'ocia' | 'custom'
+  key: 'faith_formation' | 'family_faith_formation' | 'first_communion' | 'confirmation' | 'baptism_prep' | 'ocia' | 'custom'
   name: string
   summary: string
   defaults: {
@@ -129,7 +129,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
         BAPTISMAL_CERTIFICATE,
         {
           key: 'sponsor_eligibility_letter',
-          label: 'Sponsor eligibility letter',
+          label: 'Sponsor’s letter of good standing',
           description: 'A letter from your sponsor’s parish confirming they are a practicing Catholic eligible to be a sponsor.',
           required: true,
           allowParishLookup: false,
@@ -170,6 +170,51 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
       ],
       suggestedFees: ['Materials'],
       confirmationMessage: 'We look forward to praying and learning with your family. We’ll send the session schedule before the first gathering.',
+    },
+  },
+  {
+    key: 'baptism_prep',
+    name: 'Baptism Preparation',
+    summary: 'Class for parents and godparents before a child’s baptism.',
+    defaults: {
+      name: 'Baptism Preparation Class',
+      description: 'For parents preparing to have their child baptized. Godparents are welcome too. Choose the class date that works for you.',
+      audience: 'children',
+      feeType: 'per_person',
+      grades: null,
+      collectSponsor: false,
+      collectServiceHours: false,
+      serviceHoursRequired: null,
+      requirements: [
+        {
+          key: 'birth_certificate',
+          label: 'Child’s birth certificate',
+          description: 'A copy of your child’s birth certificate, so names and dates are recorded correctly in the baptismal register.',
+          required: true,
+          allowParishLookup: false,
+        },
+        {
+          key: 'godfather_letter',
+          label: 'Godfather’s letter of good standing',
+          description: 'If the godfather belongs to another parish, a letter from that parish confirming he is a practicing Catholic.',
+          required: false,
+          allowParishLookup: false,
+        },
+        {
+          key: 'godmother_letter',
+          label: 'Godmother’s letter of good standing',
+          description: 'If the godmother belongs to another parish, a letter from that parish confirming she is a practicing Catholic.',
+          required: false,
+          allowParishLookup: false,
+        },
+      ],
+      questions: [
+        { id: 'godfather', label: 'Godfather’s name and parish', type: 'text', options: [], required: false },
+        { id: 'godmother', label: 'Godmother’s name and parish', type: 'text', options: [], required: false },
+        { id: 'preferred_baptism_date', label: 'Preferred baptism date (if you have one)', type: 'text', options: [], required: false },
+      ],
+      suggestedFees: ['Class materials'],
+      confirmationMessage: 'Thank you! After the class, the parish office will contact you to schedule the baptism.',
     },
   },
   {

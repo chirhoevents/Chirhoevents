@@ -55,6 +55,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const email = feeAssistanceDecisionEmail({
       organizationName: ctx.organization.name,
       guardianFirstName: order.household.guardian1FirstName,
+      lang: order.household.preferredLanguage === 'es' ? 'es' : 'en',
       decision,
       amountDue: owed,
       payUrl: orderPayUrl(org.publicSlug, order.id, order.payToken),

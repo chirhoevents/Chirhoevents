@@ -1337,6 +1337,7 @@ async function sendLuxSimpleEventConfirmation(
     email: string
     confirmationCode: string | null
     ticketSelections: unknown
+    luxDetails?: unknown
     event: {
       name: string
       slug: string
@@ -1378,6 +1379,7 @@ async function sendLuxSimpleEventConfirmation(
     total: amountPaid,
     payment: 'paid',
     receiptUrl,
+    lang: (registration.luxDetails as { lang?: string } | null)?.lang === 'es' ? 'es' : 'en',
     confirmationMessage: config.confirmationMessage,
   })
   await sendLuxEmail({

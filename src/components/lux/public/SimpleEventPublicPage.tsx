@@ -7,6 +7,9 @@ import {
 import { formatEventDate, formatTimeRange, formatDateTime } from '@/lib/lux/format'
 import SimpleEventRegistrationForm from '@/components/lux/public/SimpleEventRegistrationForm'
 import LuxPublicShell from '@/components/lux/public/LuxPublicShell'
+import { getLuxLang } from '@/lib/lux/i18n-server'
+import { dict } from '@/lib/lux/i18n'
+import { parseLuxSettings } from '@/lib/lux/settings'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -21,7 +24,7 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
       organization: {
         select: {
           name: true, logoUrl: true, publicSlug: true, stripeAccountId: true, stripeChargesEnabled: true,
-          modulesEnabled: true, subscriptionTier: true, contactEmail: true, contactPhone: true,
+          modulesEnabled: true, subscriptionTier: true, contactEmail: true, contactPhone: true, luxSettings: true,
         },
       },
       settings: { select: { contactName: true, contactEmail: true, contactPhone: true } },
@@ -30,6 +33,9 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
     },
   })
 
+  const lang = await getLuxLang()
+  const t = dict(lang)
+  const accentColor = parseLuxSettings(event.organization.luxSettings).page.accentColor
   const config = parseSimpleEventConfig(event.luxConfig)
   const status = getSimpleEventStatus(event)
   const hasRapha = resolveModuleAccess(event.organization.modulesEnabled, event.organization.subscriptionTier).rapha
@@ -42,21 +48,21 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
   const contactPhone = event.settings?.contactPhone || event.organization.contactPhone
 
   const closedMessages: Record<string, string> = {
-    not_yet_open: event.registrationOpenDate ? `Registration opens ${formatDateTime(event.registrationOpenDate, event.timezone)}.` : 'Registration opens soon.',
-    full: 'This event is full. Please contact the parish if you’d like to be added if a spot opens up.',
-    closed: 'Registration for this event is closed.',
-    ended: 'This event has already happened. Thank you to everyone who came!',
+    not_yet_open: event.registrationOpenDate ? t.event.opens(formatDateTime(event.registrationOpenDate, event.timezone, lang)) : t.event.opensSoon,
+    full: t.event.full,
+    closed: t.event.closed,
+    ended: t.event.ended,
   }
 
   return (
-    <LuxPublicShell organizationName={event.organization.name} logoUrl={event.organization.logoUrl} parishSlug={event.organization.publicSlug}>
+    <LuxPublicShell organizationName={event.organization.name} logoUrl={event.organization.logoUrl} parishSlug={event.organization.publicSlug} accentColor={accentColor}>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         <div className="lg:col-span-2 space-y-5">
           <h1 className="text-3xl font-semibold text-[#1E3A5F]" style={{ fontFamily: 'Georgia, serif' }}>{event.name}</h1>
           <div className="space-y-3 text-gray-700">
             <p className="flex items-start gap-3">
               <Calendar className="h-5 w-5 text-[#C8A24A] mt-0.5 shrink-0" />
-              <span>{sameDay ? formatEventDate(event.startDate) : `${formatEventDate(event.startDate)} – ${formatEventDate(event.endDate)}`}</span>
+              <span>{sameDay ? formatEventDate(event.startDate, {}, lang) : `${formatEventDate(event.startDate, {}, lang)} – ${formatEventDate(event.endDate, {}, lang)}`}</span>
             </p>
             {timeRange && (
               <p className="flex items-start gap-3"><Clock className="h-5 w-5 text-[#C8A24A] mt-0.5 shrink-0" /><span>{timeRange}</span></p>
@@ -72,16 +78,19 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
             )}
             {event.capacityRemaining !== null && status === 'open' && event.capacityRemaining <= 20 && (
               <p className="flex items-start gap-3"><Users className="h-5 w-5 text-[#C8A24A] mt-0.5 shrink-0" />
-                <span className="font-medium text-amber-700">Only {event.capacityRemaining} spot{event.capacityRemaining === 1 ? '' : 's'} left</span></p>
+                <span className="font-medium text-amber-700">{t.event.spotsLeft(event.capacityRemaining)}</span></p>
             )}
           </div>
+          {config.language && t.event.taughtIn[config.language] && (
+            <p className="inline-flex rounded-full bg-[#F5F1E8] px-3 py-1 text-sm text-[#6B5B3E]">{t.event.taughtIn[config.language]}</p>
+          )}
           {event.description && <div className="text-gray-700 whitespace-pre-line leading-relaxed">{event.description}</div>}
           {status === 'open' && (
-            <p className="text-sm text-gray-500">Registration closes {formatDateTime(simpleEventCloseAt(event), event.timezone)}.</p>
+            <p className="text-sm text-gray-500">{t.event.closes(formatDateTime(simpleEventCloseAt(event), event.timezone, lang))}</p>
           )}
           {(contactEmail || contactPhone) && (
             <div className="rounded-lg bg-white border border-[#E8E2D4] p-4 text-sm">
-              <p className="font-medium text-[#1E3A5F] mb-1">Questions?</p>
+              <p className="font-medium text-[#1E3A5F] mb-1">{t.common.questions}</p>
               {event.settings?.contactName && <p>{event.settings.contactName}</p>}
               {contactEmail && <p><a className="underline" href={`mailto:${contactEmail}`}>{contactEmail}</a></p>}
               {contactPhone && <p>{contactPhone}</p>}
@@ -91,10 +100,10 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
 
         <div className="lg:col-span-3">
           <div className="bg-white rounded-2xl border border-[#E8E2D4] shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-[#1E3A5F] mb-4">Register</h2>
+            <h2 className="text-xl font-semibold text-[#1E3A5F] mb-4">{t.event.register}</h2>
             {cancelled && status === 'open' && (
               <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Your payment wasn’t completed, so you’re not registered yet. You can try again below.
+                {t.event.cancelled}
               </div>
             )}
             {status === 'open' ? (
@@ -117,9 +126,10 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
                 officePayment={config.officePayment}
                 paymentsReady={!!event.organization.stripeAccountId && event.organization.stripeChargesEnabled}
                 previousRegistrationId={previousRegistrationId}
+                lang={lang}
               />
             ) : (
-              <p className="text-gray-700">{closedMessages[status] || 'Registration isn’t open.'}</p>
+              <p className="text-gray-700">{closedMessages[status] || t.event.notOpen}</p>
             )}
           </div>
         </div>

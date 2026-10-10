@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(body, { status })
   }
 
-  const { slug, email } = await request.json().catch(() => ({}))
+  const { slug, email, language } = await request.json().catch(() => ({}))
   if (typeof slug !== 'string' || typeof email !== 'string' || !email.includes('@') || email.length > 255) {
     return respond(400, { error: 'Please enter the email address you registered with.' })
   }
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   const household = await prisma.luxHousehold.findUnique({
     where: { lux_household_org_email: { organizationId: org.id, emailNormalized: email.trim().toLowerCase() } },
-    select: { id: true, email: true, guardian1FirstName: true, guardian1LastName: true },
+    select: { id: true, email: true, guardian1FirstName: true, guardian1LastName: true, preferredLanguage: true },
   })
   if (household) {
     const recentLinks = await prisma.luxMagicLink.count({ where: { householdId: household.id, createdAt: { gte: hourAgo } } })
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
         guardianFirstName: household.guardian1FirstName,
         link: magicLinkUrl(appUrl(), token),
         expiresMinutes: REQUESTED_LINK_MINUTES,
+        lang: language === 'es' || language === 'en' ? language : household.preferredLanguage === 'es' ? 'es' : 'en',
       })
       await sendLuxEmail({
         organizationId: org.id,

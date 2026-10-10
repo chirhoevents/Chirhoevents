@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { CreditCard, Loader2 } from 'lucide-react'
+import { dict, type LuxLang } from '@/lib/lux/i18n'
 
-export default function PayOrderButton({ orderId, token, label }: { orderId: string; token: string; label: string }) {
+export default function PayOrderButton({ orderId, token, label, lang = 'en' }: { orderId: string; token: string; label: string; lang?: LuxLang }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pay = async () => {
@@ -16,7 +17,7 @@ export default function PayOrderButton({ orderId, token, label }: { orderId: str
         body: JSON.stringify({ t: token }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Could not start the payment.')
+      if (!res.ok) throw new Error(data.error || dict(lang).pay.couldNotStart)
       window.location.href = data.checkoutUrl
     } catch (e) {
       setError((e as Error).message)

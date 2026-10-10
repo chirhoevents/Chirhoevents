@@ -3,6 +3,8 @@ import { appUrl, programOrderEmail, sendLuxEmail } from '@/lib/lux/email'
 import { createMagicLink, EMAILED_LINK_MINUTES, magicLinkUrl } from '@/lib/lux/family-session'
 import { parseLuxSettings } from '@/lib/lux/settings'
 import { FAMILY_OUTSTANDING } from '@/lib/lux/program-status'
+import { documentLabel } from '@/lib/lux/i18n'
+import { parseSessions } from '@/lib/lux/program-templates'
 
 /** Link a family can use to pay (or finish paying) an order online */
 export function orderPayUrl(orgSlug: string, orderId: string, payToken: string): string {
@@ -24,7 +26,7 @@ export async function sendOrderConfirmation(orderId: string, receiptUrl?: string
         where: { status: { not: 'cancelled' } },
         include: {
           child: { select: { firstName: true, lastName: true } },
-          program: { select: { name: true, confirmationMessage: true } },
+          program: { select: { name: true, confirmationMessage: true, sessions: true } },
           documents: { include: { requirement: { select: { label: true, required: true } } } },
         },
       },
@@ -46,7 +48,9 @@ export async function sendOrderConfirmation(orderId: string, receiptUrl?: string
     : order.status === 'office_pending' ? 'office'
     : 'card_pending'
 
+  const lang = order.household.preferredLanguage === 'es' ? 'es' : 'en'
   const email = programOrderEmail({
+    lang,
     organizationName: order.organization.name,
     guardianFirstName: order.household.guardian1FirstName,
     confirmationCode: order.confirmationCode,
@@ -54,6 +58,7 @@ export async function sendOrderConfirmation(orderId: string, receiptUrl?: string
       childName: `${r.child.firstName} ${r.child.lastName}`,
       programName: r.program.name,
       amount: Number(r.feeAmount),
+      session: parseSessions(r.program.sessions).find(sess => sess.id === r.sessionId)?.name ?? null,
     })),
     breakdown: {
       subtotal: Number(order.subtotal),
@@ -68,7 +73,7 @@ export async function sendOrderConfirmation(orderId: string, receiptUrl?: string
     documentsNeeded: order.registrations.flatMap(r =>
       r.documents
         .filter(d => d.requirement.required && FAMILY_OUTSTANDING.includes(d.status))
-        .map(d => ({ childName: r.child.firstName, label: d.requirement.label }))
+        .map(d => ({ childName: r.child.firstName, label: documentLabel(lang, d.requirement.label) }))
     ),
     familyUrl: magicLinkUrl(appUrl(), token),
     payUrl: amountDue > 0 && state !== 'assistance_requested'

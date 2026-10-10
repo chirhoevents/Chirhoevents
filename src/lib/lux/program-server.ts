@@ -42,7 +42,7 @@ export interface ProgramInput {
   language: string | null
 }
 
-const TEMPLATE_KEYS = ['faith_formation', 'family_faith_formation', 'first_communion', 'confirmation', 'ocia', 'custom']
+const TEMPLATE_KEYS = ['faith_formation', 'family_faith_formation', 'first_communion', 'confirmation', 'baptism_prep', 'ocia', 'custom']
 const AUDIENCES: ProgramAudience[] = ['children', 'adults', 'families']
 const LANGUAGES = ['en', 'es', 'bilingual']
 const QUESTION_TYPES = ['text', 'yes_no', 'dropdown', 'multiple_choice', 'multi_select']

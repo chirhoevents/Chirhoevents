@@ -370,10 +370,18 @@ export default function SimpleEventForm({ initial, soldByOption }: {
               </div>
             </div>
           )}
-          <div className="pt-3">
+          <div className="pt-3 space-y-4">
             <Field label="Message on the confirmation" hint="Optional: what to bring, where to park, etc.">
               <TextArea value={config.confirmationMessage} rows={3}
                 onChange={e => patchConfig({ confirmationMessage: e.target.value })} />
+            </Field>
+            <Field label="This event is in" className="sm:w-72">
+              <Select value={config.language ?? ''} onChange={e => patchConfig({ language: e.target.value || null })}>
+                <option value="">Not specified</option>
+                <option value="en">English</option>
+                <option value="es">Spanish (Español)</option>
+                <option value="bilingual">English and Spanish</option>
+              </Select>
             </Field>
           </div>
         </div>

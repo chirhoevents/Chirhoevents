@@ -64,6 +64,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       method: METHOD_LABELS[method],
       description: registration.event.name,
       remaining: Number(updated?.amountRemaining ?? 0),
+      lang: (registration.luxDetails as { lang?: string } | null)?.lang === 'es' ? 'es' : 'en',
     })
     await sendLuxEmail({
       organizationId: ctx.organizationId,

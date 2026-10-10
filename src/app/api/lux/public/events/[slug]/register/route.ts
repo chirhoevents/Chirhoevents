@@ -121,6 +121,8 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     // --- Waiver & medical ---------------------------------------------------
     const luxDetails: Record<string, unknown> = {}
+    const lang = body.language === 'es' ? 'es' : 'en'
+    if (lang === 'es') luxDetails.lang = 'es'
     if (config.waiver.enabled) {
       const signedName = clean(body.waiverSignature, 200)
       if (!signedName || body.waiverAccepted !== true) {
@@ -326,6 +328,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       payment: method === 'free' ? 'free' : 'office',
       officeInstructions: config.officePayment.instructions,
       confirmationMessage: config.confirmationMessage,
+      lang,
     })
     await sendLuxEmail({
       organizationId: event.organizationId,

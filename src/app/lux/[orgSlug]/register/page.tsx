@@ -5,8 +5,10 @@ import { findLuxOrgBySlug } from '@/lib/lux/public-org'
 import { loadOpenPrograms } from '@/lib/lux/family-registration'
 import { fullSessionFor, getFamilySessionFromCookies } from '@/lib/lux/family-session'
 import { parseLuxSettings } from '@/lib/lux/settings'
-import { describeFeeRules } from '@/lib/lux/family-fees'
+import { feePolicyForFamilies } from '@/lib/lux/family-fees'
 import { publicProgram } from '@/lib/lux/public-programs'
+import { getLuxLang } from '@/lib/lux/i18n-server'
+import { dict } from '@/lib/lux/i18n'
 import LuxPublicShell from '@/components/lux/public/LuxPublicShell'
 import FamilyRegistrationWizard, { type PrefillChild, type PrefillHousehold } from '@/components/lux/public/FamilyRegistrationWizard'
 
@@ -28,7 +30,8 @@ export default async function FamilyRegisterPage({ params, searchParams }: Props
   const org = await findLuxOrgBySlug(orgSlug)
   if (!org) notFound()
 
-  const [programs, session] = await Promise.all([loadOpenPrograms(org.id), getFamilySessionFromCookies()])
+  const [programs, session, lang] = await Promise.all([loadOpenPrograms(org.id), getFamilySessionFromCookies(), getLuxLang()])
+  const t = dict(lang)
   const signedIn = fullSessionFor(session, org.id)
   const settings = parseLuxSettings(org.luxSettings)
 
@@ -53,16 +56,17 @@ export default async function FamilyRegisterPage({ params, searchParams }: Props
         grade: c.grade ?? '', school: c.school ?? '', baptized: c.baptized, baptismDate: day(c.baptismDate), baptismParish: c.baptismParish ?? '',
         baptismCity: c.baptismCity ?? '', baptizedAtThisParish: c.baptizedAtThisParish, firstCommunionDate: day(c.firstCommunionDate),
         firstCommunionParish: c.firstCommunionParish ?? '', allergies: c.allergies ?? '', medicalNotes: c.medicalNotes ?? '',
+        isAdult: c.isAdult,
       }))
     }
   }
 
   return (
-    <LuxPublicShell organizationName={org.name} logoUrl={org.logoUrl} parishSlug={org.publicSlug}>
+    <LuxPublicShell organizationName={org.name} logoUrl={org.logoUrl} parishSlug={org.publicSlug} accentColor={settings.page.accentColor}>
       {programs.length === 0 ? (
         <div className="max-w-xl mx-auto bg-white rounded-2xl border border-[#E8E2D4] p-8 text-center">
-          <h1 className="text-xl font-semibold text-[#1E3A5F]">Registration isn’t open right now</h1>
-          <p className="text-gray-600 mt-2">Please check back soon or contact the parish office.</p>
+          <h1 className="text-xl font-semibold text-[#1E3A5F]">{t.wizard.noPrograms}</h1>
+          <p className="text-gray-600 mt-2">{t.wizard.noProgramsText}</p>
         </div>
       ) : (
         <FamilyRegistrationWizard
@@ -71,10 +75,12 @@ export default async function FamilyRegisterPage({ params, searchParams }: Props
           programs={programs.map(publicProgram)}
           preselectProgramSlug={preselect ?? null}
           paymentsReady={org.paymentsReady}
-          feeRulesSummary={describeFeeRules(settings.feeRules)}
+          feeRulesSummary={feePolicyForFamilies(settings.feeRules, lang)}
           officeInstructions={settings.officePaymentInstructions}
           household={household}
           knownChildren={children}
+          lang={lang}
+          accentColor={settings.page.accentColor}
         />
       )}
     </LuxPublicShell>

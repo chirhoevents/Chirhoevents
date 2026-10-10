@@ -19,6 +19,8 @@ export interface SimpleEventConfig {
   onlinePayment: boolean
   officePayment: { enabled: boolean; instructions: string }
   confirmationMessage: string
+  // en | es | bilingual (null = not said)
+  language: string | null
 }
 
 export const DEFAULT_WAIVER_TEXT =
@@ -35,6 +37,7 @@ export const DEFAULT_SIMPLE_EVENT_CONFIG: SimpleEventConfig = {
   onlinePayment: true,
   officePayment: { enabled: true, instructions: '' },
   confirmationMessage: '',
+  language: null,
 }
 
 const FIELD_MODES: FieldMode[] = ['required', 'optional', 'hidden']
@@ -60,6 +63,7 @@ export function parseSimpleEventConfig(raw: unknown): SimpleEventConfig {
       instructions: typeof c.officePayment?.instructions === 'string' ? c.officePayment.instructions : '',
     },
     confirmationMessage: typeof c.confirmationMessage === 'string' ? c.confirmationMessage : '',
+    language: ['en', 'es', 'bilingual'].includes(c.language) ? c.language : null,
   }
 }
 

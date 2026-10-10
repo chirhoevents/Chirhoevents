@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const household = await prisma.luxHousehold.findFirst({
     where: { id, organizationId: ctx.organizationId },
-    select: { id: true, email: true, guardian1FirstName: true, guardian1LastName: true },
+    select: { id: true, email: true, guardian1FirstName: true, guardian1LastName: true, preferredLanguage: true },
   })
   if (!household) return NextResponse.json({ error: 'Family not found' }, { status: 404 })
 
@@ -27,6 +27,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     guardianFirstName: household.guardian1FirstName,
     link: magicLinkUrl(appUrl(), token),
     expiresMinutes: EMAILED_LINK_MINUTES,
+    lang: household.preferredLanguage === 'es' ? 'es' : 'en',
   })
   const sent = await sendLuxEmail({
     organizationId: ctx.organizationId,

@@ -46,9 +46,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     const email = paymentRecordedEmail({
       organizationName: ctx.organization.name,
       firstName: order.household.guardian1FirstName,
+      lang: order.household.preferredLanguage === 'es' ? 'es' : 'en',
       amount,
       method: METHOD_LABELS[method],
-      description: `registration #${order.confirmationCode}`,
+      description: order.household.preferredLanguage === 'es' ? `la inscripción n.º ${order.confirmationCode}` : `registration #${order.confirmationCode}`,
       remaining,
     })
     const org = await prisma.organization.findUnique({ where: { id: ctx.organizationId }, select: { contactEmail: true } })

@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Loader2, CheckCircle2, Upload, ChevronLeft, ChevronRight, CreditCard, Building2, HandHeart, FileText } from 'lucide-react'
+import { Trash2, Loader2, CheckCircle2, Upload, ChevronLeft, ChevronRight, CreditCard, Building2, HandHeart, FileText, Baby, UserRound } from 'lucide-react'
 import { formatMoney, gradeLabel, GRADE_OPTIONS } from '@/lib/lux/format'
+import { dict, documentDescription, documentLabel, optionText, questionText, type LuxLang } from '@/lib/lux/i18n'
 import type { PublicProgram } from '@/lib/lux/public-programs'
 
 export interface PrefillHousehold {
@@ -15,18 +16,22 @@ export interface PrefillHousehold {
 export interface PrefillChild {
   childId: string; firstName: string; lastName: string; dateOfBirth: string; gender: string; grade: string; school: string
   baptized: boolean | null; baptismDate: string; baptismParish: string; baptismCity: string; baptizedAtThisParish: boolean
-  firstCommunionDate: string; firstCommunionParish: string; allergies: string; medicalNotes: string
+  firstCommunionDate: string; firstCommunionParish: string; allergies: string; medicalNotes: string; isAdult: boolean
 }
 
-interface ChildForm extends Omit<PrefillChild, 'childId'> {
+interface PersonForm extends Omit<PrefillChild, 'childId'> {
   key: string
   childId: string | null
   programId: string
+  sessionId: string
   answers: Record<string, string | string[]>
   sponsor: { name: string; email: string; phone: string; parish: string; relationship: string }
 }
 
-interface QuoteLine { key: string; childName: string; programName: string; base: number; siblingDiscount: number; capAdjustment: number; total: number }
+interface QuoteLine {
+  key: string; childName: string; programName: string; base: number; siblingDiscount: number; capAdjustment: number; total: number
+  perFamily?: boolean; coveredByFamilyFee?: boolean; familyFeeAlreadyPaid?: boolean
+}
 interface Quote { lines: QuoteLine[]; subtotal: number; siblingDiscount: number; familyCapAdjustment: number; total: number }
 
 interface UploadSlot { submissionId: string; childKey: string; childName: string; programName: string; requirementKey: string; label: string; description: string | null; required: boolean; status: string }
@@ -39,16 +44,15 @@ const emptyHousehold: PrefillHousehold = {
 
 const newKey = () => Math.random().toString(36).slice(2, 10)
 
-function blankChild(lastName: string, programId = ''): ChildForm {
+function blankPerson(isAdult: boolean, programId = ''): PersonForm {
   return {
-    key: newKey(), childId: null, firstName: '', lastName, dateOfBirth: '', gender: '', grade: '', school: '', baptized: null,
+    key: newKey(), childId: null, firstName: '', lastName: '', dateOfBirth: '', gender: '', grade: '', school: '', baptized: null,
     baptismDate: '', baptismParish: '', baptismCity: '', baptizedAtThisParish: false, firstCommunionDate: '', firstCommunionParish: '',
-    allergies: '', medicalNotes: '', programId, answers: {}, sponsor: { name: '', email: '', phone: '', parish: '', relationship: '' },
+    allergies: '', medicalNotes: '', isAdult, programId, sessionId: '', answers: {}, sponsor: { name: '', email: '', phone: '', parish: '', relationship: '' },
   }
 }
 
 const input = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#C8A24A]/50 focus:border-[#C8A24A]'
-const STEPS = ['Your family', 'Your children', 'Documents', 'Review & pay'] as const
 
 function L({ label, required, children, hint, className }: { label: string; required?: boolean; children: React.ReactNode; hint?: string; className?: string }) {
   return (
@@ -70,12 +74,27 @@ export default function FamilyRegistrationWizard(props: {
   officeInstructions: string
   household: PrefillHousehold | null
   knownChildren: PrefillChild[]
+  lang: LuxLang
+  accentColor?: string | null
 }) {
-  const preselected = props.programs.find(p => p.slug === props.preselectProgramSlug)?.id ?? (props.programs.length === 1 ? props.programs[0].id : '')
+  const t = dict(props.lang)
+  const w = t.wizard
+  const accent = props.accentColor || '#C8A24A'
+  const programById = useMemo(() => new Map(props.programs.map(p => [p.id, p])), [props.programs])
+  const adultPrograms = props.programs.filter(p => p.audience === 'adults')
+  const childPrograms = props.programs.filter(p => p.audience !== 'adults')
+  const preselectedProgram = props.programs.find(p => p.slug === props.preselectProgramSlug)
+  const defaultFor = (isAdult: boolean) => {
+    const list = isAdult ? adultPrograms : childPrograms
+    if (preselectedProgram && (preselectedProgram.audience === 'adults') === isAdult) return preselectedProgram.id
+    return list.length === 1 ? list[0].id : ''
+  }
+  const startAdult = preselectedProgram ? preselectedProgram.audience === 'adults' : childPrograms.length === 0
+
   const [step, setStep] = useState(0)
   const [household, setHousehold] = useState<PrefillHousehold>(props.household ?? emptyHousehold)
   const [showGuardian2, setShowGuardian2] = useState(!!props.household?.guardian2FirstName)
-  const [children, setChildren] = useState<ChildForm[]>(() => (props.knownChildren.length ? [] : [blankChild('', preselected)]))
+  const [people, setPeople] = useState<PersonForm[]>(() => (props.knownChildren.length ? [] : [blankPerson(startAdult, defaultFor(startAdult))]))
   const [files, setFiles] = useState<Record<string, File>>({})
   const [quote, setQuote] = useState<Quote | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'office'>('card')
@@ -83,13 +102,14 @@ export default function FamilyRegistrationWizard(props: {
   const [assistanceNote, setAssistanceNote] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
-  const [uploadReport, setUploadReport] = useState<Array<{ label: string; childName: string; ok: boolean; message?: string }>>([])
+  const [uploadReport, setUploadReport] = useState<Array<{ label: string; childName: string; ok: boolean }>>([])
 
-  const programById = useMemo(() => new Map(props.programs.map(p => [p.id, p])), [props.programs])
-  const chosenPrograms = useMemo(() => [...new Set(children.map(c => c.programId))].map(id => programById.get(id)).filter(Boolean) as PublicProgram[], [children, programById])
+  const chosenPrograms = useMemo(() => [...new Set(people.map(c => c.programId))].map(id => programById.get(id)).filter(Boolean) as PublicProgram[], [people, programById])
   const canPayCard = props.paymentsReady && chosenPrograms.length > 0 && chosenPrograms.every(p => p.onlinePaymentEnabled)
   const canPayOffice = chosenPrograms.length > 0 && chosenPrograms.every(p => p.payAtOfficeEnabled)
   const assistanceOffered = chosenPrograms.some(p => p.feeAssistanceEnabled)
+  const anyDocuments = people.some(c => (programById.get(c.programId)?.requirements.length ?? 0) > 0)
+  const registeringChildren = childPrograms.length > 0
 
   useEffect(() => {
     if (!canPayCard && canPayOffice) setPaymentMethod('office')
@@ -97,33 +117,46 @@ export default function FamilyRegistrationWizard(props: {
   }, [canPayCard, canPayOffice])
 
   const setH = (patch: Partial<PrefillHousehold>) => setHousehold(h => ({ ...h, ...patch }))
-  const setChild = (key: string, patch: Partial<ChildForm>) => setChildren(cs => cs.map(c => (c.key === key ? { ...c, ...patch } : c)))
-
-  const addKnownChild = (known: PrefillChild) => {
-    setChildren(cs => [...cs, { ...blankChild(known.lastName, preselected), ...known, key: newKey(), childId: known.childId }])
+  const setPerson = (key: string, patch: Partial<PersonForm>) => setPeople(cs => cs.map(c => (c.key === key ? { ...c, ...patch } : c)))
+  const addKnown = (known: PrefillChild) => {
+    setPeople(cs => [...cs, { ...blankPerson(known.isAdult, defaultFor(known.isAdult)), ...known, key: newKey(), childId: known.childId }])
   }
+  const displayName = (c: PersonForm) =>
+    c.firstName.trim() || (c.isAdult ? w.adultN(people.filter(p => p.isAdult).indexOf(c) + 1) : w.childN(people.filter(p => !p.isAdult).indexOf(c) + 1))
+  const grades = (list: string[]) => list.map(g => gradeLabel(g, props.lang)).join(', ')
 
   // ----- Step validation -----
-  const familyProblem = (): string | null => {
-    if (!household.guardian1FirstName.trim() || !household.guardian1LastName.trim()) return 'Please enter your name.'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(household.email.trim())) return 'Please enter a valid email address.'
-    if (!household.phone.trim()) return 'Please enter a phone number.'
+  const aboutProblem = (): string | null => {
+    if (!household.guardian1FirstName.trim() || !household.guardian1LastName.trim()) return w.errors.name
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(household.email.trim())) return w.errors.email
+    if (!household.phone.trim()) return w.errors.phone
     return null
   }
-  const childrenProblem = (): string | null => {
-    if (children.length === 0) return 'Add at least one child.'
-    for (const c of children) {
-      const name = c.firstName.trim() || 'each child'
-      if (!c.firstName.trim()) return 'Please enter each child’s first name.'
-      if (!c.programId) return `Choose a program for ${name}.`
+  const peopleProblem = (): string | null => {
+    if (people.length === 0) return w.errors.none
+    for (const c of people) {
+      const name = c.firstName.trim()
+      if (!name) return w.errors.firstName
+      if (!c.programId) return w.errors.program(name)
       const program = programById.get(c.programId)!
-      if (!c.grade) return `Choose ${name}’s grade.`
-      if (program.grades && !program.grades.includes(c.grade)) return `${program.name} is for ${program.grades.map(g => gradeLabel(g)).join(', ')}.`
+      // Grade matters only for programs sorted by grade (not infant baptism, adults...)
+      if (!c.isAdult && program.grades) {
+        if (!c.grade) return w.errors.grade(name)
+        if (!program.grades.includes(c.grade)) return w.errors.gradeFit(program.name, grades(program.grades))
+      }
+      if (program.sessions.length > 0) {
+        const session = program.sessions.find(sess => sess.id === c.sessionId)
+        if (!session) return w.errors.classTime(name)
+        if (!c.isAdult && session.grades) {
+          if (!c.grade) return w.errors.grade(name)
+          if (!session.grades.includes(c.grade)) return w.errors.gradeFit(session.name, grades(session.grades))
+        }
+      }
       for (const q of program.questions) {
         const a = c.answers[q.id]
-        if (q.required && (!a || (Array.isArray(a) && a.length === 0))) return `Please answer “${q.label}” for ${name}.`
+        if (q.required && (!a || (Array.isArray(a) && a.length === 0))) return w.errors.answer(questionText(props.lang, q.id, q.label), name)
       }
-      if (program.collectSponsor && !c.sponsor.name.trim()) return `Please enter ${name}’s sponsor.`
+      if (program.collectSponsor && !c.sponsor.name.trim()) return w.errors.sponsor(name)
     }
     return null
   }
@@ -134,10 +167,10 @@ export default function FamilyRegistrationWizard(props: {
       const res = await fetch(`/api/lux/public/org/${props.slug}/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ children: children.map(c => ({ key: c.key, childId: c.childId, firstName: c.firstName, lastName: c.lastName || household.guardian1LastName, programId: c.programId })) }),
+        body: JSON.stringify({ children: people.map(c => ({ key: c.key, childId: c.childId, firstName: c.firstName, lastName: c.lastName || household.guardian1LastName, programId: c.programId })) }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not calculate fees')
+      if (!res.ok) throw new Error(data.error || w.errors.quote)
       setQuote(data.quote)
     } catch (e) {
       setError((e as Error).message)
@@ -148,9 +181,9 @@ export default function FamilyRegistrationWizard(props: {
 
   const next = async () => {
     setError(null)
-    const problem = step === 0 ? familyProblem() : step === 1 ? childrenProblem() : null
+    const problem = step === 0 ? aboutProblem() : step === 1 ? peopleProblem() : null
     if (problem) { setError(problem); return }
-    if (step === 1 && children.every(c => (programById.get(c.programId)?.requirements.length ?? 0) === 0)) {
+    if (step === 1 && !anyDocuments) {
       setStep(3)
       await loadQuote()
     } else {
@@ -161,7 +194,7 @@ export default function FamilyRegistrationWizard(props: {
   }
   const back = () => {
     setError(null)
-    setStep(s => (s === 3 && children.every(c => (programById.get(c.programId)?.requirements.length ?? 0) === 0) ? 1 : Math.max(0, s - 1)))
+    setStep(s => (s === 3 && !anyDocuments ? 1 : Math.max(0, s - 1)))
   }
 
   const submit = async () => {
@@ -173,13 +206,19 @@ export default function FamilyRegistrationWizard(props: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           household,
-          children: children.map(c => ({ ...c, lastName: c.lastName || household.guardian1LastName, sponsor: programById.get(c.programId)?.collectSponsor ? c.sponsor : null })),
+          children: people.map(c => ({
+            ...c,
+            lastName: c.lastName || household.guardian1LastName,
+            sessionId: c.sessionId || null,
+            sponsor: programById.get(c.programId)?.collectSponsor ? c.sponsor : null,
+          })),
           paymentMethod,
           feeAssistance: { requested: assistance, note: assistanceNote },
+          language: props.lang,
         }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Registration failed. Please try again.')
+      if (!res.ok) throw new Error(data.error || w.errors.failed)
 
       // Upload the documents they picked, now that we know where they go
       const report: typeof uploadReport = []
@@ -187,18 +226,17 @@ export default function FamilyRegistrationWizard(props: {
       for (const slot of slots) {
         const file = files[`${slot.childKey}|${slot.requirementKey}`]
         if (!file || slot.status === 'approved') continue
-        setBusy(`Uploading ${slot.label} for ${slot.childName}…`)
+        setBusy(w.uploading(documentLabel(props.lang, slot.label), slot.childName))
         const form = new FormData()
         form.set('submissionId', slot.submissionId)
         form.set('file', file)
         const up = await fetch('/api/lux/public/family/documents', { method: 'POST', body: form })
-        const upData = await up.json().catch(() => ({}))
-        report.push({ label: slot.label, childName: slot.childName, ok: up.ok, message: upData.error })
+        report.push({ label: slot.label, childName: slot.childName, ok: up.ok })
       }
       setUploadReport(report)
 
       if (data.checkoutUrl) {
-        setBusy('Taking you to secure payment…')
+        setBusy(w.toPayment)
         window.location.href = data.checkoutUrl
         return
       }
@@ -211,70 +249,88 @@ export default function FamilyRegistrationWizard(props: {
   }
 
   // ----- Render -----
-  const unusedKnown = props.knownChildren.filter(k => !children.some(c => c.childId === k.childId))
+  const unusedKnown = props.knownChildren.filter(k => !people.some(c => c.childId === k.childId))
+
+  const programOption = (p: PublicProgram, c: PersonForm) => {
+    const fits = c.isAdult || !p.grades || !c.grade || p.grades.includes(c.grade)
+    const full = p.spotsLeft === 0
+    const range = p.grades ? ` · ${p.grades.length === 1 ? gradeLabel(p.grades[0], props.lang) : `${gradeLabel(p.grades[0], props.lang)}–${gradeLabel(p.grades[p.grades.length - 1], props.lang)}`}` : ''
+    const language = p.language && t.parish.taughtIn[p.language] ? ` · ${t.parish.taughtIn[p.language]}` : ''
+    return (
+      <option key={p.id} value={p.id} disabled={!fits || full}>
+        {p.name} ({p.term}){c.isAdult ? '' : range}{language}{full ? ` · ${t.parish.full}` : ''}{!fits ? ` · ${w.notForGrade}` : ''}
+      </option>
+    )
+  }
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl sm:text-3xl font-semibold text-[#1E3A5F] text-center" style={{ fontFamily: 'Georgia, serif' }}>Register for faith formation</h1>
+      <h1 className="text-2xl sm:text-3xl font-semibold text-[#1E3A5F] text-center" style={{ fontFamily: 'Georgia, serif' }}>{w.title}</h1>
       <p className="text-center text-gray-600 mt-1">{props.organizationName}</p>
 
       <ol className="flex items-center justify-center gap-2 sm:gap-4 my-6 text-xs sm:text-sm" aria-label="Steps">
-        {STEPS.map((label, i) => (
+        {w.steps.map((label, i) => (i === 2 && !anyDocuments ? null : (
           <li key={label} className={`flex items-center gap-1.5 ${i === step ? 'text-[#1E3A5F] font-semibold' : i < step ? 'text-green-700' : 'text-gray-400'}`}>
             <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${i === step ? 'bg-[#1E3A5F] text-white' : i < step ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
-              {i < step ? '✓' : i + 1}
+              {i < step ? '✓' : i + 1 - (i === 3 && !anyDocuments ? 1 : 0)}
             </span>
             <span className="hidden sm:inline">{label}</span>
           </li>
-        ))}
+        )))}
       </ol>
 
       <div className="bg-white rounded-2xl border border-[#E8E2D4] shadow-sm p-5 sm:p-7">
         {step === 0 && (
           <div className="space-y-5">
-            <h2 className="text-lg font-semibold text-[#1E3A5F]">Parent or guardian</h2>
+            <div>
+              <h2 className="text-lg font-semibold text-[#1E3A5F]">{w.aboutHeading}</h2>
+              {registeringChildren && <p className="text-sm text-gray-600">{w.aboutHint}</p>}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <L label="First name" required><input className={input} autoComplete="given-name" value={household.guardian1FirstName} onChange={e => setH({ guardian1FirstName: e.target.value })} /></L>
-              <L label="Last name" required><input className={input} autoComplete="family-name" value={household.guardian1LastName} onChange={e => setH({ guardian1LastName: e.target.value })} /></L>
-              <L label="Email" required hint="Confirmations and your family link go here." className="sm:col-span-2">
+              <L label={t.common.firstName} required><input className={input} autoComplete="given-name" value={household.guardian1FirstName} onChange={e => setH({ guardian1FirstName: e.target.value })} /></L>
+              <L label={t.common.lastName} required><input className={input} autoComplete="family-name" value={household.guardian1LastName} onChange={e => setH({ guardian1LastName: e.target.value })} /></L>
+              <L label={t.common.email} required hint={w.emailHint} className="sm:col-span-2">
                 <input className={input} type="email" autoComplete="email" value={household.email} onChange={e => setH({ email: e.target.value })} />
               </L>
-              <L label="Phone" required><input className={input} type="tel" autoComplete="tel" value={household.phone} onChange={e => setH({ phone: e.target.value })} /></L>
-              <L label="Relationship"><select className={input} value={household.guardian1Relationship} onChange={e => setH({ guardian1Relationship: e.target.value })}>
-                <option value="">Choose…</option><option>Mother</option><option>Father</option><option>Guardian</option><option>Grandparent</option><option>Other</option>
-              </select></L>
-              <L label="Street address" className="sm:col-span-2"><input className={input} autoComplete="street-address" value={household.street} onChange={e => setH({ street: e.target.value })} /></L>
-              <L label="City"><input className={input} autoComplete="address-level2" value={household.city} onChange={e => setH({ city: e.target.value })} /></L>
+              <L label={t.common.phone} required><input className={input} type="tel" autoComplete="tel" value={household.phone} onChange={e => setH({ phone: e.target.value })} /></L>
+              {registeringChildren ? (
+                <L label={w.relationship}><select className={input} value={household.guardian1Relationship} onChange={e => setH({ guardian1Relationship: e.target.value })}>
+                  <option value="">{t.common.choose}</option>
+                  {Object.entries(w.relationships).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select></L>
+              ) : <span className="hidden sm:block" />}
+              <L label={t.common.street} className="sm:col-span-2"><input className={input} autoComplete="street-address" value={household.street} onChange={e => setH({ street: e.target.value })} /></L>
+              <L label={t.common.city}><input className={input} autoComplete="address-level2" value={household.city} onChange={e => setH({ city: e.target.value })} /></L>
               <div className="grid grid-cols-2 gap-4">
-                <L label="State"><input className={input} autoComplete="address-level1" value={household.state} onChange={e => setH({ state: e.target.value })} /></L>
-                <L label="ZIP"><input className={input} autoComplete="postal-code" value={household.zip} onChange={e => setH({ zip: e.target.value })} /></L>
+                <L label={t.common.state}><input className={input} autoComplete="address-level1" value={household.state} onChange={e => setH({ state: e.target.value })} /></L>
+                <L label={t.common.zip}><input className={input} autoComplete="postal-code" value={household.zip} onChange={e => setH({ zip: e.target.value })} /></L>
               </div>
             </div>
 
-            {showGuardian2 ? (
+            {registeringChildren && (showGuardian2 ? (
               <div className="space-y-4 border-t border-gray-100 pt-5">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-[#1E3A5F]">Second parent or guardian</h3>
-                  <button type="button" className="text-sm text-gray-500" onClick={() => { setShowGuardian2(false); setH({ guardian2FirstName: '', guardian2LastName: '', guardian2Email: '', guardian2Phone: '', guardian2Relationship: '' }) }}>Remove</button>
+                  <h3 className="font-semibold text-[#1E3A5F]">{w.secondAdult}</h3>
+                  <button type="button" className="text-sm text-gray-500" onClick={() => { setShowGuardian2(false); setH({ guardian2FirstName: '', guardian2LastName: '', guardian2Email: '', guardian2Phone: '', guardian2Relationship: '' }) }}>{w.remove}</button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <L label="First name"><input className={input} value={household.guardian2FirstName} onChange={e => setH({ guardian2FirstName: e.target.value })} /></L>
-                  <L label="Last name"><input className={input} value={household.guardian2LastName} onChange={e => setH({ guardian2LastName: e.target.value })} /></L>
-                  <L label="Email"><input className={input} type="email" value={household.guardian2Email} onChange={e => setH({ guardian2Email: e.target.value })} /></L>
-                  <L label="Phone"><input className={input} type="tel" value={household.guardian2Phone} onChange={e => setH({ guardian2Phone: e.target.value })} /></L>
+                  <L label={t.common.firstName}><input className={input} value={household.guardian2FirstName} onChange={e => setH({ guardian2FirstName: e.target.value })} /></L>
+                  <L label={t.common.lastName}><input className={input} value={household.guardian2LastName} onChange={e => setH({ guardian2LastName: e.target.value })} /></L>
+                  <L label={t.common.email}><input className={input} type="email" value={household.guardian2Email} onChange={e => setH({ guardian2Email: e.target.value })} /></L>
+                  <L label={t.common.phone}><input className={input} type="tel" value={household.guardian2Phone} onChange={e => setH({ guardian2Phone: e.target.value })} /></L>
                 </div>
               </div>
             ) : (
-              <button type="button" onClick={() => setShowGuardian2(true)} className="text-sm text-[#9C8466] hover:text-[#1E3A5F]">+ Add a second parent or guardian</button>
-            )}
+              <button type="button" onClick={() => setShowGuardian2(true)} className="text-sm text-[#9C8466] hover:text-[#1E3A5F]">{w.addSecondAdult}</button>
+            ))}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-100 pt-5">
-              <L label="Emergency contact (not a parent)"><input className={input} value={household.emergencyContactName} onChange={e => setH({ emergencyContactName: e.target.value })} /></L>
-              <L label="Emergency contact phone"><input className={input} type="tel" value={household.emergencyContactPhone} onChange={e => setH({ emergencyContactPhone: e.target.value })} /></L>
-              <L label={`Are you registered at ${props.organizationName}?`} className="sm:col-span-2">
+              <L label={w.emergencyName}><input className={input} value={household.emergencyContactName} onChange={e => setH({ emergencyContactName: e.target.value })} /></L>
+              <L label={w.emergencyPhone}><input className={input} type="tel" value={household.emergencyContactPhone} onChange={e => setH({ emergencyContactPhone: e.target.value })} /></L>
+              <L label={w.parishioner(props.organizationName)} className="sm:col-span-2">
                 <select className={input} value={household.registeredParishioner === null ? '' : household.registeredParishioner ? 'yes' : 'no'}
                   onChange={e => setH({ registeredParishioner: e.target.value === '' ? null : e.target.value === 'yes' })}>
-                  <option value="">Not sure</option><option value="yes">Yes</option><option value="no">Not yet</option>
+                  <option value="">{t.common.notSure}</option><option value="yes">{t.common.yes}</option><option value="no">{w.notYet}</option>
                 </select>
               </L>
             </div>
@@ -285,10 +341,10 @@ export default function FamilyRegistrationWizard(props: {
           <div className="space-y-6">
             {unusedKnown.length > 0 && (
               <div className="rounded-xl bg-[#FAF8F3] p-4">
-                <p className="text-sm font-medium text-[#1E3A5F] mb-2">Your children on file — tap to register them for this year:</p>
+                <p className="text-sm font-medium text-[#1E3A5F] mb-2">{w.onFile}</p>
                 <div className="flex flex-wrap gap-2">
                   {unusedKnown.map(k => (
-                    <button key={k.childId} type="button" onClick={() => addKnownChild(k)} className="rounded-full border border-[#C8A24A] bg-white px-4 py-1.5 text-sm text-[#1E3A5F] hover:bg-[#FFFDF8]">
+                    <button key={k.childId} type="button" onClick={() => addKnown(k)} className="rounded-full border bg-white px-4 py-1.5 text-sm text-[#1E3A5F] hover:bg-[#FFFDF8]" style={{ borderColor: accent }}>
                       + {k.firstName}
                     </button>
                   ))}
@@ -296,118 +352,154 @@ export default function FamilyRegistrationWizard(props: {
               </div>
             )}
 
-            {children.map((c, index) => {
+            {people.map(c => {
               const program = programById.get(c.programId)
+              const choices = c.isAdult ? adultPrograms : childPrograms
+              const isConfirmation = program?.templateKey === 'confirmation'
+              const name = displayName(c)
+              const sessions = program?.sessions ?? []
+              const gradeRequired = !!program?.grades || sessions.some(sess => !!sess.grades)
               return (
                 <div key={c.key} className="rounded-xl border border-gray-200 p-4 sm:p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-semibold text-[#1E3A5F]">{c.firstName.trim() || `Child ${index + 1}`}</h2>
-                    {children.length > 1 && (
-                      <button type="button" onClick={() => setChildren(cs => cs.filter(x => x.key !== c.key))} className="text-sm text-red-600 flex items-center gap-1">
-                        <Trash2 className="h-4 w-4" /> Remove
-                      </button>
-                    )}
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="font-semibold text-[#1E3A5F] flex items-center gap-2">
+                      {c.isAdult ? <UserRound className="h-5 w-5" style={{ color: accent }} /> : <Baby className="h-5 w-5" style={{ color: accent }} />} {name}
+                    </h2>
+                    <div className="flex items-center gap-3">
+                      {c.isAdult && !c.firstName && (
+                        <button type="button" className="text-sm text-[#9C8466] hover:text-[#1E3A5F]"
+                          onClick={() => setPerson(c.key, { firstName: household.guardian1FirstName, lastName: household.guardian1LastName })}>
+                          {w.thisIsMe}
+                        </button>
+                      )}
+                      {people.length > 1 && (
+                        <button type="button" onClick={() => setPeople(cs => cs.filter(x => x.key !== c.key))} className="text-sm text-red-600 flex items-center gap-1">
+                          <Trash2 className="h-4 w-4" /> {w.remove}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <L label="First name" required><input className={input} value={c.firstName} onChange={e => setChild(c.key, { firstName: e.target.value })} /></L>
-                    <L label="Last name" hint={c.lastName ? undefined : `Leave blank for ${household.guardian1LastName || 'your last name'}`}>
-                      <input className={input} value={c.lastName} onChange={e => setChild(c.key, { lastName: e.target.value })} placeholder={household.guardian1LastName} />
+                    <L label={t.common.firstName} required><input className={input} value={c.firstName} onChange={e => setPerson(c.key, { firstName: e.target.value })} /></L>
+                    <L label={t.common.lastName} hint={c.lastName ? undefined : w.lastNameHint(household.guardian1LastName)}>
+                      <input className={input} value={c.lastName} onChange={e => setPerson(c.key, { lastName: e.target.value })} placeholder={household.guardian1LastName} />
                     </L>
-                    <L label="Date of birth"><input className={input} type="date" value={c.dateOfBirth} onChange={e => setChild(c.key, { dateOfBirth: e.target.value })} /></L>
-                    <L label="Grade this year" required>
-                      <select className={input} value={c.grade} onChange={e => setChild(c.key, { grade: e.target.value })}>
-                        <option value="">Choose…</option>
-                        {GRADE_OPTIONS.map(g => <option key={g} value={g}>{gradeLabel(g)}</option>)}
+                    <L label={w.dob}><input className={input} type="date" value={c.dateOfBirth} onChange={e => setPerson(c.key, { dateOfBirth: e.target.value })} /></L>
+                    {!c.isAdult && (
+                      <L label={w.grade} required={gradeRequired}>
+                        <select className={input} value={c.grade} onChange={e => setPerson(c.key, { grade: e.target.value, sessionId: '' })}>
+                          <option value="">{t.common.choose}</option>
+                          {GRADE_OPTIONS.filter(g => g !== 'Adult').map(g => <option key={g} value={g}>{gradeLabel(g, props.lang)}</option>)}
+                        </select>
+                      </L>
+                    )}
+                    <L label={w.program} required className="sm:col-span-2">
+                      <select className={input} value={c.programId} onChange={e => setPerson(c.key, { programId: e.target.value, sessionId: '', answers: {} })}>
+                        <option value="">{w.chooseProgram}</option>
+                        {choices.map(p => programOption(p, c))}
                       </select>
+                      {program?.perFamily && Number(program.tuitionPerChild) > 0 && (
+                        <span className="block text-xs text-gray-500 mt-1">{w.familyFeeNote(formatMoney(program.tuitionPerChild))}</span>
+                      )}
                     </L>
-                    <L label="Program" required className="sm:col-span-2">
-                      <select className={input} value={c.programId} onChange={e => setChild(c.key, { programId: e.target.value, answers: {} })}>
-                        <option value="">Choose a program…</option>
-                        {props.programs.map(p => {
-                          const fits = !p.grades || !c.grade || p.grades.includes(c.grade)
-                          const full = p.spotsLeft === 0
-                          return (
-                            <option key={p.id} value={p.id} disabled={!fits || full}>
-                              {p.name} ({p.term}){p.grades ? ` · ${p.grades.length === 1 ? gradeLabel(p.grades[0]) : `${gradeLabel(p.grades[0])}–${gradeLabel(p.grades[p.grades.length - 1])}`}` : ''}{full ? ' · Full' : ''}{!fits ? ' · not for this grade' : ''}
-                            </option>
-                          )
-                        })}
-                      </select>
-                    </L>
-                    <L label="Gender">
-                      <select className={input} value={c.gender} onChange={e => setChild(c.key, { gender: e.target.value })}>
-                        <option value="">Choose…</option><option value="female">Female</option><option value="male">Male</option>
-                      </select>
-                    </L>
-                    <L label="School"><input className={input} value={c.school} onChange={e => setChild(c.key, { school: e.target.value })} /></L>
-                  </div>
-
-                  <div className="border-t border-gray-100 pt-4 space-y-3">
-                    <p className="text-sm font-medium text-gray-800">Has {c.firstName.trim() || 'your child'} been baptized?</p>
-                    <div className="flex gap-4 text-sm">
-                      {[{ v: true, l: 'Yes' }, { v: false, l: 'No' }, { v: null, l: 'Not sure' }].map(o => (
-                        <label key={o.l} className="flex items-center gap-2">
-                          <input type="radio" name={`bap-${c.key}`} checked={c.baptized === o.v} onChange={() => setChild(c.key, { baptized: o.v, ...(o.v !== true ? { baptizedAtThisParish: false } : {}) })} /> {o.l}
-                        </label>
-                      ))}
-                    </div>
-                    {c.baptized === true && (
+                    {sessions.length > 0 && (
+                      <L label={w.classTime} required className="sm:col-span-2">
+                        <select className={input} value={c.sessionId} onChange={e => setPerson(c.key, { sessionId: e.target.value })}>
+                          <option value="">{w.chooseClassTime}</option>
+                          {sessions.map(sess => {
+                            const fits = c.isAdult || !sess.grades || !c.grade || sess.grades.includes(c.grade)
+                            const full = sess.spotsLeft === 0
+                            return (
+                              <option key={sess.id} value={sess.id} disabled={!fits || full}>
+                                {sess.name}{sess.schedule ? ` · ${sess.schedule}` : ''}{full ? ` · ${t.parish.full}` : ''}{!fits ? ` · ${w.notForGrade}` : ''}
+                              </option>
+                            )
+                          })}
+                        </select>
+                      </L>
+                    )}
+                    {!c.isAdult && (
                       <>
-                        <label className="flex items-start gap-2 text-sm rounded-lg bg-[#FAF8F3] p-3">
-                          <input type="checkbox" className="mt-0.5" checked={c.baptizedAtThisParish} onChange={e => setChild(c.key, { baptizedAtThisParish: e.target.checked })} />
-                          <span>Baptized here at {props.organizationName}. <span className="text-gray-500">We’ll look up the certificate, so you don’t need to upload it.</span></span>
-                        </label>
-                        {!c.baptizedAtThisParish && (
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <L label="Baptism date"><input className={input} type="date" value={c.baptismDate} onChange={e => setChild(c.key, { baptismDate: e.target.value })} /></L>
-                            <L label="Parish"><input className={input} value={c.baptismParish} onChange={e => setChild(c.key, { baptismParish: e.target.value })} /></L>
-                            <L label="City"><input className={input} value={c.baptismCity} onChange={e => setChild(c.key, { baptismCity: e.target.value })} /></L>
-                          </div>
-                        )}
+                        <L label={w.gender}>
+                          <select className={input} value={c.gender} onChange={e => setPerson(c.key, { gender: e.target.value })}>
+                            <option value="">{t.common.choose}</option><option value="female">{w.female}</option><option value="male">{w.male}</option>
+                          </select>
+                        </L>
+                        <L label={t.common.school}><input className={input} value={c.school} onChange={e => setPerson(c.key, { school: e.target.value })} /></L>
                       </>
                     )}
-                    {program?.templateKey === 'confirmation' && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <L label="First Communion date"><input className={input} type="date" value={c.firstCommunionDate} onChange={e => setChild(c.key, { firstCommunionDate: e.target.value })} /></L>
-                        <L label="First Communion parish"><input className={input} value={c.firstCommunionParish} onChange={e => setChild(c.key, { firstCommunionParish: e.target.value })} /></L>
-                      </div>
-                    )}
                   </div>
 
+                  {program?.templateKey !== 'baptism_prep' && (
+                    <div className="border-t border-gray-100 pt-4 space-y-3">
+                      <p className="text-sm font-medium text-gray-800">
+                        {c.isAdult && c.firstName && c.firstName === household.guardian1FirstName ? w.baptizedSelf : w.baptized(c.firstName.trim() || (c.isAdult ? name : w.yourChild))}
+                      </p>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        {[{ v: true, l: t.common.yes }, { v: false, l: t.common.no }, { v: null, l: t.common.notSure }].map(o => (
+                          <label key={String(o.v)} className="flex items-center gap-2">
+                            <input type="radio" name={`bap-${c.key}`} checked={c.baptized === o.v} onChange={() => setPerson(c.key, { baptized: o.v, ...(o.v !== true ? { baptizedAtThisParish: false } : {}) })} /> {o.l}
+                          </label>
+                        ))}
+                      </div>
+                      {c.baptized === true && (
+                        <>
+                          <label className="flex items-start gap-2 text-sm rounded-lg bg-[#FAF8F3] p-3">
+                            <input type="checkbox" className="mt-0.5" checked={c.baptizedAtThisParish} onChange={e => setPerson(c.key, { baptizedAtThisParish: e.target.checked })} />
+                            <span>{w.baptizedHere(props.organizationName)} <span className="text-gray-500">{w.baptizedHereHint}</span></span>
+                          </label>
+                          {!c.baptizedAtThisParish && (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                              <L label={w.baptismDate}><input className={input} type="date" value={c.baptismDate} onChange={e => setPerson(c.key, { baptismDate: e.target.value })} /></L>
+                              <L label={w.baptismParish}><input className={input} value={c.baptismParish} onChange={e => setPerson(c.key, { baptismParish: e.target.value })} /></L>
+                              <L label={t.common.city}><input className={input} value={c.baptismCity} onChange={e => setPerson(c.key, { baptismCity: e.target.value })} /></L>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {isConfirmation && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <L label={w.communionDate}><input className={input} type="date" value={c.firstCommunionDate} onChange={e => setPerson(c.key, { firstCommunionDate: e.target.value })} /></L>
+                          <L label={w.communionParish}><input className={input} value={c.firstCommunionParish} onChange={e => setPerson(c.key, { firstCommunionParish: e.target.value })} /></L>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
-                    <L label="Allergies"><input className={input} value={c.allergies} onChange={e => setChild(c.key, { allergies: e.target.value })} placeholder="None" /></L>
-                    <L label="Medical notes"><input className={input} value={c.medicalNotes} onChange={e => setChild(c.key, { medicalNotes: e.target.value })} /></L>
+                    <L label={t.common.allergies}><input className={input} value={c.allergies} onChange={e => setPerson(c.key, { allergies: e.target.value })} placeholder={t.common.none} /></L>
+                    <L label={t.common.medicalNotes}><input className={input} value={c.medicalNotes} onChange={e => setPerson(c.key, { medicalNotes: e.target.value })} /></L>
                   </div>
 
                   {program && program.questions.length > 0 && (
                     <div className="border-t border-gray-100 pt-4 space-y-4">
                       {program.questions.map(q => (
                         <div key={q.id}>
-                          <p className="text-sm font-medium text-gray-800 mb-1">{q.label}{q.required && <span className="text-red-600"> *</span>}</p>
-                          {q.type === 'text' && <input className={input} value={(c.answers[q.id] as string) || ''} onChange={e => setChild(c.key, { answers: { ...c.answers, [q.id]: e.target.value } })} />}
+                          <p className="text-sm font-medium text-gray-800 mb-1">{questionText(props.lang, q.id, q.label)}{q.required && <span className="text-red-600"> *</span>}</p>
+                          {q.type === 'text' && <input className={input} value={(c.answers[q.id] as string) || ''} onChange={e => setPerson(c.key, { answers: { ...c.answers, [q.id]: e.target.value } })} />}
                           {(q.type === 'yes_no' || q.type === 'multiple_choice') && (
-                            <div className="flex flex-wrap gap-4 text-sm">
+                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
                               {(q.type === 'yes_no' ? ['Yes', 'No'] : q.options).map(o => (
                                 <label key={o} className="flex items-center gap-2">
-                                  <input type="radio" name={`${c.key}-${q.id}`} checked={c.answers[q.id] === o} onChange={() => setChild(c.key, { answers: { ...c.answers, [q.id]: o } })} /> {o}
+                                  <input type="radio" name={`${c.key}-${q.id}`} checked={c.answers[q.id] === o} onChange={() => setPerson(c.key, { answers: { ...c.answers, [q.id]: o } })} /> {optionText(props.lang, q.id, o)}
                                 </label>
                               ))}
                             </div>
                           )}
                           {q.type === 'dropdown' && (
-                            <select className={input} value={(c.answers[q.id] as string) || ''} onChange={e => setChild(c.key, { answers: { ...c.answers, [q.id]: e.target.value } })}>
-                              <option value="">Choose…</option>
-                              {q.options.map(o => <option key={o}>{o}</option>)}
+                            <select className={input} value={(c.answers[q.id] as string) || ''} onChange={e => setPerson(c.key, { answers: { ...c.answers, [q.id]: e.target.value } })}>
+                              <option value="">{t.common.choose}</option>
+                              {q.options.map(o => <option key={o} value={o}>{optionText(props.lang, q.id, o)}</option>)}
                             </select>
                           )}
                           {q.type === 'multi_select' && (
-                            <div className="flex flex-wrap gap-4 text-sm">
+                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
                               {q.options.map(o => {
                                 const current = (c.answers[q.id] as string[]) || []
                                 return (
                                   <label key={o} className="flex items-center gap-2">
                                     <input type="checkbox" checked={current.includes(o)}
-                                      onChange={() => setChild(c.key, { answers: { ...c.answers, [q.id]: current.includes(o) ? current.filter(x => x !== o) : [...current, o] } })} /> {o}
+                                      onChange={() => setPerson(c.key, { answers: { ...c.answers, [q.id]: current.includes(o) ? current.filter(x => x !== o) : [...current, o] } })} /> {optionText(props.lang, q.id, o)}
                                   </label>
                                 )
                               })}
@@ -420,13 +512,13 @@ export default function FamilyRegistrationWizard(props: {
 
                   {program?.collectSponsor && (
                     <div className="border-t border-gray-100 pt-4">
-                      <p className="text-sm font-medium text-gray-800 mb-2">Confirmation sponsor</p>
+                      <p className="text-sm font-medium text-gray-800 mb-2">{w.sponsor}</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <L label="Sponsor’s name" required><input className={input} value={c.sponsor.name} onChange={e => setChild(c.key, { sponsor: { ...c.sponsor, name: e.target.value } })} /></L>
-                        <L label="Relationship"><input className={input} value={c.sponsor.relationship} onChange={e => setChild(c.key, { sponsor: { ...c.sponsor, relationship: e.target.value } })} placeholder="Aunt, godfather…" /></L>
-                        <L label="Sponsor’s email"><input className={input} type="email" value={c.sponsor.email} onChange={e => setChild(c.key, { sponsor: { ...c.sponsor, email: e.target.value } })} /></L>
-                        <L label="Sponsor’s phone"><input className={input} type="tel" value={c.sponsor.phone} onChange={e => setChild(c.key, { sponsor: { ...c.sponsor, phone: e.target.value } })} /></L>
-                        <L label="Sponsor’s parish" className="sm:col-span-2"><input className={input} value={c.sponsor.parish} onChange={e => setChild(c.key, { sponsor: { ...c.sponsor, parish: e.target.value } })} /></L>
+                        <L label={w.sponsorName} required><input className={input} value={c.sponsor.name} onChange={e => setPerson(c.key, { sponsor: { ...c.sponsor, name: e.target.value } })} /></L>
+                        <L label={w.sponsorRelationship}><input className={input} value={c.sponsor.relationship} onChange={e => setPerson(c.key, { sponsor: { ...c.sponsor, relationship: e.target.value } })} placeholder={w.sponsorRelationshipPlaceholder} /></L>
+                        <L label={w.sponsorEmail}><input className={input} type="email" value={c.sponsor.email} onChange={e => setPerson(c.key, { sponsor: { ...c.sponsor, email: e.target.value } })} /></L>
+                        <L label={w.sponsorPhone}><input className={input} type="tel" value={c.sponsor.phone} onChange={e => setPerson(c.key, { sponsor: { ...c.sponsor, phone: e.target.value } })} /></L>
+                        <L label={w.sponsorParish} className="sm:col-span-2"><input className={input} value={c.sponsor.parish} onChange={e => setPerson(c.key, { sponsor: { ...c.sponsor, parish: e.target.value } })} /></L>
                       </div>
                     </div>
                   )}
@@ -434,20 +526,30 @@ export default function FamilyRegistrationWizard(props: {
               )
             })}
 
-            <button type="button" onClick={() => setChildren(cs => [...cs, blankChild('', preselected)])}
-              className="w-full rounded-xl border-2 border-dashed border-gray-300 py-4 text-[#1E3A5F] hover:border-[#C8A24A] flex items-center justify-center gap-2">
-              <Plus className="h-5 w-5" /> Add another child
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {childPrograms.length > 0 && (
+                <button type="button" onClick={() => setPeople(cs => [...cs, blankPerson(false, defaultFor(false))])}
+                  className="rounded-xl border-2 border-dashed border-gray-300 py-4 text-[#1E3A5F] hover:border-[#C8A24A] flex items-center justify-center gap-2">
+                  <Baby className="h-5 w-5" /> {w.addChild}
+                </button>
+              )}
+              {adultPrograms.length > 0 && (
+                <button type="button" onClick={() => setPeople(cs => [...cs, blankPerson(true, defaultFor(true))])}
+                  className="rounded-xl border-2 border-dashed border-gray-300 py-4 text-[#1E3A5F] hover:border-[#C8A24A] flex items-center justify-center gap-2">
+                  <UserRound className="h-5 w-5" /> {w.addAdult}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-[#1E3A5F]">Documents</h2>
-              <p className="text-sm text-gray-600">Upload now if you have them handy (a phone photo is fine), or skip and upload later from your family page.</p>
+              <h2 className="text-lg font-semibold text-[#1E3A5F]">{w.docsHeading}</h2>
+              <p className="text-sm text-gray-600">{w.docsHint}</p>
             </div>
-            {children.map(c => {
+            {people.map(c => {
               const program = programById.get(c.programId)
               if (!program || program.requirements.length === 0) return null
               return (
@@ -458,22 +560,23 @@ export default function FamilyRegistrationWizard(props: {
                       const fileKey = `${c.key}|${r.key}`
                       const lookup = r.allowParishLookup && c.baptizedAtThisParish && r.key === 'baptismal_certificate'
                       const file = files[fileKey]
+                      const description = documentDescription(props.lang, r.description)
                       return (
                         <div key={r.key} className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between rounded-lg bg-[#FAF8F3] p-3">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-800 flex items-center gap-1"><FileText className="h-4 w-4 text-[#C8A24A]" /> {r.label}{!r.required && <span className="text-gray-400 font-normal"> (optional)</span>}</p>
-                            {r.description && <p className="text-xs text-gray-500">{r.description}</p>}
+                            <p className="text-sm font-medium text-gray-800 flex items-center gap-1"><FileText className="h-4 w-4 text-[#C8A24A]" /> {documentLabel(props.lang, r.label)}{!r.required && <span className="text-gray-400 font-normal"> {t.common.optional}</span>}</p>
+                            {description && <p className="text-xs text-gray-500">{description}</p>}
                           </div>
                           {lookup ? (
-                            <span className="text-sm text-green-700 flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> The parish will look it up</span>
+                            <span className="text-sm text-green-700 flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> {w.willLookUp}</span>
                           ) : (
                             <label className="inline-flex items-center gap-2 cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:border-[#C8A24A] shrink-0">
                               <Upload className="h-4 w-4" />
-                              <span className="max-w-[12rem] truncate">{file ? file.name : 'Choose file'}</span>
+                              <span className="max-w-[12rem] truncate">{file ? file.name : w.chooseFile}</span>
                               <input type="file" accept=".pdf,image/*" className="hidden" onChange={e => {
                                 const f = e.target.files?.[0]
                                 if (!f) return
-                                if (f.size > 10 * 1024 * 1024) { setError('That file is over 10 MB. Try a photo or a smaller scan.'); return }
+                                if (f.size > 10 * 1024 * 1024) { setError(w.fileTooBig); return }
                                 setFiles(fs => ({ ...fs, [fileKey]: f }))
                               }} />
                             </label>
@@ -490,22 +593,30 @@ export default function FamilyRegistrationWizard(props: {
 
         {step === 3 && (
           <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-[#1E3A5F]">Review</h2>
+            <h2 className="text-lg font-semibold text-[#1E3A5F]">{w.reviewHeading}</h2>
             {!quote ? (
-              <div className="flex items-center gap-2 text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Calculating fees…</div>
+              <div className="flex items-center gap-2 text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> {w.calculating}</div>
             ) : (
               <div className="rounded-xl bg-[#FAF8F3] p-4 text-sm">
                 {quote.lines.map(l => (
-                  <div key={l.key} className="flex justify-between py-1.5 border-b border-[#EDE6D6] last:border-0">
-                    <span><strong>{l.childName}</strong> · {l.programName}{l.siblingDiscount > 0 && <span className="text-green-700"> (sibling discount −{formatMoney(l.siblingDiscount)})</span>}</span>
-                    <span>{formatMoney(l.total)}</span>
+                  <div key={l.key} className="flex justify-between gap-3 py-1.5 border-b border-[#EDE6D6] last:border-0">
+                    <span>
+                      <strong>{l.childName}</strong> · {l.programName}
+                      {l.siblingDiscount > 0 && <span className="text-green-700"> ({w.siblingDiscount(formatMoney(l.siblingDiscount))})</span>}
+                      {l.perFamily && !l.coveredByFamilyFee && !l.familyFeeAlreadyPaid && <span className="text-gray-500"> ({w.familyFee})</span>}
+                    </span>
+                    <span className="text-right shrink-0">
+                      {l.familyFeeAlreadyPaid ? <span className="text-gray-500">{w.familyFeePaid}</span>
+                        : l.coveredByFamilyFee ? <span className="text-gray-500">{w.coveredByFamilyFee}</span>
+                        : formatMoney(l.total)}
+                    </span>
                   </div>
                 ))}
                 {quote.familyCapAdjustment > 0 && (
-                  <div className="flex justify-between py-1.5 text-green-700"><span>Family maximum applied</span><span>−{formatMoney(quote.familyCapAdjustment)}</span></div>
+                  <div className="flex justify-between py-1.5 text-green-700"><span>{w.familyMax}</span><span>−{formatMoney(quote.familyCapAdjustment)}</span></div>
                 )}
-                <div className="flex justify-between pt-3 text-base font-semibold text-[#1E3A5F]"><span>Total</span><span>{formatMoney(quote.total)}</span></div>
-                {props.feeRulesSummary !== 'No sibling discount or family maximum' && <p className="text-xs text-gray-500 mt-2">Parish fee policy: {props.feeRulesSummary}.</p>}
+                <div className="flex justify-between pt-3 text-base font-semibold text-[#1E3A5F]"><span>{t.common.total}</span><span>{formatMoney(quote.total)}</span></div>
+                {props.feeRulesSummary && <p className="text-xs text-gray-500 mt-2">{w.feePolicy(props.feeRulesSummary)}</p>}
               </div>
             )}
 
@@ -515,31 +626,31 @@ export default function FamilyRegistrationWizard(props: {
                   <div className="rounded-xl border border-gray-200 p-4">
                     <label className="flex items-start gap-2 text-sm">
                       <input type="checkbox" className="mt-0.5" checked={assistance} onChange={e => setAssistance(e.target.checked)} />
-                      <span><span className="font-medium flex items-center gap-1"><HandHeart className="h-4 w-4 text-[#C8A24A]" /> I’d like to ask about fee assistance</span>
-                        <span className="text-gray-600">No child is turned away for financial reasons. Your children are registered now, and the parish will contact you privately.</span></span>
+                      <span><span className="font-medium flex items-center gap-1"><HandHeart className="h-4 w-4 text-[#C8A24A]" /> {w.assistanceTitle}</span>
+                        <span className="text-gray-600">{w.assistanceText}</span></span>
                     </label>
                     {assistance && (
-                      <textarea className={`${input} mt-3`} rows={2} value={assistanceNote} onChange={e => setAssistanceNote(e.target.value)} placeholder="Anything you’d like the parish to know (optional)" />
+                      <textarea className={`${input} mt-3`} rows={2} value={assistanceNote} onChange={e => setAssistanceNote(e.target.value)} placeholder={w.assistancePlaceholder} />
                     )}
                   </div>
                 )}
                 {!assistance && (
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-800">How would you like to pay?</p>
+                    <p className="text-sm font-medium text-gray-800">{w.howToPay}</p>
                     {canPayCard && (
-                      <label className={`flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer ${paymentMethod === 'card' ? 'border-[#C8A24A] bg-[#FFFDF8]' : 'border-gray-200'}`}>
+                      <label className={`flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer ${paymentMethod === 'card' ? 'bg-[#FFFDF8]' : 'border-gray-200'}`} style={paymentMethod === 'card' ? { borderColor: accent } : undefined}>
                         <input type="radio" className="mt-1" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
-                        <span><span className="font-medium flex items-center gap-2"><CreditCard className="h-4 w-4" /> Pay now by card</span><span className="text-sm text-gray-500">Secure checkout. Receipt by email.</span></span>
+                        <span><span className="font-medium flex items-center gap-2"><CreditCard className="h-4 w-4" /> {w.payCard}</span><span className="text-sm text-gray-500">{w.payCardHint}</span></span>
                       </label>
                     )}
                     {canPayOffice && (
-                      <label className={`flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer ${paymentMethod === 'office' ? 'border-[#C8A24A] bg-[#FFFDF8]' : 'border-gray-200'}`}>
+                      <label className={`flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer ${paymentMethod === 'office' ? 'bg-[#FFFDF8]' : 'border-gray-200'}`} style={paymentMethod === 'office' ? { borderColor: accent } : undefined}>
                         <input type="radio" className="mt-1" checked={paymentMethod === 'office'} onChange={() => setPaymentMethod('office')} />
-                        <span><span className="font-medium flex items-center gap-2"><Building2 className="h-4 w-4" /> Pay at the parish office</span>
-                          <span className="text-sm text-gray-500">{props.officeInstructions || 'Bring cash or a check to the office.'}</span></span>
+                        <span><span className="font-medium flex items-center gap-2"><Building2 className="h-4 w-4" /> {w.payOffice}</span>
+                          <span className="text-sm text-gray-500">{props.officeInstructions || w.payOfficeHint}</span></span>
                       </label>
                     )}
-                    {!canPayCard && !canPayOffice && <p className="text-sm text-red-600">Please contact the parish office to finish registering.</p>}
+                    {!canPayCard && !canPayOffice && <p className="text-sm text-red-600">{w.noPayment}</p>}
                   </div>
                 )}
               </div>
@@ -549,29 +660,27 @@ export default function FamilyRegistrationWizard(props: {
 
         {error && <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</div>}
         {uploadReport.some(r => !r.ok) && (
-          <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Some documents didn’t upload; you can add them from your family page.
-          </div>
+          <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{w.uploadIssues}</div>
         )}
 
         <div className="flex items-center justify-between mt-7 pt-5 border-t border-gray-100">
           {step > 0 ? (
-            <button type="button" onClick={back} disabled={!!busy} className="inline-flex items-center gap-1 text-[#1E3A5F] px-3 py-2 rounded-lg hover:bg-gray-50"><ChevronLeft className="h-4 w-4" /> Back</button>
+            <button type="button" onClick={back} disabled={!!busy} className="inline-flex items-center gap-1 text-[#1E3A5F] px-3 py-2 rounded-lg hover:bg-gray-50"><ChevronLeft className="h-4 w-4" /> {t.common.back}</button>
           ) : <span />}
           {step < 3 ? (
             <button type="button" onClick={next} disabled={!!busy} className="inline-flex items-center gap-1 rounded-lg bg-[#1E3A5F] px-6 py-3 text-white font-medium disabled:bg-gray-300">
-              {busy === 'quote' && <Loader2 className="h-4 w-4 animate-spin" />} {step === 2 ? 'Review' : 'Continue'} <ChevronRight className="h-4 w-4" />
+              {busy === 'quote' && <Loader2 className="h-4 w-4 animate-spin" />} {step === 2 ? w.review : t.common.continue} <ChevronRight className="h-4 w-4" />
             </button>
           ) : (
             <button type="button" onClick={submit} disabled={!!busy || !quote || (quote.total > 0 && !assistance && !canPayCard && !canPayOffice)}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#C8A24A] hover:bg-[#B8923A] px-6 py-3 text-white font-semibold disabled:bg-gray-300">
-              {busy && busy !== 'quote' ? <><Loader2 className="h-4 w-4 animate-spin" /> {busy === 'submit' ? 'Saving…' : busy}</>
-                : quote && quote.total > 0 && !assistance && paymentMethod === 'card' && canPayCard ? `Continue to payment (${formatMoney(quote.total)})` : 'Submit registration'}
+              className="inline-flex items-center gap-2 rounded-lg px-6 py-3 text-white font-semibold disabled:bg-gray-300" style={{ backgroundColor: busy || !quote ? undefined : accent }}>
+              {busy && busy !== 'quote' ? <><Loader2 className="h-4 w-4 animate-spin" /> {busy === 'submit' ? w.saving : busy}</>
+                : quote && quote.total > 0 && !assistance && paymentMethod === 'card' && canPayCard ? w.continueToPayment(formatMoney(quote.total)) : w.submit}
             </button>
           )}
         </div>
       </div>
-      <p className="text-center text-xs text-gray-500 mt-4">Your family’s information is only shared with {props.organizationName} staff.</p>
+      <p className="text-center text-xs text-gray-500 mt-4">{w.privacy(props.organizationName)}</p>
     </div>
   )
 }

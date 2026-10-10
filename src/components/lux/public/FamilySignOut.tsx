@@ -1,6 +1,8 @@
 'use client'
 
-export default function FamilySignOut({ slug }: { slug: string }) {
+import { dict, type LuxLang } from '@/lib/lux/i18n'
+
+export default function FamilySignOut({ slug, lang = 'en' }: { slug: string; lang?: LuxLang }) {
   return (
     <button
       type="button"
@@ -10,7 +12,7 @@ export default function FamilySignOut({ slug }: { slug: string }) {
         window.location.href = `/lux/${slug}`
       }}
     >
-      Sign out
+      {dict(lang).family.signOut}
     </button>
   )
 }
