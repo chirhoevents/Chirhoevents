@@ -74,6 +74,12 @@ SQLEOF
 echo "Executing pre-cleanup SQL..."
 npx prisma db execute --file /tmp/pre-cleanup.sql --schema prisma/schema.prisma
 
+# Lux tables and columns, created explicitly. db push reported "already in
+# sync" on production while they were missing (the schema check below caught
+# it), so don't rely on it for these. Idempotent; see the file for details.
+echo "Ensuring Lux tables and columns exist..."
+npx prisma db execute --file prisma/lux-schema.sql --schema prisma/schema.prisma
+
 echo "Running prisma db push..."
 # --accept-data-loss allows the push to proceed if Prisma detects any potential
 # data-loss (e.g. enum drift between DB and schema). Since all our schema changes
