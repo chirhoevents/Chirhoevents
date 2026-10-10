@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { slugify } from '@/lib/lux/slug'
 import { randomBytes } from 'crypto'
 
+const RESERVED = new Set(['registered', 'pay', 'api', 'new', 'admin', 'family', 'lux', 'link-expired'])
+
 /**
  * The parish's public Lux page lives at /lux/<publicSlug>. Give the org one
  * based on its name the first time Lux needs it; staff can change it in
@@ -15,9 +17,10 @@ export async function ensureOrgPublicSlug(organizationId: string): Promise<strin
   if (!org) throw new Error('Organization not found')
   if (org.publicSlug) return org.publicSlug
 
-  const base = slugify(org.name, 60)
+  const named = slugify(org.name, 60)
+  const base = named.length >= 3 && !RESERVED.has(named) ? named : `parish-${named}`.slice(0, 60)
   for (let attempt = 0; attempt < 5; attempt++) {
-    const candidate = attempt === 0 ? base : `${base}-${randomBytes(2).toString('hex')}`
+    const candidate = attempt === 0 ? base : `${base.slice(0, 55)}-${randomBytes(2).toString('hex')}`
     try {
       const updated = await prisma.organization.update({
         where: { id: organizationId },
@@ -31,8 +34,6 @@ export async function ensureOrgPublicSlug(organizationId: string): Promise<strin
   }
   throw new Error('Could not create a public page address')
 }
-
-const RESERVED = new Set(['registered', 'pay', 'api', 'new', 'admin', 'family', 'lux'])
 
 /** Validate a staff-chosen public page address */
 export function validatePublicSlug(value: string): string | null {
