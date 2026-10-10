@@ -1,7 +1,23 @@
 # Lux: Implementation Plan (Proposal)
 
-**Status:** Proposal. Waiting on answers to the open questions in section 12 before Phase 1 starts.
+**Status:** Plan agreed in principle. Security prerequisites (section 11) are done. Phase 1 starts once the remaining questions in section 12 are answered.
 **Spec:** Lux, a simple registration module for ChiRho Events (simple events + faith formation / sacramental prep).
+
+---
+
+## 0. Decisions so far
+
+| Topic | Decision |
+|---|---|
+| What Lux is | Parish-oriented software for small events/sign-ups and religious education. It is the product for the **Chapel and Parish** plans. |
+| Chapel and Parish | No full Events portal. Everything they create is a Lux simple event or program. **Chapel: 5 simple events per year. Parish: 10 simple events per year.** Faith formation programs are not counted against these limits. |
+| Bigger plans | Keep the full Events portal. Lux is a per-org switch on the master admin board. |
+| Existing orgs | Grandfathered: every org that exists at launch keeps the full Events portal it has today, including the large org currently on Chapel. No upgrade is needed for that to keep working. |
+| Who sees documents | Everyone logged in for the parish (org admin, pastor, staff) sees all sacramental documents and fee-assistance requests. No separate registrar role. Event-volunteer roles (SALVE/Rapha/Poros coordinators) and group leaders do not. Views are still logged quietly. |
+| How long documents are kept | Until the parish deletes them. Auto-delete after N days is an optional per-program setting, **off by default**. |
+| Email | Lux emails (confirmations, receipts, reminders, family links) are sent as **Lux**, with a Lux logo. Account, billing and support emails stay ChiRho Events. |
+| Sibling discount / family cap | Yes. Set by the parish (section 7). |
+| Security | Auth hardening and private file storage ship first (section 11). |
 
 ---
 
@@ -18,7 +34,7 @@
 | Individual registration | `/api/registration/individual` (1,080 lines) | Requires a housing type and an emergency contact. Writes `IndividualRegistration` + `PaymentBalance` + `Payment`. |
 | Custom questions | `CustomRegistrationQuestion` / `CustomRegistrationAnswer`, `CustomQuestionRenderer` | Reused for simple events as is, and for programs with a nullable `luxProgramId`. |
 | Payments | Stripe Checkout destination charges to the org's Connect account, `calculatePlatformFeeCents` (1% + Stripe fee passthrough) | The webhook (`/api/webhooks/stripe`) switches on `metadata.registrationType`. A "pay by check" path already exists (`pending_check_payment`), and staff record check/cash payments. `Payment.eventId` and `PaymentBalance.eventId` are required. |
-| File storage | `src/lib/r2/*` | One R2 bucket served at a **public** URL. Every upload returns a permanent public link, including Safe Environment certificates and liability PDFs. No signed-URL helper exists. |
+| File storage | `src/lib/r2/*` | One R2 bucket served at a **public** URL. Certificates and letters of good standing were stored there with permanent public links. **Fixed:** they now go to a private bucket via `src/lib/r2/private-files.ts` and open through `/api/secure-files` (section 11b), which Lux documents reuse. |
 | Email | `src/lib/resend.ts` | Wrapper that stores a full copy of every email in `OutboundEmail`. |
 | Rate limiting | `src/lib/rate-limit.ts` | In memory, per serverless instance. Not reliable across Vercel instances. |
 | Schema deploys | `scripts/build.sh` | `prisma db push`, plus a canary block that fails the build if critical columns are missing. |
@@ -53,11 +69,22 @@
 
 ## 3. Gating, plans and limits
 
-* `ModuleKey` gains **`lux`**, set to `features.lux = true` on **every** tier (Chapel included). Master admins can override it per org, the same as Poros.
-* A second new module key, **`events`** (the full Events portal), defaults to `true` on every existing tier. A Lux-only org is `events: false`. Until a Lux-only plan exists, a master admin sets this per org. When pricing is settled we add a tier key whose default is `events: false`.
-* **Dark launch:** `PlatformSetting` key `lux_rollout` = `off | beta | all`. With `beta`, only orgs with an explicit `lux: true` override see Lux. It ships set to `beta`.
-* **Limits:** each tier gets `luxLimits = { activePrograms, simpleEventsPerYear, documentStorageGb }`, all `null` (unlimited) for now. These can be overridden per org in `Organization.luxSettings.limits`. Helpers: `getLuxLimits(org)` and `assertLuxLimit(org, kind)`.
-* Simple events are **excluded** from `countEventsUsedInCurrentPeriod` (filter `mode: 'full'`). See open question 1.
+* `ModuleKey` gains two keys, both overridable per org on the master admin board like Poros:
+  * **`lux`**: the Lux dashboard.
+  * **`events`**: the full Events portal.
+* Tier defaults in `SUBSCRIPTION_TIERS`:
+
+  | Tier | `lux` | `events` | Simple events / year | Programs |
+  |---|---|---|---|---|
+  | Chapel | on | **off** | 5 | unlimited |
+  | Parish | on | **off** | 10 | unlimited |
+  | Cathedral / Shrine / Basilica | on (switchable per org) | on | unlimited | unlimited |
+
+* **Grandfathering, run once at launch:** every org that exists before the release gets an explicit `events: true` override, the same pattern as the `20260531000001` migration. It runs from `build.sh`, guarded by a `PlatformSetting` row (`lux_events_grandfathered`) so it only ever runs once. Orgs created later get the tier default. Grandfathered orgs keep their existing `eventsPerYearLimit` for full events and also get Lux with their tier's simple-event limit.
+* **Limits:** each tier gets `luxLimits = { simpleEventsPerYear, activePrograms, documentStorageGb }` (Chapel 5, Parish 10, otherwise `null` = unlimited). They can be overridden per org in `Organization.luxSettings.limits`. Helpers: `getLuxLimits(org)` and `assertLuxLimit(org, kind)`. The year is the same subscription-anniversary period `countEventsUsedInCurrentPeriod` uses, counting published simple events.
+* Simple events are **excluded** from the full-event count (filter `mode: 'full'`), and full events are excluded from the simple-event count.
+* **Dark launch:** `PlatformSetting` key `lux_rollout` = `off | beta | all`. With `beta`, only orgs with an explicit `lux: true` override see Lux, so it can be tried on a few parishes before it's switched on for everyone.
+* The stale `TIER_LIMITS` table in `src/app/api/admin/events/check-limit/route.ts` is replaced with values from `SUBSCRIPTION_TIERS`.
 
 ---
 
@@ -91,7 +118,6 @@ model Payment        { eventId String? ... }   // nullable: Lux program orders a
 model PaymentBalance { eventId String? ... }
 
 enum RegistrationType { ... lux_order }
-enum UserRole         { ... lux_registrar }     // "Faith Formation Registrar"
 
 model CustomRegistrationQuestion {
   luxProgramId String? @map("lux_program_id") @db.Uuid               // program-specific custom fields
@@ -184,9 +210,8 @@ model LuxAuditLog {                 // document views, status changes, deletes, 
 ## 5. Dashboard routing and switcher
 
 * New pure function `resolveLandingDashboard({ role, modules, lastDashboard })` in `src/lib/lux/routing.ts`, unit tested:
-  * It applies only to org staff roles (org_admin, event_manager, finance_manager, staff, lux_registrar). Master admins, coordinators and group leaders keep today's routing.
-  * `lux && !events` → `lux`. `lux && events` → `lastDashboard ?? 'events'`. `!lux` → today's behavior.
-  * `lux_registrar` always lands on Lux.
+  * It applies only to org staff roles (org_admin, event_manager, finance_manager, staff). Master admins, coordinators and group leaders keep today's routing.
+  * `lux && !events` (new Chapel/Parish orgs) → `lux`. `lux && events` → `lastDashboard ?? 'events'`. `!lux` → today's behavior.
 * `/api/user/role` also returns `dashboard`, and `/dashboard/page.tsx` routes on it.
 * The admin layout redirects a Lux-only org from `/dashboard/admin` to `/dashboard/lux`. The Lux layout redirects an org without Lux back to `/dashboard/admin`.
 * A `DashboardSwitcher` in both headers ("Events | Lux") appears only when the org has both. Switching calls `POST /api/user/last-dashboard`.
@@ -231,18 +256,15 @@ title, date (+ optional time), location, short description · ticket types (star
   5. Pay by card or at the office.
 * **Fees:** `src/lib/lux/family-fees.ts` → `calculateFamilyFees(children, programs, feeRules)`, a pure function with tests. Per-child fee comes from the program. Sibling discount (flat or %) and family cap come from the parish's fee rules (open question 4).
 * **Checkout:** one `LuxOrder` maps to one Stripe Checkout session, with one line item per child and `metadata.registrationType = 'lux_order'`. A new webhook branch marks the order paid and the registrations registered. Office payment sets `office_pending`; staff mark it paid, which writes a `Payment` (cash/check).
-* **Fee assistance** is visible only to users with the `lux.fees` permission. Staff can approve with a new total, waive, or deny. Every decision is audited.
+* **Fee assistance** is visible to the parish's logged-in staff only, never to other families. Staff can approve with a new total, waive, or deny. Every decision is logged.
 
 ## 8. Phase 3: Documents and privacy
 
-* **Private bucket:** a new `R2_PRIVATE_BUCKET_NAME` with no public domain. `src/lib/lux/private-storage.ts` provides `put`, `delete` and `signedGetUrl` (5-minute TTL) using `@aws-sdk/s3-request-presigner` (new dependency). Keys are random: `lux/{orgId}/{submissionId}`. The database stores the key only, never a URL.
-* **Permission:** new `lux.documents` and `lux.fees` permissions.
-  * The new `lux_registrar` role has both, plus the Lux dashboard, and no Events portal.
-  * org_admin does **not** get `lux.documents` by default. It can be granted per person in Team settings (open question 3).
-  * A new server helper `userHasPermissionWithExtras()` honors the extra-permissions array, which the current server helpers ignore.
-* `GET /api/lux/documents/[id]/url` checks a verified session (see 11a), the permission and the org, writes a `document.view` audit row, and returns a signed URL. Status changes and deletes are audited the same way.
+* **Storage is permanent.** Documents stay stored until the parish deletes them (or an optional per-program auto-delete runs; off by default). They live in the private bucket from section 11b (`src/lib/r2/private-files.ts`). Keys are random: `lux/{orgId}/{submissionId}`. The database stores the private reference only, never a URL.
+* **Viewing:** clicking "View" goes to `/api/lux/documents/[id]`, which checks the login and org, logs the view, and opens the file through a link that works for 5 minutes. Each click makes a fresh link. The time limit applies only to the link, never to the document, so a link copied into an email or chat stops working instead of exposing a child's records forever.
+* **Who can view:** any logged-in org staff user of that parish (org_admin, event_manager, finance_manager, staff). No separate registrar role. SALVE/Rapha/Poros coordinators, group leaders and families' own links cannot browse other families' documents. Status changes and deletes are logged the same way.
 * **Uploads** are PDF/JPG/PNG/HEIC, up to 10 MB, made by the family (registration session or magic link) or by staff on the family's behalf. Usage counts toward `documentStorageGb`.
-* **Retention:** `LuxProgram.documentRetentionDays`. A daily cron (`/api/cron/lux-retention`) deletes expired objects and marks their submissions deleted. Staff also get a "Delete this household's documents" action.
+* **Retention:** `LuxProgram.documentRetentionDays`, `null` (keep until deleted) by default. If a parish sets it, a daily cron (`/api/cron/lux-retention`) deletes expired files. Staff also get a "Delete this household's documents" action.
 * **Checklist view:** a child × requirement grid per program with an "outstanding only" filter, plus one-click and bulk reminder emails. Each reminder carries a magic link straight to the upload step.
 
 ## 9. Phase 4: Magic link, exports, retention UI
@@ -252,6 +274,16 @@ title, date (+ optional time), location, short description · ticket types (star
 * **Opening the link** exchanges the single-use token for a signed httpOnly session cookie scoped to that household (2 hours). The page lets the family confirm or update household info, re-register children (prefilled from last term) and upload missing documents. It has no navigation and no account.
 * The raw link is redacted from the `OutboundEmail` copy.
 * **Exports:** CSV (opens in Excel) for program rosters (filters: grade, payment status, documents complete), outstanding documents and simple-event registrant lists.
+
+---
+
+## 9b. Lux email and branding
+
+* `src/lib/lux/email.ts`: a `sendLuxEmail()` wrapper around the existing Resend client (so every email is still logged in `OutboundEmail`). It sends from `Lux <${RESEND_LUX_FROM_EMAIL}>`, uses a Lux-branded email layout with the Lux logo, and uses the parish's contact as reply-to (existing `resolveReplyTo`).
+* Lux sends: simple-event confirmations and receipts, pay-at-office instructions, program registration confirmations, document reminders, family email links, and fee-assistance outcomes.
+* ChiRho Events keeps sending: org onboarding, subscription and invoices, support, and master-admin email. Full-event emails for grandfathered orgs are unchanged.
+* **Logo:** placeholder "Lux" wordmark until you provide the logo. It goes in `public/lux/` and is used in emails, the Lux dashboard header and public Lux pages.
+* **Setup on your side:** pick the sending address. An address on `chirhoevents.com` works with the existing Resend domain. A new domain needs Resend DNS verification first.
 
 ---
 
@@ -269,17 +301,22 @@ title, date (+ optional time), location, short description · ticket types (star
   * Fee assistance
   * Exports
 * `src/app/features/page.tsx`: a Lux feature card next to Poros/SALVE/Rapha.
-* `src/app/page.tsx`: a Lux feature card, an "Lux included on every plan" line in pricing, and FAQ entries.
+* `src/app/page.tsx` and `src/app/get-started/page.tsx`: Chapel and Parish pricing cards rewritten as Lux plans ("5 / 10 simple events a year + unlimited faith formation programs"), a Lux feature card, and FAQ entries. Bigger plans: "Full event registration, Poros, SALVE, Rapha, plus Lux.
 * Master admin org edit page: **Lux** and **Full Events** toggles.
 
 ---
 
 ## 11. Before or alongside Lux: pre-existing issues found during exploration
 
-**a. Unverified JWT accepted as identity (high severity).** `src/lib/jwt-auth-helper.ts` (`getClerkUserIdFromHeader`, `getClerkUserIdFromRequest`, `getClerkUserIdFromCookies`) and the inline copies in `/api/admin/check-access` and `/api/user/role` base64-decode a bearer token or cookie and trust its `sub` **without checking the signature**. `getCurrentUser(overrideUserId)` then prefers that ID over the verified Clerk session. About 150 files use this path, and `/api/admin(.*)` is public in the middleware ("handles its own auth"). Anyone who knows a staff member's Clerk user ID can make admin API calls as that person. Lux document access would sit on the same layer, so the acceptance criterion "documents are inaccessible without the registrar permission" cannot honestly be met until this is fixed.
+Status: **a** and **b** are fixed on this branch (commits `Verify Clerk tokens…` and `Store certificates and letters privately…`), with tests in `tests/security/`. **c** no longer matters for Lux because document access is no longer a separate permission. **d** is folded into Phase 1.
+
+**a. Unverified JWT accepted as identity (high severity). FIXED.** `src/lib/jwt-auth-helper.ts` (`getClerkUserIdFromHeader`, `getClerkUserIdFromRequest`, `getClerkUserIdFromCookies`) and the inline copies in `/api/admin/check-access` and `/api/user/role` base64-decode a bearer token or cookie and trust its `sub` **without checking the signature**. `getCurrentUser(overrideUserId)` then prefers that ID over the verified Clerk session. About 150 files use this path, and `/api/admin(.*)` is public in the middleware ("handles its own auth"). Anyone who knows a staff member's Clerk user ID can make admin API calls as that person. Lux document access would sit on the same layer, so the acceptance criterion "documents are inaccessible without the registrar permission" cannot honestly be met until this is fixed.
   * **Proposed fix (separate PR):** verify the token with Clerk's `verifyToken` (keeps the cookie-timing workaround for real tokens), make `getCurrentUser` prefer the verified `auth()` session, and have all Lux routes use a strict helper.
 
-**b. Public file URLs.** Safe Environment certificates and liability PDFs are uploaded to the public bucket with permanent URLs. Lux uses a private bucket from day one. Moving these existing files over is a worthwhile follow-up.
+**b. Public file URLs. FIXED in code; needs the private bucket created to take effect.** Safe Environment certificates (participants, staff, vendors) and letters of good standing were uploaded to the public bucket with permanent URLs. (Liability form PDFs are generated on request, not stored, so they were never exposed this way.)
+  * They now upload to `R2_PRIVATE_BUCKET_NAME`, and every page opens them through `/api/secure-files`: org admins for that event's organization, or the group leader who owns the group.
+  * `scripts/move-sensitive-files-private.ts` moves the existing files.
+  * Until the bucket exists, new uploads still go to the public bucket, with an error logged, so uploads never break mid-season.
 
 **c. Server permission helpers ignore extra permissions.** Only the sidebar reads them. Lux adds a helper that honors them.
 
@@ -289,14 +326,13 @@ title, date (+ optional time), location, short description · ticket types (star
 
 ## 12. Open questions
 
-1. **Do simple events count toward the plan's event and people limits?** Chapel allows 1 event per year, so if they count, Lux is close to useless on Chapel. *Recommendation: they don't count. Lux has its own limits, unlimited by default.*
-2. **Will there be a Lux-only plan** (below Chapel)? *Recommendation: yes, as the entry product. Until it exists, a master admin can make an org Lux-only by switching off Full Events.*
-3. **Should the org admin (pastor / business manager) see sacramental documents by default?** The spec says no. *Recommendation: follow the spec. Off by default, grantable per person in Team settings, and every view logged.*
-4. **Sibling discount and family cap: household-wide or per program?** For example, one child in Faith Formation ($100) and one in Confirmation ($150). *Recommendation: per-child fee set on each program; sibling discount and family cap set once per parish per term and applied across all of a household's children.*
-5. **Should the auth fix (11a) go first?** *Recommendation: yes, as its own small PR before Phase 1 merges, and required before Phase 3.*
+1. **Lux sending address:** `lux@chirhoevents.com` (works today) or a separate Lux domain (needs DNS setup)?
+2. **People-per-year caps:** Chapel and Parish currently cap people at 500 and 750 a year. One fish fry plus faith formation could pass 500. *Recommendation: drop the people cap on Chapel and Parish and limit by simple events only.*
+3. **Lux on bigger plans:** on by default for Cathedral and up, or off until you switch it on per org? *Assumption: on by default; you can switch it off.*
 
 Assumptions unless told otherwise:
-* "Organization managers keep the normal Events portal" means orgs without Lux, and roles other than parish staff, see no change.
+* Chapel ($39) and Parish ($59) pricing and the $50 access fee stay the same.
+* Sibling discount and family cap: per-child fee set on each program; discount and cap set once per parish per year and applied across all of a household's children.
 * The standard platform fee (1% + Stripe passthrough) applies to Lux card payments.
 
 ---
@@ -305,8 +341,8 @@ Assumptions unless told otherwise:
 
 | PR | Contents | Tests |
 |---|---|---|
-| 0 | Auth hardening (11a) | Forged-token rejection, valid-token acceptance |
-| 1 | Lux flag/limits, routing + switcher, Lux layout, "What are you setting up?", simple events, public page, register route, pay at office, convert, docs + marketing for simple events | Routing truth table, simple-event pricing, convert keeps registrations/payments, event-limit exclusion, existing suites unchanged |
+| 0 (done) | Auth hardening (11a), private storage for certificates and letters (11b) | `tests/security/verify-clerk-token.test.ts`, `tests/security/sensitive-files.test.ts` |
+| 1 | Lux/events modules + tier defaults, one-time grandfathering, 5/10 simple-event limits, routing + switcher, Lux layout, "What are you setting up?", simple events, public page, register route, pay at office, convert/upgrade prompt, Lux email sender, docs + pricing/marketing | Routing truth table, grandfathering, simple-event limits, simple-event pricing, convert keeps registrations/payments, existing suites unchanged |
 | 2 | Households, children, templates, family flow, family fees, Stripe order checkout + webhook branch, pay at office | Family fee calc (discount/cap), two children / two programs / one household, webhook marks order paid |
-| 3 | Private storage, documents, registrar role and permissions, audit log, checklist, reminders | Permission matrix (registrar / org_admin / staff / other org), no URL stored, signed URL TTL |
+| 3 | Documents on the private storage from PR 0, view logging, checklist, reminders | Access matrix (org staff / coordinator / group leader / other org), no URL stored |
 | 4 | Magic link, fee assistance UI, exports, retention cron + delete action, remaining docs | Token hashing, expiry, single use, identical response for unknown emails, rate limits |
