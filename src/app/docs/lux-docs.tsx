@@ -23,9 +23,14 @@ export const luxDocSections = [
       { id: "lux-setup", title: "Setting Up Lux" },
       { id: "lux-simple-events", title: "Simple Events & Sign-Ups" },
       { id: "lux-programs", title: "Faith Formation & Sacrament Programs" },
+      { id: "lux-program-types", title: "OCIA, Family Programs & Baptism Preparation" },
+      { id: "lux-class-times", title: "Class Times, Days & Grades" },
       { id: "lux-fees", title: "Tuition, Sibling Discounts & Family Maximum" },
-      { id: "lux-documents", title: "Baptismal Certificates & Documents" },
+      { id: "lux-documents", title: "Certificates, Letters & Documents" },
       { id: "lux-payments", title: "Payments, Pay at the Office & Fee Assistance" },
+      { id: "lux-refunds", title: "Refunds" },
+      { id: "lux-parish-page", title: "Your Parish Page & Website Button" },
+      { id: "lux-spanish", title: "Spanish for Families" },
       { id: "lux-households", title: "Households & Returning Families" },
       { id: "lux-exports", title: "Rosters & Exports" },
       { id: "lux-privacy", title: "Who Can See What" },
@@ -37,7 +42,7 @@ export const luxDocSections = [
     title: "For Parish Families",
     icon: Heart,
     items: [
-      { id: "family-register", title: "Registering Your Children" },
+      { id: "family-register", title: "Registering Your Family" },
       { id: "family-page", title: "Your Family Page & Sign-In Link" },
       { id: "family-documents", title: "Uploading Documents" },
       { id: "family-paying", title: "Paying & Fee Assistance" },
@@ -75,10 +80,13 @@ export const luxDocContent: Record<string, { title: string; content: React.React
         <h3 className={h3}>What you can do with Lux</h3>
         <ul className={ul}>
           <li><strong>Simple events</strong>: fish fry, Bible study, retreat, picnic, volunteer sign-up. One page with tickets, a few questions, and card or office payment.</li>
-          <li><strong>Faith formation and sacrament programs</strong>: Faith Formation, First Communion, Confirmation, Vacation Bible School. Parents register all their children on one form.</li>
+          <li><strong>Faith formation and sacrament programs</strong>: Faith Formation, Family Faith Formation, First Communion, Confirmation, Baptism Preparation, OCIA, Vacation Bible School. Families register everyone on one form: children, adults, or the whole family together.</li>
+          <li><strong>Class times</strong>: offer several days or times, or split classes by grade, each with its own limit.</li>
           <li><strong>Sibling discounts and a family maximum</strong>, worked out automatically.</li>
-          <li><strong>Baptismal certificates and other documents</strong>, uploaded by families and stored privately.</li>
-          <li><strong>Pay online, pay at the office, or ask for fee assistance</strong>, all tracked in one place.</li>
+          <li><strong>Certificates and letters</strong> (baptismal, First Communion, sponsor and godparent letters), uploaded by families and kept privately in one place.</li>
+          <li><strong>English or Spanish</strong>: families switch with one click, and their emails come in the language they chose.</li>
+          <li><strong>Your own parish page</strong> with your photo, welcome and colors, plus a button for your website.</li>
+          <li><strong>Pay online, pay at the office, or ask for fee assistance</strong>, with refunds, all tracked in one place.</li>
           <li><strong>Returning families</strong> sign in with an emailed link. Their information is already filled in.</li>
           <li><strong>Rosters and exports</strong> for catechists, sacramental records and the finance office.</li>
         </ul>
@@ -118,17 +126,22 @@ export const luxDocContent: Record<string, { title: string; content: React.React
             <p className={step}>Every parish gets one public page, like <code className="bg-gray-100 px-1 rounded">chirhoevents.com/lux/st-mary-austin</code>, listing open programs and upcoming events. You can change the address in <strong>Settings → Lux</strong>.</p>
           </li>
           <li>
+            <strong>Make your parish page your own (optional)</strong>
+            <p className={step}>In <strong>Settings → Lux</strong>, add a photo of your church, a welcome message, an announcement and your color. See <a href="/docs?section=lux-parish-page" className={link}>Your Parish Page &amp; Website Button</a>.</p>
+          </li>
+          <li>
             <strong>Set up your first program or event</strong>
             <p className={step}>Click <strong>Set something up</strong> and choose <em>An event or sign-up</em> or <em>A class or sacrament program</em>.</p>
           </li>
           <li>
             <strong>Share your parish page</strong>
-            <p className={step}>Copy the link from the Home page and put it in the bulletin, on your website and in your parish emails.</p>
+            <p className={step}>Copy the link from the Home page and put it in the bulletin and your parish emails. For your website, copy the ready-made button from <strong>Settings → Lux</strong>.</p>
           </li>
         </ol>
         <div className={tip}>
-          <strong>Invite your team:</strong> in <strong>Settings → Team</strong>, add your pastor, DRE or office staff. Anyone you invite can see
-          everything in Lux, including documents. The <em>Staff</em> role can look but not change anything.
+          <strong>Invite your team:</strong> in <strong>Settings → Team</strong>, add your pastor, DRE or office staff. There are two kinds of access:
+          <em> Admin</em> can do everything, and <em>Staff (view only)</em> can look but not change anything. Everyone you invite can see
+          everything in Lux, including documents.
         </div>
       </div>
     ),
@@ -144,7 +157,7 @@ export const luxDocContent: Record<string, { title: string; content: React.React
           <li><strong>Click Set something up → An event or sign-up</strong></li>
           <li>
             <strong>The basics</strong>
-            <p className={step}>Title, a short description, dates and times, and where it is.</p>
+            <p className={step}>Title, a short description, dates and times, where it is, and the language it&apos;s in (English, Spanish or bilingual).</p>
           </li>
           <li>
             <strong>Tickets</strong>
@@ -173,7 +186,7 @@ export const luxDocContent: Record<string, { title: string; content: React.React
           <li><strong>Record a payment</strong> when someone pays cash or by check. They get a receipt by email.</li>
           <li><strong>Close</strong> registration early, <strong>reopen</strong> it, or <strong>hide</strong> the event from your parish page.</li>
           <li>Registration closes by itself when the event starts (or at the time you set).</li>
-          <li>Cancel a registration to give the spot back. Card refunds are issued from the registration.</li>
+          <li>Cancel a registration to give the spot back, then use <strong>Refund</strong> to give money back. See <a href="/docs?section=lux-refunds" className={link}>Refunds</a>.</li>
           <li>Download everyone as a spreadsheet with <strong>Export</strong>.</li>
         </ul>
         <h3 className={h3}>Your yearly event allowance</h3>
@@ -190,23 +203,29 @@ export const luxDocContent: Record<string, { title: string; content: React.React
     content: (
       <div className="space-y-4">
         <p>
-          A program is anything families register their children for over the year: weekly Faith Formation, First Communion prep,
-          Confirmation, Vacation Bible School. Programs are unlimited on every Lux plan.
+          A program is anything people register for over the year: weekly Faith Formation, First Communion prep, Confirmation, Baptism
+          Preparation, OCIA, Vacation Bible School. A program can be for children, for adults, or for whole families. Programs are unlimited on every Lux plan.
         </p>
         <h3 className={h3}>Start from a template</h3>
         <ul className={ul}>
           <li><strong>Faith Formation</strong>: grades K–8, baptismal certificate optional, photo permission and pickup questions.</li>
           <li><strong>First Communion</strong>: grade 2 by default, baptismal certificate required (or &quot;baptized here&quot;).</li>
-          <li><strong>Confirmation</strong>: grades 8–10, baptismal certificate and sponsor eligibility letter (First Communion certificate optional), sponsor information, and service hours.</li>
+          <li><strong>Confirmation</strong>: grades 8–10, baptismal certificate and sponsor&apos;s letter of good standing (First Communion certificate optional), sponsor information, and service hours.</li>
+          <li><strong>Family Faith Formation</strong>: the whole family registers together for one family fee.</li>
+          <li><strong>Baptism Preparation</strong>: for parents preparing for a baby&apos;s baptism. Class dates, the child&apos;s birth certificate, and godparents&apos; letters of good standing.</li>
+          <li><strong>OCIA</strong>: adults register themselves. Baptism background and sacraments already received.</li>
           <li><strong>Custom</strong>: start blank for anything else.</li>
         </ul>
         <p>Everything in a template can be changed.</p>
         <h3 className={h3}>What you set for each program</h3>
         <ul className={ul}>
           <li><strong>Name, school year and description</strong> families see.</li>
+          <li><strong>Who it&apos;s for</strong>: children, adults or families. Adults and families don&apos;t need grades.</li>
           <li><strong>Grades</strong> the program accepts, and an optional <strong>capacity</strong>.</li>
+          <li><strong>Class times</strong> families choose from, if you offer more than one. See <a href="/docs?section=lux-class-times" className={link}>Class Times, Days &amp; Grades</a>.</li>
+          <li>The <strong>language</strong> classes are taught in: English, Spanish or bilingual.</li>
           <li><strong>Registration dates</strong>: when it opens and closes.</li>
-          <li><strong>Tuition per child</strong> and <strong>extra fees</strong> (books, retreat, sacrament fee). Choose which extra fees get the sibling discount.</li>
+          <li><strong>Tuition</strong>, charged per person or once per family, and <strong>extra fees</strong> (books, retreat, sacrament fee). Choose which extra fees get the sibling discount.</li>
           <li>Whether families can <strong>pay online</strong>, <strong>pay at the office</strong>, or <strong>ask for fee assistance</strong>.</li>
           <li><strong>Documents</strong> to collect, and whether &quot;baptized at this parish&quot; is accepted instead of an upload.</li>
           <li><strong>Questions</strong> for each child, on top of name, birthday, grade, baptism, allergies and medical notes.</li>
@@ -214,7 +233,7 @@ export const luxDocContent: Record<string, { title: string; content: React.React
         </ul>
         <h3 className={h3}>The roster</h3>
         <p>
-          Open a program to see every child registered. Filter by grade, payment, or documents. Expand a child to see their family, baptism
+          Open a program to see everyone registered. Filter by grade, class time, payment, or documents. Expand a person to see their family, baptism
           information, allergies, answers, sponsor, service hours and documents. You can add staff notes, record service hours, open the
           family&apos;s payments, or cancel a registration (the spot opens up and anything unpaid comes off what they owe).
         </p>
@@ -245,6 +264,12 @@ export const luxDocContent: Record<string, { title: string; content: React.React
           A family that registers one child in August and another in September pays the same as if they&apos;d registered both together.
           Children already registered that year count as earlier siblings, and what the family already owes counts toward the maximum.
         </p>
+        <h3 className={h3}>One fee per family</h3>
+        <p>
+          A program can charge <strong>once per family</strong> instead of per person (Family Faith Formation does by default). The family pays the
+          fee once, however many people they register, and isn&apos;t charged again if they add someone later in the year. The sibling discount
+          doesn&apos;t apply to a family fee.
+        </p>
         <h3 className={h3}>Programs that don&apos;t follow the rules</h3>
         <p>Each program can opt out of the sibling discount or the family maximum. A sacrament fee, for example, often shouldn&apos;t be discounted.</p>
         <div className={tip}>
@@ -260,8 +285,10 @@ export const luxDocContent: Record<string, { title: string; content: React.React
     content: (
       <div className="space-y-4">
         <p>
-          Programs can ask for documents like a baptismal certificate, a sponsor eligibility letter or a First Communion certificate. Families
-          upload a photo or scan (PDF or image, up to 10 MB) when they register, or later from their family page.
+          Programs can ask for any document: a baptismal certificate, a First Communion or Confirmation certificate, a sponsor&apos;s letter of good
+          standing, godparents&apos; letters, a birth certificate. When you set up a program, add the common ones with one click, or type your own.
+          Families upload a photo or scan (PDF or image, up to 10 MB) when they register, or later from their family page.
+          Every document from every program is in one place: the <strong>Documents</strong> page.
         </p>
         <h3 className={h3}>Reviewing documents</h3>
         <ol className={ol}>
@@ -329,8 +356,180 @@ export const luxDocContent: Record<string, { title: string; content: React.React
         <div className={tip}>
           You can also lower what any family owes, even without a request, with <strong>Adjust amount due</strong> on their registration.
         </div>
+        <p>To give money back, see <a href="/docs?section=lux-refunds" className={link}>Refunds</a>.</p>
         <h3 className={h3}>The totals</h3>
         <p>The top of the Payments page shows what&apos;s been paid online and at the office this year, what&apos;s still owed, and refunds.</p>
+      </div>
+    ),
+  },
+
+  "lux-program-types": {
+    title: "OCIA, Family Programs & Baptism Preparation",
+    content: (
+      <div className="space-y-4">
+        <p>Faith formation isn&apos;t only for children. When you set up a program, choose who it&apos;s for:</p>
+        <ul className={ul}>
+          <li><strong>Children</strong>: parents register their kids, with grades (Faith Formation, First Communion, Confirmation).</li>
+          <li><strong>Adults</strong>: people register themselves, with no grade (OCIA, Bible study series, adult Confirmation).</li>
+          <li><strong>Families</strong>: the whole family registers together, parents and children (Family Faith Formation).</li>
+        </ul>
+        <h3 className={h3}>OCIA</h3>
+        <p>
+          Start from the OCIA template. Adults register themselves on your parish page: they click <em>This is me</em>, answer whether they&apos;ve
+          been baptized and which sacraments they&apos;ve received, and can upload a baptismal certificate if they have one. Your roster shows them as adults.
+        </p>
+        <h3 className={h3}>Family Faith Formation</h3>
+        <p>
+          Start from the Family Faith Formation template. A parent adds everyone attending (themselves and each child) and the family pays
+          <strong> one family fee</strong>, however many people come. A child added later in the year isn&apos;t charged again. If the person who
+          carried the fee is cancelled, the fee moves to someone else in the family, so it&apos;s never lost or charged twice.
+        </p>
+        <h3 className={h3}>Baptism Preparation</h3>
+        <p>
+          For parents preparing for their baby&apos;s baptism. Add your class dates as class times (for example &quot;Saturday, Jan 10 · 10am&quot;) so
+          parents pick one. The template asks for the child&apos;s birth certificate, the godparents&apos; names, and a letter of good standing for
+          each godparent from another parish. Babies don&apos;t need a grade.
+        </p>
+        <div className={tip}>
+          You can mix these on one family&apos;s form. A mother can register herself for OCIA and her children for Faith Formation in one go.
+        </div>
+      </div>
+    ),
+  },
+
+  "lux-class-times": {
+    title: "Class Times, Days & Grades",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Many parishes offer the same program on different days, like Sunday morning or Wednesday evening, or split classes by grade. Add these as
+          <strong> class times</strong> on the program, and families pick one for each person when they register.
+        </p>
+        <h3 className={h3}>Setting up class times</h3>
+        <ol className={ol}>
+          <li><strong>Open the program and find Class times.</strong></li>
+          <li><strong>Click Add a class time</strong> and give it a name families will recognize, like &quot;Sunday 9:00am&quot;.</li>
+          <li><strong>Add details</strong> (optional), like the room or the weeks it meets.</li>
+          <li><strong>Choose grades</strong> (optional) if the class is only for some grades, like grades 1–3. Families only see the class times that fit their child.</li>
+          <li><strong>Set a limit</strong> (optional). When a class time fills up, families see it as full and choose another.</li>
+        </ol>
+        <h3 className={h3}>On the roster</h3>
+        <p>
+          The program page shows how many people are in each class time. Click one to see only that class, then export it for the catechist.
+          Exports include a Class time column. To move someone (a family asks to switch to Wednesday), expand them on the roster and choose a
+          different class time.
+        </p>
+        <h3 className={h3}>Changing class times later</h3>
+        <p>
+          You can rename class times or add new ones any time. A class time with people in it can&apos;t be removed, and its limit can&apos;t go below
+          the number already registered. Move people to another class time first, or cancel their registrations.
+        </p>
+        <div className={tip}>
+          Siblings in different class times still get the sibling discount and count toward the family maximum.
+        </div>
+      </div>
+    ),
+  },
+
+  "lux-refunds": {
+    title: "Refunds",
+    content: (
+      <div className="space-y-4">
+        <p>
+          When a family withdraws, you cancel an event, or someone pays too much, give the money back from Lux. Refunds work the same for faith
+          formation registrations and event sign-ups. Only admins can give refunds.
+        </p>
+        <h3 className={h3}>Giving a refund</h3>
+        <ol className={ol}>
+          <li>
+            <strong>Open the registration</strong>
+            <p className={step}>For a program, open the family&apos;s registration from the roster, the household page or Payments. For an event, open the event and expand the person.</p>
+          </li>
+          <li><strong>Click Refund.</strong></li>
+          <li>
+            <strong>Choose how the money goes back</strong>
+            <p className={step}><em>Back to their card</em> refunds through Stripe if they paid online. <em>Cash</em>, <em>check</em> or another way records money you gave back from the office.</p>
+          </li>
+          <li><strong>Enter the amount and why</strong>, add a note for your records if you like, and click <strong>Refund</strong>.</li>
+        </ol>
+        <p>The family gets an email in their language letting them know a refund is on the way.</p>
+        <h3 className={h3}>Card refunds</h3>
+        <ul className={ul}>
+          <li>The money comes out of your parish&apos;s Stripe balance and usually reaches their card in 5–10 business days.</li>
+          <li>If a family paid by card more than once, Lux splits the refund across their payments for you.</li>
+          <li>You can refund part of a payment, and refund more later.</li>
+        </ul>
+        <h3 className={h3}>What it does to what they owe</h3>
+        <p>
+          A refund never leaves a family with a new balance. If they had paid in full, they&apos;re still paid in full; if they still owed something,
+          they owe the same amount after the refund.
+        </p>
+        <div className={tip}>
+          <strong>Cancelling and refunding are two steps.</strong> Cancel first to open the spot (for a family that hasn&apos;t paid, that&apos;s all you
+          need). If they&apos;d already paid, open the registration and click Refund. You can refund a cancelled registration.
+        </div>
+      </div>
+    ),
+  },
+
+  "lux-parish-page": {
+    title: "Your Parish Page & Website Button",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Your parish page is the one link families use for everything: open programs, upcoming events, and their family page. Make it look like
+          your parish in <strong>Settings → Lux</strong>.
+        </p>
+        <h3 className={h3}>Making it your own</h3>
+        <ul className={ul}>
+          <li><strong>Header photo</strong>: a wide photo of your church or a parish celebration, shown across the top.</li>
+          <li><strong>Headline and welcome message</strong>: leave them blank for &quot;Welcome to your parish&quot; and a standard message.</li>
+          <li><strong>Announcement</strong>: a highlighted box for a deadline or a change in office hours.</li>
+          <li><strong>Button color</strong>: pick one of ours or your own parish color.</li>
+          <li><strong>Spanish text</strong> (optional): your own headline, message and announcement for families who switch to Spanish.</li>
+        </ul>
+        <p>A preview shows how it will look. Click <strong>Save settings</strong> when you&apos;re done. The photo saves as soon as you upload it.</p>
+        <h3 className={h3}>Adding a button to your website</h3>
+        <ol className={ol}>
+          <li><strong>In Settings → Lux, find Add Lux to your parish website.</strong></li>
+          <li><strong>Choose the button text</strong>: English, Español, or both.</li>
+          <li><strong>Click Copy button code.</strong></li>
+          <li>
+            <strong>Paste it on your website</strong>
+            <p className={step}>In WordPress, edit the page, click <strong>+</strong>, add a <strong>Custom HTML</strong> block, paste, and click Update. On Wix, Squarespace and most website builders, use an &quot;Embed&quot; or &quot;Code&quot; block.</p>
+          </li>
+        </ol>
+        <p>Prefer your own button? Copy the plain link instead and use it on any button or menu item you already have.</p>
+      </div>
+    ),
+  },
+
+  "lux-spanish": {
+    title: "Spanish for Families",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Every page families see has an <strong>English / Español</strong> switch at the top: your parish page, the registration form, event
+          sign-ups, the family page, and payment pages. Lux remembers their choice, and opens in Spanish automatically when their phone or computer is set to Spanish.
+        </p>
+        <h3 className={h3}>What&apos;s translated for you</h3>
+        <ul className={ul}>
+          <li>All the buttons, labels, instructions, grades, dates and messages.</li>
+          <li>The questions and documents from Lux templates, as long as you haven&apos;t reworded them.</li>
+          <li>Emails: confirmations, receipts, reminders, sign-in links and refunds go out in the language the family registered in.</li>
+        </ul>
+        <h3 className={h3}>What you write yourself</h3>
+        <p>
+          Program names, descriptions and your own questions appear as you wrote them. Many parishes write them in both languages, like
+          &quot;Faith Formation / Formación en la fe&quot;. Your parish page has optional Spanish versions of the headline, message and announcement.
+        </p>
+        <h3 className={h3}>Classes in Spanish</h3>
+        <p>
+          Set <strong>Classes are taught in</strong> on a program, or the language on an event, to English, Spanish or bilingual. Families see it on
+          your parish page. Offering the same program in two languages? Add each as its own class time, like &quot;Sunday 9am (English)&quot; and
+          &quot;Sunday 11am (Español)&quot;.
+        </p>
+        <div className={tip}>Your staff dashboard stays in English.</div>
       </div>
     ),
   },
@@ -386,7 +585,7 @@ export const luxDocContent: Record<string, { title: string; content: React.React
         <h3 className={h3}>Your team</h3>
         <p>
           Everyone you invite to your parish&apos;s ChiRho account can see all of Lux, including baptismal certificates and fee assistance requests.
-          Only invite people who should. Organization admins and managers can make changes. The <em>Staff</em> role is view-only.
+          Only invite people who should. <em>Admins</em> can make changes; <em>Staff (view only)</em> can look but not change. Only admins can give refunds.
         </p>
         <h3 className={h3}>Families</h3>
         <p>
@@ -414,7 +613,7 @@ export const luxDocContent: Record<string, { title: string; content: React.React
         </p>
         <p>
           If your organization has the full Events portal, open a simple event and click <strong>Convert to full event</strong>. Its registrations,
-          tickets and payments come along. If you&apos;re on Chapel or Parish, you&apos;ll see how to upgrade. Or contact
+          tickets and payments come along. On Chapel and Parish, that button doesn&apos;t appear, since most parishes never need it. To move up, contact
           {" "}<a href="mailto:support@chirhoevents.com" className={link}>support@chirhoevents.com</a> and we&apos;ll help you choose.
         </p>
       </div>
@@ -422,17 +621,17 @@ export const luxDocContent: Record<string, { title: string; content: React.React
   },
 
   "family-register": {
-    title: "Registering Your Children",
+    title: "Registering Your Family",
     content: (
       <div className="space-y-4">
-        <p>Your parish will share a link to its registration page. Everything happens on one form, even for several children in different programs.</p>
+        <p>Your parish will share a link to its registration page. Everything happens on one form, even for several people in different programs. Prefer Spanish? Click <strong>Español</strong> at the top of the page.</p>
         <ol className={ol}>
           <li>
             <strong>Click Register my children</strong>
             <p className={step}>If you registered last year, click &quot;Registered with us before?&quot; first and we&apos;ll email you a link with your information filled in.</p>
           </li>
           <li><strong>Enter your family&apos;s information</strong>: parents or guardians, phone, address and an emergency contact.</li>
-          <li><strong>Add each child</strong>: choose their program, then enter their birthday, grade, baptism information and any allergies.</li>
+          <li><strong>Add each person</strong>: a child, or an adult (for OCIA, or for a family program, click <em>This is me</em> to add yourself). Choose their program and class time, then enter their birthday, grade, baptism information and any allergies.</li>
           <li><strong>Upload documents</strong> the program asks for, like a baptismal certificate. You can also do this later.</li>
           <li><strong>Review the total</strong>, including any sibling discount, and choose how to pay: online by card or at the parish office. You can also ask for fee assistance.</li>
         </ol>

@@ -10,6 +10,7 @@ import QuestionEditor, { type EditableQuestion } from '@/components/lux/Question
 import { Button, Card, ErrorNote, Field, Select, TextArea, TextInput, Toggle, cx } from '@/components/lux/ui'
 import { GRADE_OPTIONS, gradeLabel } from '@/lib/lux/format'
 import type { ProgramAudience, ProgramFeeType, ProgramQuestion, ProgramSession, ProgramTemplate } from '@/lib/lux/program-templates'
+import { COMMON_DOCUMENTS } from '@/lib/lux/program-templates'
 
 export interface ProgramFormValue {
   id?: string
@@ -150,6 +151,7 @@ export default function ProgramForm({ initial, suggestedFees = [], feeRulesSumma
     patch({ feeItems: v.feeItems.map((f, i) => (i === index ? { ...f, ...p } : f)) })
   const updateReq = (index: number, p: Partial<ProgramFormValue['requirements'][number]>) =>
     patch({ requirements: v.requirements.map((r, i) => (i === index ? { ...r, ...p } : r)) })
+  const commonDocs = COMMON_DOCUMENTS.filter(d => !v.requirements.some(r => r.key === d.key || r.label.trim().toLowerCase() === d.label.toLowerCase()))
   const unusedSuggestions = suggestedFees.filter(name => !v.feeItems.some(f => f.name.toLowerCase() === name.toLowerCase()))
   const updateSession = (index: number, p: Partial<ProgramSession>) =>
     patch({ sessions: v.sessions.map((sess, i) => (i === index ? { ...sess, ...p } : sess)) })
@@ -391,8 +393,19 @@ export default function ProgramForm({ initial, suggestedFees = [], feeRulesSumma
               </div>
             </div>
           ))}
+          {commonDocs.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-sm text-gray-500">Add:</span>
+              {commonDocs.map(d => (
+                <button key={d.key} type="button" onClick={() => patch({ requirements: [...v.requirements, { ...d }] })}
+                  className="inline-flex items-center gap-1 rounded-full border border-[#E8E2D4] bg-white px-3 py-1 text-sm text-[#1E3A5F] hover:border-[#C8A24A]">
+                  <Plus className="h-3.5 w-3.5" /> {d.label}
+                </button>
+              ))}
+            </div>
+          )}
           <Button variant="secondary" onClick={() => patch({ requirements: [...v.requirements, { key: '', label: '', description: '', required: true, allowParishLookup: false }] })}>
-            <Plus className="h-4 w-4" /> Add a document
+            <Plus className="h-4 w-4" /> {commonDocs.length > 0 ? 'Add a different document' : 'Add a document'}
           </Button>
         </div>
       </Card>

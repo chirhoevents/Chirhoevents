@@ -342,6 +342,9 @@ export default function ProgramDetailPage({ params }: { params: Promise<{ id: st
                           })}
                         </div>
                         {data.program.collectServiceHours && <ServiceHours entry={r} required={data.program.serviceHoursRequired} onSaved={load} />}
+                        {data.program.sessions.length > 0 && !r.cancelledAt && (
+                          <ClassTimeSelect entry={r} sessions={data.program.sessions} counts={data.registrations} onSaved={load} />
+                        )}
                         <StaffNotes entry={r} onSaved={load} />
                         {info.canManage && !r.cancelledAt && (
                           <Button variant="danger" onClick={() => setCancelling(r)}><Trash2 className="h-4 w-4" /> Cancel registration</Button>
@@ -425,6 +428,35 @@ function ServiceHours({ entry, required, onSaved }: { entry: RosterEntry; requir
       </Field>
       {info.canManage && <Button variant="secondary" onClick={save}>Save</Button>}
     </div>
+  )
+}
+
+function ClassTimeSelect({ entry, sessions, counts, onSaved }: {
+  entry: RosterEntry
+  sessions: Array<{ id: string; name: string; capacity: number | null }>
+  counts: RosterEntry[]
+  onSaved: () => void
+}) {
+  const api = useLuxApi()
+  const { info } = useLux()
+  const move = async (sessionId: string) => {
+    try {
+      await api(`/api/lux/program-registrations/${entry.id}`, { method: 'PATCH', json: { sessionId } })
+      toast.success(`Moved to ${sessions.find(s => s.id === sessionId)?.name}`)
+      onSaved()
+    } catch (e) { toast.error((e as Error).message) }
+  }
+  return (
+    <Field label="Class time" className="sm:w-72">
+      <Select value={entry.sessionId ?? ''} onChange={e => e.target.value && move(e.target.value)} disabled={!info.canManage}>
+        {!entry.sessionId && <option value="">Not chosen</option>}
+        {sessions.map(s => {
+          const taken = counts.filter(c => !c.cancelledAt && c.sessionId === s.id).length
+          const full = !!s.capacity && taken >= s.capacity && s.id !== entry.sessionId
+          return <option key={s.id} value={s.id} disabled={full}>{s.name}{s.capacity ? ` (${taken}/${s.capacity})` : ''}{full ? ' · full' : ''}</option>
+        })}
+      </Select>
+    </Field>
   )
 }
 

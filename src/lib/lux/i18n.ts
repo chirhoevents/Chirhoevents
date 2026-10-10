@@ -681,6 +681,9 @@ const TEMPLATE_DOCUMENTS_ES: Record<string, { en: string; es: string }> = {
   'Godfather’s letter of good standing': { en: 'Godfather’s letter of good standing', es: 'Carta de buena conducta religiosa del padrino' },
   'Godmother’s letter of good standing': { en: 'Godmother’s letter of good standing', es: 'Carta de buena conducta religiosa de la madrina' },
   'First Communion certificate': { en: 'First Communion certificate', es: 'Certificado de Primera Comunión' },
+  'Confirmation certificate': { en: 'Confirmation certificate', es: 'Certificado de Confirmación' },
+  'Godparent’s letter of good standing': { en: 'Godparent’s letter of good standing', es: 'Carta de buena conducta religiosa del padrino o madrina' },
+  'Birth certificate': { en: 'Birth certificate', es: 'Acta de nacimiento' },
 }
 
 const TEMPLATE_DOC_DESCRIPTIONS_ES: Record<string, string> = {
@@ -690,6 +693,10 @@ const TEMPLATE_DOC_DESCRIPTIONS_ES: Record<string, string> = {
     'Una carta de la parroquia del padrino o madrina que confirme que es católico(a) practicante y puede ser padrino o madrina.',
   'Only needed if your child received First Communion at another parish.':
     'Solo si su hijo(a) recibió la Primera Comunión en otra parroquia.',
+  'Only needed if you were confirmed at another parish.':
+    'Solo si recibió la Confirmación en otra parroquia.',
+  'If the godparent belongs to another parish, a letter from that parish confirming they are a practicing Catholic.':
+    'Si el padrino o la madrina pertenece a otra parroquia, una carta de esa parroquia que confirme que es católico(a) practicante.',
   'A copy of your child’s birth certificate, so names and dates are recorded correctly in the baptismal register.':
     'Una copia del acta de nacimiento de su hijo(a), para registrar correctamente los nombres y las fechas en el libro de bautismos.',
   'If the godfather belongs to another parish, a letter from that parish confirming he is a practicing Catholic.':

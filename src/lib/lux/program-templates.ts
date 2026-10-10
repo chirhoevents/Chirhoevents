@@ -279,6 +279,50 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
   },
 ]
 
+/**
+ * Documents any program can ask for with one click (staff can still type
+ * their own). Labels match the template ones so they're translated for
+ * Spanish-speaking families.
+ */
+export const COMMON_DOCUMENTS: TemplateRequirement[] = [
+  BAPTISMAL_CERTIFICATE,
+  {
+    key: 'first_communion_certificate',
+    label: 'First Communion certificate',
+    description: 'Only needed if your child received First Communion at another parish.',
+    required: false,
+    allowParishLookup: true,
+  },
+  {
+    key: 'confirmation_certificate',
+    label: 'Confirmation certificate',
+    description: 'Only needed if you were confirmed at another parish.',
+    required: false,
+    allowParishLookup: true,
+  },
+  {
+    key: 'sponsor_eligibility_letter',
+    label: 'Sponsor’s letter of good standing',
+    description: 'A letter from your sponsor’s parish confirming they are a practicing Catholic eligible to be a sponsor.',
+    required: true,
+    allowParishLookup: false,
+  },
+  {
+    key: 'godparent_letter',
+    label: 'Godparent’s letter of good standing',
+    description: 'If the godparent belongs to another parish, a letter from that parish confirming they are a practicing Catholic.',
+    required: false,
+    allowParishLookup: false,
+  },
+  {
+    key: 'birth_certificate',
+    label: 'Birth certificate',
+    description: '',
+    required: false,
+    allowParishLookup: false,
+  },
+]
+
 export function getProgramTemplate(key: string): ProgramTemplate {
   return PROGRAM_TEMPLATES.find(t => t.key === key) ?? PROGRAM_TEMPLATES[PROGRAM_TEMPLATES.length - 1]
 }
