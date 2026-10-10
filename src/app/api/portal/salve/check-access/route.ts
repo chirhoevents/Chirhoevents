@@ -9,7 +9,7 @@ import { resolveModuleAccess } from '@/lib/subscription-tiers'
 export async function GET(request: NextRequest) {
   console.log('[SALVE Portal Check-Access] Request received')
   try {
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     console.log('[SALVE Portal Check-Access] Override userId:', overrideUserId || 'none')
 
     const user = await getCurrentUser(overrideUserId)

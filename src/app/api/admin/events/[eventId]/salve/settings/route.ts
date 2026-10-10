@@ -11,7 +11,7 @@ const SETTINGS_EDITOR_ROLES = ['master_admin', 'org_admin', 'event_manager', 'sa
 
 // Helper function to check if user can access Salve portal
 async function requireSalveAccess(request: NextRequest, eventId: string) {
-  const overrideUserId = getClerkUserIdFromHeader(request)
+  const overrideUserId = await getClerkUserIdFromHeader(request)
   const user = await getCurrentUser(overrideUserId)
 
   if (!user) {

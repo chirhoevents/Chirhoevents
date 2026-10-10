@@ -443,7 +443,7 @@ export async function POST(
     const { eventId } = await params
 
     // Auth check
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {

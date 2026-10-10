@@ -30,7 +30,7 @@ export async function POST(
   { params }: { params: Promise<{ entryId: string }> }
 ) {
   try {
-    const user = await getCurrentUser(getClerkUserIdFromHeader(request))
+    const user = await getCurrentUser(await getClerkUserIdFromHeader(request))
     if (!user || !isAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 })
     }

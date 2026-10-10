@@ -25,7 +25,7 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {

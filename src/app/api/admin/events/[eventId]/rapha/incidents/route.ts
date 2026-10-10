@@ -7,7 +7,7 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 
 // Helper function to get authenticated admin user with JWT fallback
 async function getAdminUser(request: NextRequest) {
-  const overrideUserId = getClerkUserIdFromHeader(request)
+  const overrideUserId = await getClerkUserIdFromHeader(request)
   const user = await getCurrentUser(overrideUserId)
   if (!user || !isAdmin(user)) return null
   return user

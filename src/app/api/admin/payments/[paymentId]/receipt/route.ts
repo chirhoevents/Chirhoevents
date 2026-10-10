@@ -17,7 +17,7 @@ export async function GET(
 ) {
   try {
     const { paymentId } = await params
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {

@@ -6,7 +6,7 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { hasPermission } from '@/lib/permissions'
 
 async function requireSalveAccess(request: NextRequest, eventId: string) {
-  const overrideUserId = getClerkUserIdFromHeader(request)
+  const overrideUserId = await getClerkUserIdFromHeader(request)
   const user = await getCurrentUser(overrideUserId)
 
   if (!user) throw new Error('Unauthorized')

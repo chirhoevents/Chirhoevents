@@ -7,7 +7,7 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 export async function POST(request: NextRequest) {
   try {
     // Try to get userId from JWT token in Authorization header
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
 
     if (!user || !isAdmin(user)) {

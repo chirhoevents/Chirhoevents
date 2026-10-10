@@ -32,16 +32,19 @@ export interface AuthUser {
 /**
  * Get the current authenticated user from Clerk and database
  * Returns null if not authenticated or user not found in database
- * @param overrideUserId - Optional: pass a clerkUserId directly (useful when cookies aren't ready)
+ * @param overrideUserId - Optional: a clerkUserId to use when Clerk's session isn't ready yet.
+ *   Only pass an ID that came from a verified token (see jwt-auth-helper); the
+ *   session from auth() takes priority when there is one.
  */
 export async function getCurrentUser(overrideUserId?: string): Promise<AuthUser | null> {
   try {
-    let userId = overrideUserId
-
-    if (!userId) {
-      const authResult = await auth()
-      userId = authResult.userId ?? undefined
+    let sessionUserId: string | null = null
+    try {
+      sessionUserId = (await auth()).userId
+    } catch (authError) {
+      console.warn('[getCurrentUser] Clerk auth() unavailable, using override only:', authError)
     }
+    const userId = sessionUserId ?? overrideUserId
 
     if (!userId) {
       console.log('[getCurrentUser] No Clerk userId available')

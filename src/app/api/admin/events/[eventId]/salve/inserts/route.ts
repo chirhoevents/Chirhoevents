@@ -8,7 +8,7 @@ import { incrementOrgStorage, decrementOrgStorage } from '@/lib/storage/track-st
 
 // Helper function to check if user can access Salve portal
 async function requireSalveAccess(request: NextRequest, eventId: string) {
-  const overrideUserId = getClerkUserIdFromHeader(request)
+  const overrideUserId = await getClerkUserIdFromHeader(request)
   const user = await getCurrentUser(overrideUserId)
 
   if (!user) {

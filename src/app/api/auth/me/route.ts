@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     console.log('[Auth Me] Request received')
 
     // Get userId from Authorization header as fallback (for client-side requests)
-    const overrideUserId = getClerkUserIdFromHeader(request)
+    const overrideUserId = await getClerkUserIdFromHeader(request)
     console.log('[Auth Me] Override userId from header:', overrideUserId || 'none')
 
     // Use getCurrentUser for consistent auth handling across all routes
