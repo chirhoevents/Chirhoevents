@@ -175,6 +175,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='organizations' AND column_name='lux_settings') THEN
     RAISE EXCEPTION 'Schema drift after db push: organizations.lux_settings is missing';
   END IF;
+  -- Get Started form answers (every onboarding request insert writes it)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='organization_onboarding_requests' AND column_name='needs') THEN
+    RAISE EXCEPTION 'Schema drift after db push: organization_onboarding_requests.needs is missing';
+  END IF;
 END $$;
 SQLEOF
 npx prisma db execute --file /tmp/schema-canary.sql --schema prisma/schema.prisma

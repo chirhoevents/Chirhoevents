@@ -4,54 +4,41 @@ import {
   renderMasterAdminNotificationHtml,
   sendMasterAdminNotification,
 } from '@/lib/master-admin-notify'
+import { describeNeeds, needsEstimates, needsProblem, parseNeeds, suggestedTier } from '@/lib/onboarding-needs'
 
+const ORG_TYPES = ['diocese', 'archdiocese', 'parish', 'seminary', 'ministry', 'retreat_center', 'school', 'other']
+const HOW_HEARD = ['google_search', 'referral', 'social_media', 'conference_event', 'other']
+
+const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+
+/** POST /api/onboarding-requests: the public Get Started form */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const {
-      organizationName,
-      organizationType,
-      website,
-      contactFirstName,
-      contactLastName,
-      contactEmail,
-      contactPhone,
-      contactJobTitle,
-      legalEntityName,
-      taxId,
-      billingAddress,
-      eventsPerYear,
-      attendeesPerYear,
-      requestedTier,
-      billingCycle,
-      paymentMethod,
-      howDidYouHear,
-      howDidYouHearOther,
-      additionalNotes,
-    } = body
+    const body = await request.json().catch(() => ({}))
 
-    // Map events per year to numeric estimate
-    const eventsEstimate: Record<string, number> = {
-      'lux-5': 5,
-      'lux-10': 10,
-      '1-5': 5,
-      '6-10': 10,
-      '10+': 25,
-      // Older form values
-      '1-3': 3,
-      '4-5': 5,
-      '11-25': 25,
-      '25+': 50,
-    }
+    const organizationName = text(body.organizationName, 255)
+    const organizationType = ORG_TYPES.includes(body.organizationType) ? body.organizationType : ''
+    const contactFirstName = text(body.contactFirstName, 255)
+    const contactLastName = text(body.contactLastName, 255)
+    const contactEmail = text(body.contactEmail, 255).toLowerCase()
+    const contactPhone = text(body.contactPhone, 20)
+    const billingAddress = text(body.billingAddress, 1000)
+    const needs = parseNeeds(body.needs)
 
-    // Map attendees per year to numeric estimate
-    const attendeesEstimate: Record<string, number> = {
-      'under-500': 500,
-      '500-1000': 1000,
-      '1000-3000': 3000,
-      '3000-8000': 8000,
-      '8000+': 10000,
-    }
+    const missing =
+      !organizationName ? 'Enter your organization’s name.'
+      : !organizationType ? 'Choose your organization type.'
+      : !contactFirstName || !contactLastName ? 'Enter your first and last name.'
+      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) ? 'Enter a valid email address.'
+      : !contactPhone ? 'Enter a phone number.'
+      : needsProblem(needs)
+    if (missing) return NextResponse.json({ error: missing }, { status: 400 })
+
+    const requestedTier = suggestedTier(needs)
+    const estimates = needsEstimates(needs)
+    const howDidYouHear = HOW_HEARD.includes(body.howDidYouHear) ? body.howDidYouHear : null
+    const billingCycle = body.billingCycle === 'annual' && needs.kind !== 'lux' ? 'annual' : 'monthly'
+    const paymentMethod = body.paymentMethod === 'check' ? 'check' : 'credit_card'
 
     const onboardingRequest = await prisma.organizationOnboardingRequest.create({
       data: {
@@ -61,66 +48,60 @@ export async function POST(request: NextRequest) {
         contactLastName,
         contactEmail,
         contactPhone,
-        contactJobTitle,
-        legalEntityName,
-        taxId,
-        billingAddress,
-        website,
-        estimatedEventsPerYear: eventsEstimate[eventsPerYear] || null,
-        estimatedRegistrationsPerYear: attendeesEstimate[attendeesPerYear] || null,
+        contactJobTitle: text(body.contactJobTitle, 255) || null,
+        legalEntityName: text(body.legalEntityName, 255) || null,
+        taxId: text(body.taxId, 50) || null,
+        billingAddress: billingAddress || null,
+        website: text(body.website, 255) || null,
+        estimatedEventsPerYear: estimates.eventsPerYear,
+        estimatedRegistrationsPerYear: estimates.registrationsPerYear,
         requestedTier,
         billingCyclePreference: billingCycle,
         paymentMethodPreference: paymentMethod,
-        howDidYouHear: howDidYouHear || null,
-        howDidYouHearOther: howDidYouHear === 'other' ? howDidYouHearOther : null,
-        additionalNotes,
+        howDidYouHear,
+        howDidYouHearOther: howDidYouHear === 'other' ? text(body.howDidYouHearOther, 255) || null : null,
+        additionalNotes: text(body.additionalNotes, 5000) || null,
+        needs: needs as object,
       },
     })
 
-    // Log activity
     await prisma.platformActivityLog.create({
       data: {
         activityType: 'onboarding_request',
         description: `New organization request from "${organizationName}" (${contactEmail})`,
-        metadata: {
-          requestId: onboardingRequest.id,
-          organizationName,
-          contactEmail,
-          requestedTier,
-        },
+        metadata: { requestId: onboardingRequest.id, organizationName, contactEmail, requestedTier, needs: needs.kind },
       },
     })
 
-    // TODO: Send confirmation email to applicant
-
-    // Notify master-admin recipients so join-the-app requests don't sit
-    // unread until someone remembers to open the dashboard.
+    // Everything they told us, so nothing has to be looked up in the dashboard
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'
-    const contactName = `${contactFirstName ?? ''} ${contactLastName ?? ''}`.trim() || 'Unknown'
+    const dash = (v: string | null | undefined) => (v && v.trim()) || '—'
     await sendMasterAdminNotification({
       subject: `New organization request: ${organizationName}`,
-      replyTo: contactEmail || undefined,
+      replyTo: contactEmail,
       html: renderMasterAdminNotificationHtml({
         title: 'New organization request',
         intro: `${organizationName} just applied to join ChiRho Events.`,
         rows: [
-          { label: 'Organization', value: String(organizationName ?? '—') },
-          { label: 'Type', value: String(organizationType ?? '—') },
-          { label: 'Website', value: String(website ?? '—') },
-          { label: 'Contact', value: `${contactName}${contactEmail ? ` <${contactEmail}>` : ''}` },
-          { label: 'Phone', value: String(contactPhone ?? '—') },
-          { label: 'Job title', value: String(contactJobTitle ?? '—') },
-          { label: 'Requested tier', value: String(requestedTier ?? '—') },
-          { label: 'Billing cycle', value: String(billingCycle ?? '—') },
-          { label: 'Payment method', value: String(paymentMethod ?? '—') },
-          { label: 'Events per year', value: String(eventsPerYear ?? '—') },
-          { label: 'Attendees per year', value: String(attendeesPerYear ?? '—') },
-          { label: 'How they heard', value: String(howDidYouHear ?? '—') + (howDidYouHear === 'other' && howDidYouHearOther ? ` (${howDidYouHearOther})` : '') },
+          { label: 'Organization', value: organizationName },
+          { label: 'Type', value: organizationType },
+          { label: 'Website', value: dash(onboardingRequest.website) },
+          { label: 'Contact', value: `${contactFirstName} ${contactLastName} <${contactEmail}>` },
+          { label: 'Phone', value: contactPhone },
+          { label: 'Job title', value: dash(onboardingRequest.contactJobTitle) },
+          ...describeNeeds(needs),
+          { label: 'Suggested plan', value: requestedTier },
+          { label: 'Billing cycle', value: billingCycle },
+          { label: 'Pays by', value: paymentMethod === 'check' ? 'Check' : 'Credit card' },
+          { label: 'Legal name', value: dash(onboardingRequest.legalEntityName) },
+          { label: 'Tax ID / EIN', value: dash(onboardingRequest.taxId) },
+          { label: 'Billing address', value: dash(billingAddress) },
+          { label: 'How they heard', value: dash(howDidYouHear) + (onboardingRequest.howDidYouHearOther ? ` (${onboardingRequest.howDidYouHearOther})` : '') },
         ],
-        bodyLabel: 'Additional notes',
-        bodyText: additionalNotes || null,
+        bodyLabel: 'Anything else',
+        bodyText: onboardingRequest.additionalNotes,
         ctaLabel: 'Review request',
-        ctaUrl: `${appUrl}/dashboard/master-admin/onboarding-requests/${onboardingRequest.id}`,
+        ctaUrl: `${appUrl}/dashboard/master-admin/pending-requests?request=${onboardingRequest.id}`,
       }),
     })
 

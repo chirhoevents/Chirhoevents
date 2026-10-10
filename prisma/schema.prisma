@@ -2607,6 +2607,8 @@ model OrganizationOnboardingRequest {
   howDidYouHear               HowDidYouHear? @map("how_did_you_hear")
   howDidYouHearOther          String?  @map("how_did_you_hear_other") @db.VarChar(255)
   additionalNotes             String?  @map("additional_notes") @db.Text
+  // Every "what do you need" answer from /get-started (src/lib/onboarding-needs.ts)
+  needs                       Json?    @db.JsonB
   approvedByUserId            String?  @map("approved_by_user_id") @db.Uuid
   approvedAt                  DateTime? @map("approved_at") @db.Timestamptz(6)
   rejectedReason              String?  @map("rejected_reason") @db.Text
