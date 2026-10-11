@@ -56,12 +56,12 @@ interface Organization {
 // Helper function to get Stripe status display
 function getStripeStatus(org: Organization): { label: string; color: string; icon: 'check' | 'warning' | 'x' } | null {
   if (org.stripeAccountId && org.stripeOnboardingCompleted) {
-    return { label: 'Connected', color: 'bg-green-100 text-green-700', icon: 'check' }
+    return { label: 'Stripe Connected', color: 'bg-green-100 text-green-700', icon: 'check' }
   }
   if (org.stripeAccountId && !org.stripeOnboardingCompleted) {
-    return { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: 'warning' }
+    return { label: 'Stripe Pending', color: 'bg-yellow-100 text-yellow-700', icon: 'warning' }
   }
-  return { label: 'Not Connected', color: 'bg-red-100 text-red-700', icon: 'x' }
+  return { label: 'Stripe Not Connected', color: 'bg-red-100 text-red-700', icon: 'x' }
 }
 
 // Helper function to get onboarding status display
@@ -70,9 +70,9 @@ function getOnboardingStatus(org: Organization): { label: string; color: string;
     return { label: 'No Admin', color: 'bg-gray-100 text-gray-700', icon: 'clock' }
   }
   if (org.orgAdmin.isOnboarded) {
-    return { label: 'Active', color: 'bg-green-100 text-green-700', icon: 'check' }
+    return { label: 'Admin Set Up', color: 'bg-green-100 text-green-700', icon: 'check' }
   }
-  return { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: 'clock' }
+  return { label: 'Invite Pending', color: 'bg-yellow-100 text-yellow-700', icon: 'clock' }
 }
 
 const tierLabels: Record<string, string> = {
@@ -452,7 +452,7 @@ export default function OrganizationsPage() {
                                   <Pause className="h-4 w-4" />
                                   Suspend
                                 </button>
-                              ) : org.status === 'suspended' ? (
+                              ) : org.status === 'suspended' || org.status === 'cancelled' ? (
                                 <button
                                   onClick={() => handleReactivate(org.id)}
                                   className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"

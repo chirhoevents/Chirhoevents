@@ -31,6 +31,12 @@ export async function POST(
         status: 'active',
         subscriptionStatus: 'active',
         reactivationFeePaid: true,
+        // Works for suspended and cancelled orgs alike, so clear what
+        // either one left behind
+        cancelledAt: null,
+        pauseReason: null,
+        pauseReasonNote: null,
+        pausedAt: null,
       },
     })
 

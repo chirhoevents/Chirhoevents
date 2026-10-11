@@ -1212,7 +1212,7 @@ export default function BillingDashboard() {
                                   <Pause className="h-4 w-4" />
                                 </button>
                               )}
-                              {subscription.subscriptionStatus === 'suspended' && (
+                              {(subscription.subscriptionStatus === 'suspended' || subscription.subscriptionStatus === 'archived') && (
                                 <button
                                   onClick={() => handleSubscriptionAction(subscription.id, 'resume')}
                                   className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg"
@@ -2120,7 +2120,7 @@ export default function BillingDashboard() {
                     Pause Subscription
                   </Button>
                 )}
-                {selectedSubscription.subscriptionStatus === 'suspended' && (
+                {(selectedSubscription.subscriptionStatus === 'suspended' || selectedSubscription.subscriptionStatus === 'archived') && (
                   <Button
                     variant="outline"
                     size="sm"
