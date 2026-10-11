@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { parseQRCodeData } from '@/lib/qr-code'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { hasPermission } from '@/lib/permissions'
+import { getRatioGender, isClergyOrReligiousType, resolveParticipantType } from '@/lib/clergy-roles'
 
 // Helper function to check if user can access Salve portal
 async function requireSalveAccess(request: NextRequest, eventId: string) {
@@ -130,9 +131,9 @@ function formatIndividualRegistrationAsGroup(individual: any, liabilityRequired:
         lastName: individual.lastName,
         email: individual.email,
         age: liabilityForm?.participantAge || individual.age || null,
-        participantType: individual.participantType || 'individual',
+        participantType: resolveParticipantType(individual.participantType, individual.clergyTitle) || 'individual',
         isChaperone: false,
-        isClergy: individual.participantType === 'priest',
+        isClergy: isClergyOrReligiousType(individual.participantType),
         gender: liabilityForm?.participantGender || individual.gender || null,
         liabilityFormCompleted: liabilityForm?.completed || false,
         liabilityFormStatus: liabilityFormStatus,
@@ -567,10 +568,10 @@ function formatGroupResponse(
         lastName: p.lastName,
         email: p.email,
         age: p.age,
-        participantType: p.participantType,
+        participantType: resolveParticipantType(p.participantType, p.clergyTitle),
         isChaperone: p.participantType === 'chaperone',
-        isClergy: p.participantType === 'priest',
-        gender: p.gender,
+        isClergy: isClergyOrReligiousType(p.participantType),
+        gender: getRatioGender(p.participantType, p.clergyTitle, p.gender),
         liabilityFormCompleted: p.liabilityFormCompleted || false,
         checkedIn: p.checkedIn,
         checkedInAt: p.checkedInAt,

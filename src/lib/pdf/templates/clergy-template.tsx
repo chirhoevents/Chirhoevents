@@ -1,5 +1,6 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { getClergyRoleLabel } from '@/lib/clergy-roles'
 
 // Define styles
 const styles = StyleSheet.create({
@@ -190,11 +191,7 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   }
 
-  const clergyTitleLabel =
-    data.clergyTitle === 'priest' ? 'Priest' :
-    data.clergyTitle === 'deacon' ? 'Deacon' :
-    data.clergyTitle === 'bishop' ? 'Bishop' :
-    data.clergyTitle === 'cardinal' ? 'Cardinal' : 'Clergy'
+  const clergyTitleLabel = getClergyRoleLabel(null, data.clergyTitle) || 'Clergy / Religious'
 
   const genderLabel =
     data.participantGender === 'male' ? 'Male' :
@@ -268,7 +265,7 @@ const ClergyTemplate: React.FC<ClergyTemplateProps> = ({ data }) => {
 
           <View style={styles.clergyBox}>
             <View style={styles.fieldRow}>
-              <Text style={styles.fieldLabel}>Clergy Title:</Text>
+              <Text style={styles.fieldLabel}>Title:</Text>
               <Text style={[styles.fieldValue, { fontWeight: 'bold' }]}>{safeString(clergyTitleLabel)}</Text>
             </View>
           </View>

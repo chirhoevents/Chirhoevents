@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 
 interface ChaperoneInfo {
   name: string
+  role: string
   groupName: string
   email: string | null
   phone: string | null
@@ -200,6 +201,11 @@ export default function ChaperoneReportModal({
               </CardContent>
             </Card>
 
+            <p className="text-xs text-gray-500 -mb-3">
+              Chaperone counts include deacons, seminarians, sisters and brothers. Priests
+              {data.priests > 0 ? ` (${data.priests})` : ''} are not counted toward the ratio.
+            </p>
+
             {/* Male Chaperones */}
             <div>
               <h3 className="font-semibold text-[#1E3A5F] mb-3 flex items-center gap-2">
@@ -214,6 +220,11 @@ export default function ChaperoneReportModal({
                     <div key={index} className="p-3 bg-gray-50 rounded flex justify-between items-center">
                       <div>
                         <span className="font-medium">{chaperone.name}</span>
+                        {chaperone.role && chaperone.role !== 'Chaperone' && (
+                          <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded-full font-medium">
+                            {chaperone.role}
+                          </span>
+                        )}
                         <span className="text-sm text-gray-500 ml-2">({chaperone.groupName})</span>
                       </div>
                       <div className="text-sm text-gray-500">
@@ -242,6 +253,11 @@ export default function ChaperoneReportModal({
                     <div key={index} className="p-3 bg-gray-50 rounded flex justify-between items-center">
                       <div>
                         <span className="font-medium">{chaperone.name}</span>
+                        {chaperone.role && chaperone.role !== 'Chaperone' && (
+                          <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded-full font-medium">
+                            {chaperone.role}
+                          </span>
+                        )}
                         <span className="text-sm text-gray-500 ml-2">({chaperone.groupName})</span>
                       </div>
                       <div className="text-sm text-gray-500">
@@ -301,10 +317,18 @@ export default function ChaperoneReportModal({
                   {data.compliance.message}
                 </p>
                 {!data.compliance.maleCompliant && (
-                  <p className="text-sm text-red-600">Male ratio exceeds {data.ratios.requiredRatio}:1 limit</p>
+                  <p className="text-sm text-red-600">
+                    {data.ratios.male === null
+                      ? 'No male chaperones for male youth'
+                      : `Male ratio exceeds ${data.ratios.requiredRatio}:1 limit`}
+                  </p>
                 )}
                 {!data.compliance.femaleCompliant && (
-                  <p className="text-sm text-red-600">Female ratio exceeds {data.ratios.requiredRatio}:1 limit</p>
+                  <p className="text-sm text-red-600">
+                    {data.ratios.female === null
+                      ? 'No female chaperones for female youth'
+                      : `Female ratio exceeds ${data.ratios.requiredRatio}:1 limit`}
+                  </p>
                 )}
               </div>
             </div>

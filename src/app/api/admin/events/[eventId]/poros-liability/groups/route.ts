@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsViewAccess } from '@/lib/api-auth'
 import { liabilityFormNeedsApproval } from '@/lib/liability-form-approval'
+import { countsAsChaperone, getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
 
 export async function GET(
   request: NextRequest,
@@ -70,10 +71,13 @@ export async function GET(
       participantType: string | null
       participantAge: number | null
       participantGender: string | null
+      clergyTitle: string | null
       completed: boolean
     }
     const isYouthType = (t: string | null) => t === 'youth_u18' || t === 'youth_o18' || t === 'youth'
-    const isChaperoneType = (t: string | null) => t === 'chaperone' || t === 'youth_o18_chaperone'
+    // Deacons, seminarians, sisters and brothers count as chaperones; priests do not.
+    const isChaperoneForm = (f: FormType) => countsAsChaperone(f.participantType, f.clergyTitle)
+    const ratioGender = (f: FormType) => getRatioGender(f.participantType, f.clergyTitle, f.participantGender)
     const formattedGroups = groups.map((group: GroupResult) => {
       const totalSpots = group.totalParticipants
 
@@ -101,7 +105,7 @@ export async function GET(
         (f: FormType) => isYouthType(f.participantType)
       ).length
       const chaperoneSubmittedCount = allCompletedForms.filter(
-        (f: FormType) => isChaperoneType(f.participantType)
+        (f: FormType) => isChaperoneForm(f)
       ).length
 
       // Gender breakdown, for safe-environment supervision ratios (e.g. male
@@ -114,10 +118,10 @@ export async function GET(
         (f: FormType) => isYouthType(f.participantType) && f.participantGender === 'female'
       ).length
       const maleChaperoneCount = allCompletedForms.filter(
-        (f: FormType) => isChaperoneType(f.participantType) && f.participantGender === 'male'
+        (f: FormType) => isChaperoneForm(f) && ratioGender(f) === 'male'
       ).length
       const femaleChaperoneCount = allCompletedForms.filter(
-        (f: FormType) => isChaperoneType(f.participantType) && f.participantGender === 'female'
+        (f: FormType) => isChaperoneForm(f) && ratioGender(f) === 'female'
       ).length
 
       // A spot is only actually taken once a participant record exists, which
@@ -155,8 +159,9 @@ export async function GET(
           firstName: form.participantFirstName,
           lastName: form.participantLastName,
           age: form.participantAge,
-          gender: form.participantGender,
+          gender: getRatioGender(form.participantType, form.clergyTitle, form.participantGender),
           participantType: form.participantType,
+          clergyRoleLabel: getClergyRoleLabel(form.participantType, form.clergyTitle),
           formStatus: form.completed ? form.formStatus : 'pending_parent',
           formId: form.id,
           parentEmail: form.parentEmail,

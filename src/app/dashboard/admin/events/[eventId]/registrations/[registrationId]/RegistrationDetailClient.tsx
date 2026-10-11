@@ -25,6 +25,7 @@ import { format } from 'date-fns'
 import RecordAdditionalPaymentModal from '@/components/admin/RecordAdditionalPaymentModal'
 import { usePermissions } from '@/hooks/usePermissions'
 import { calculateIndividualPrice, type IndividualPricing } from '@/lib/individual-registration'
+import { getClergyRoleLabel } from '@/lib/clergy-roles'
 
 interface Event {
   id: string
@@ -470,7 +471,8 @@ export default function RegistrationDetailClient({
                                 <div className="flex gap-4 mt-1 text-sm text-gray-600">
                                   <span>Age: {participant.age}</span>
                                   <span className="capitalize">
-                                    {participant.participantType?.replace(/_/g, ' ')}
+                                    {getClergyRoleLabel(participant.participantType, participant.clergyTitle) ||
+                                      participant.participantType?.replace(/_/g, ' ')}
                                   </span>
                                   {participant.gender && (
                                     <span className="capitalize">{participant.gender}</span>

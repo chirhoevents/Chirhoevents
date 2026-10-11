@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { generateCSV } from '@/lib/reports/generate-csv'
 import { format } from 'date-fns'
+import { getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
 
 export async function POST() {
   try {
@@ -49,6 +50,7 @@ export async function POST() {
             firstName: true,
             lastName: true,
             participantType: true,
+            clergyTitle: true,
             gender: true,
             age: true,
             email: true,
@@ -145,8 +147,11 @@ export async function POST() {
           'Last Name': participant.lastName,
           'Email': participant.email || '',
           'Phone': '',
-          'Participant Type': participant.participantType?.replace(/_/g, ' ') || '',
-          'Gender': participant.gender || '',
+          'Participant Type':
+            getClergyRoleLabel(participant.participantType, participant.clergyTitle) ||
+            participant.participantType?.replace(/_/g, ' ') ||
+            '',
+          'Gender': getRatioGender(participant.participantType, participant.clergyTitle, participant.gender) || '',
           'Age': participant.age || '',
           'T-Shirt Size': participant.tShirtSize || '',
           'Dietary Restrictions': '',

@@ -416,7 +416,7 @@ const FILTER_OPTIONS: Record<string, { value: string; label: string; type: 'sele
       { value: 'youth_u18', label: 'Youth (Under 18)' },
       { value: 'youth_o18', label: 'Youth (18+)' },
       { value: 'chaperone', label: 'Chaperone' },
-      { value: 'priest', label: 'Priest/Clergy' },
+      { value: 'priest', label: 'Clergy & Religious (priests, deacons, seminarians, sisters, brothers)' },
     ]},
     { value: 'gender', label: 'Gender', type: 'multiselect', options: [
       { value: 'male', label: 'Male' },
@@ -525,7 +525,7 @@ const FILTER_OPTIONS: Record<string, { value: string; label: string; type: 'sele
       { value: 'youth_u18', label: 'Youth (Under 18)' },
       { value: 'youth_o18', label: 'Youth (18+)' },
       { value: 'chaperone', label: 'Chaperone' },
-      { value: 'priest', label: 'Priest/Clergy' },
+      { value: 'priest', label: 'Clergy & Religious (priests, deacons, seminarians, sisters, brothers)' },
     ]},
   ],
   incidents: [
@@ -587,7 +587,7 @@ const FILTER_OPTIONS: Record<string, { value: string; label: string; type: 'sele
       { value: 'youth_u18', label: 'Youth (Under 18)' },
       { value: 'youth_o18', label: 'Youth (18+)' },
       { value: 'chaperone', label: 'Chaperone' },
-      { value: 'priest', label: 'Priest/Clergy' },
+      { value: 'priest', label: 'Clergy & Religious (priests, deacons, seminarians, sisters, brothers)' },
     ]},
     { value: 'gender', label: 'Gender', type: 'multiselect', options: [
       { value: 'male', label: 'Male' },

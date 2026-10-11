@@ -7,6 +7,7 @@ import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
+import { getClergyGender } from '@/lib/clergy-roles'
 import { assertParticipantSlotAvailable, GroupCapacityFullError, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -73,6 +74,9 @@ export async function POST(request: NextRequest) {
 
 
 
+    // The form doesn't ask for gender; the title implies it (Sister = female).
+    const participantGender = getClergyGender('priest', clergy_title) ?? 'male'
+
     // Build signature data (shared by both STF- and group paths)
     const signatureData = {
       full_legal_name: signature_full_name,
@@ -112,6 +116,7 @@ export async function POST(request: NextRequest) {
           eventId: staffRegistration.eventId,
           formType: 'clergy',
           participantType: 'priest' as any,
+          participantGender: participantGender,
           participantFirstName: first_name,
           participantLastName: last_name,
           participantPreferredName: preferred_name || null,
@@ -214,7 +219,7 @@ export async function POST(request: NextRequest) {
             preferredName: preferred_name || null,
             email: email,
             age: age,
-            gender: 'male' as any, // Default to male for clergy (can be updated if needed)
+            gender: participantGender,
             participantType: 'priest',
             clergyTitle: clergy_title,
             tShirtSize: t_shirt_size,
@@ -251,6 +256,7 @@ export async function POST(request: NextRequest) {
         participantId: participant.id,
         formType: 'clergy',
         participantType: 'priest' as any,
+        participantGender: participantGender,
         participantFirstName: first_name,
         participantLastName: last_name,
         participantPreferredName: preferred_name || null,

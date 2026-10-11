@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyReportAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { countsAsChaperone, getClergyRole, getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
 
 interface ChaperoneInfo {
   name: string
+  role: string
   groupName: string
   email: string | null
   phone: string | null
@@ -48,6 +50,7 @@ export async function GET(
         participantFirstName: true,
         participantLastName: true,
         participantGender: true,
+        clergyTitle: true,
         participantEmail: true,
         participantPhone: true,
         groupRegistration: {
@@ -85,25 +88,24 @@ export async function GET(
 
     const totalYouth = maleYouth + femaleYouth
 
-    // Get male chaperones with details
-    const maleChaperones: ChaperoneInfo[] = filteredForms
-      .filter((f: LiabilityFormRecord) => f.participantType === 'chaperone' && f.participantGender === 'male')
-      .map((f: LiabilityFormRecord) => ({
-        name: `${f.participantFirstName} ${f.participantLastName}`,
-        groupName: f.groupRegistration?.parishName || f.groupRegistration?.groupName || 'Unknown',
-        email: f.participantEmail,
-        phone: f.participantPhone,
-      }))
-
-    // Get female chaperones with details
-    const femaleChaperones: ChaperoneInfo[] = filteredForms
-      .filter((f: LiabilityFormRecord) => f.participantType === 'chaperone' && f.participantGender === 'female')
-      .map((f: LiabilityFormRecord) => ({
-        name: `${f.participantFirstName} ${f.participantLastName}`,
-        groupName: f.groupRegistration?.parishName || f.groupRegistration?.groupName || 'Unknown',
-        email: f.participantEmail,
-        phone: f.participantPhone,
-      }))
+    // Chaperones include deacons, seminarians, sisters and brothers (who fill
+    // out the Clergy & Religious form); priests are not counted.
+    const toChaperoneInfo = (f: LiabilityFormRecord): ChaperoneInfo => ({
+      name: `${f.participantFirstName} ${f.participantLastName}`,
+      role: getClergyRoleLabel(f.participantType, f.clergyTitle) || 'Chaperone',
+      groupName: f.groupRegistration?.parishName || f.groupRegistration?.groupName || 'Unknown',
+      email: f.participantEmail,
+      phone: f.participantPhone,
+    })
+    const chaperoneForms = filteredForms.filter((f: LiabilityFormRecord) =>
+      countsAsChaperone(f.participantType, f.clergyTitle)
+    )
+    const maleChaperones: ChaperoneInfo[] = chaperoneForms
+      .filter((f: LiabilityFormRecord) => getRatioGender(f.participantType, f.clergyTitle, f.participantGender) === 'male')
+      .map(toChaperoneInfo)
+    const femaleChaperones: ChaperoneInfo[] = chaperoneForms
+      .filter((f: LiabilityFormRecord) => getRatioGender(f.participantType, f.clergyTitle, f.participantGender) === 'female')
+      .map(toChaperoneInfo)
 
     // Calculate ratios
     const maleRatio = maleChaperones.length > 0 ? maleYouth / maleChaperones.length : null
@@ -111,12 +113,17 @@ export async function GET(
 
     // Check compliance (10:1 ratio requirement)
     const REQUIRED_RATIO = 10
-    const maleCompliant = maleRatio === null || maleRatio <= REQUIRED_RATIO
-    const femaleCompliant = femaleRatio === null || femaleRatio <= REQUIRED_RATIO
+    // Youth with no same-gender chaperone at all is out of ratio, not "N/A".
+    const maleCompliant = maleYouth === 0 || (maleRatio !== null && maleRatio <= REQUIRED_RATIO)
+    const femaleCompliant = femaleYouth === 0 || (femaleRatio !== null && femaleRatio <= REQUIRED_RATIO)
     const overallCompliant = maleCompliant && femaleCompliant
 
     // Get priests count
-    const priests = filteredForms.filter((f: LiabilityFormRecord) => f.participantType === 'priest').length
+    // Priests and bishops are not counted as chaperones
+    const priests = filteredForms.filter((f: LiabilityFormRecord) => {
+      const role = getClergyRole(f.participantType, f.clergyTitle)
+      return role === 'priest' || role === 'bishop'
+    }).length
 
     // Get groups for filter dropdown
     const groups = await prisma.groupRegistration.findMany({

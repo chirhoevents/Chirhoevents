@@ -1192,7 +1192,7 @@ export default function WelcomePacketsPage() {
                 <div>
                   <strong>Breakdown:</strong> {previewData.participants.youth} Youth,{' '}
                   {previewData.participants.chaperones} Chaperones,{' '}
-                  {previewData.participants.clergy} Clergy
+                  {previewData.participants.clergy} Priests
                 </div>
               </div>
 
@@ -1249,7 +1249,7 @@ export default function WelcomePacketsPage() {
                           <tr key={i} className="border-b">
                             <td className="p-2">{p.name}</td>
                             <td className="p-2">
-                              {p.isClergy ? 'Clergy' : p.isChaperone ? 'Chaperone' : 'Youth'}
+                              {p.roleLabel || (p.isClergy ? 'Clergy' : p.isChaperone ? 'Chaperone' : 'Youth')}
                             </td>
                             {settings.includeHousingAssignments && (
                               <td className="p-2">

@@ -44,6 +44,7 @@ export interface PacketData {
       participantType?: string
       isChaperone?: boolean
       isClergy?: boolean
+      roleLabel?: string | null
       gender?: string
       housing?: {
         building: string
@@ -144,7 +145,7 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
   const participantRows = packet.participants?.list?.map((p, i) => `
     <tr style="${i % 2 === 0 ? 'background: #fafafa;' : ''}">
       <td style="padding: 6px 8px; font-size: 11px; border-bottom: 1px solid #e5e5e5;">${p.name}</td>
-      <td style="padding: 6px 8px; font-size: 11px; text-align: center; border-bottom: 1px solid #e5e5e5;">${p.participantType === 'chaperone' || p.isChaperone ? 'Chaperone' : p.participantType === 'priest' || p.isClergy ? 'Clergy' : 'Youth'}</td>
+      <td style="padding: 6px 8px; font-size: 11px; text-align: center; border-bottom: 1px solid #e5e5e5;">${p.roleLabel || (p.participantType === 'chaperone' || p.isChaperone ? 'Chaperone' : p.participantType === 'priest' || p.isClergy ? 'Clergy' : 'Youth')}</td>
       <td style="padding: 6px 8px; font-size: 11px; text-align: center; border-bottom: 1px solid #e5e5e5;">${p.gender === 'male' ? 'M' : p.gender === 'female' ? 'F' : '-'}</td>
       ${includeHousingColumn ? `<td style="padding: 6px 8px; font-size: 11px; border-bottom: 1px solid #e5e5e5;">${p.housing ? `${p.housing.building} ${p.housing.room}${p.housing.bed ? '-' + p.housing.bed : ''}` : 'TBD'}</td>` : ''}
     </tr>
@@ -428,7 +429,7 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
           <div style="font-size: 11px; font-weight: 600; color: #1a365d; margin-bottom: 6px;">Group Information</div>
           <div style="font-size: 10px;">
             <div style="margin: 2px 0;"><strong>Access Code:</strong> <span style="font-family: monospace; font-weight: 600; letter-spacing: 1px;">${packet.group.accessCode}</span></div>
-            <div style="margin: 2px 0;"><strong>Participants:</strong> ${packet.participants.youth} Youth, ${packet.participants.chaperones} Chaperones${packet.participants.clergy > 0 ? `, ${packet.participants.clergy} Clergy` : ''}</div>
+            <div style="margin: 2px 0;"><strong>Participants:</strong> ${packet.participants.youth} Youth, ${packet.participants.chaperones} Chaperones${packet.participants.clergy > 0 ? `, ${packet.participants.clergy} Priest${packet.participants.clergy === 1 ? '' : 's'}` : ''}</div>
           </div>
         </div>
         <div style="padding: 10px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #c9a227;">

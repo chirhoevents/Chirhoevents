@@ -25,6 +25,7 @@ import {
   Send,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { getClergyRoleLabel } from '@/lib/clergy-roles'
 
 interface ViewRegistrationModalProps {
   isOpen: boolean
@@ -42,6 +43,7 @@ interface Participant {
   age: number
   gender: string
   participantType: string
+  clergyTitle?: string | null
   tShirtSize?: string | null
   liabilityFormCompleted: boolean
   liabilityFormUrl?: string | null
@@ -256,7 +258,9 @@ export default function ViewRegistrationModal({
     navigator.clipboard.writeText(text)
   }
 
-  function getParticipantTypeLabel(type: string) {
+  function getParticipantTypeLabel(type: string, clergyTitle?: string | null) {
+    const clergyRole = getClergyRoleLabel(type, clergyTitle)
+    if (clergyRole) return clergyRole
     switch (type) {
       case 'youth_u18':
         return 'Youth Under 18'
@@ -795,7 +799,7 @@ export default function ViewRegistrationModal({
                                     </p>
                                     <p className="text-sm text-gray-600">
                                       {participant.age} years old •{' '}
-                                      {getParticipantTypeLabel(participant.participantType)}
+                                      {getParticipantTypeLabel(participant.participantType, participant.clergyTitle)}
                                     </p>
                                   </div>
                                   <div className="flex items-center gap-2">

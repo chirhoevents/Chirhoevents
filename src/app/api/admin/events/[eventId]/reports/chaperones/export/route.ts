@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyReportAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { generateTableReportPDF, pdfResponseInit } from '@/lib/reports/generate-table-report-pdf'
+import { countsAsChaperone, getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
 
 export async function POST(
   request: NextRequest,
@@ -33,6 +34,7 @@ export async function POST(
         participantFirstName: true,
         participantLastName: true,
         participantGender: true,
+        clergyTitle: true,
         participantEmail: true,
         participantPhone: true,
         groupRegistration: {
@@ -61,13 +63,18 @@ export async function POST(
         f.participantGender === 'female'
     ).length
 
-    const maleChaperones = liabilityForms.filter(
-      (f: LiabilityFormRecord) => f.participantType === 'chaperone' && f.participantGender === 'male'
+    // Chaperones include deacons, seminarians, sisters and brothers (who fill
+    // out the Clergy & Religious form); priests are not counted.
+    const chaperoneForms = liabilityForms.filter((f: LiabilityFormRecord) =>
+      countsAsChaperone(f.participantType, f.clergyTitle)
     )
-
-    const femaleChaperones = liabilityForms.filter(
-      (f: LiabilityFormRecord) => f.participantType === 'chaperone' && f.participantGender === 'female'
+    const maleChaperones = chaperoneForms.filter(
+      (f: LiabilityFormRecord) => getRatioGender(f.participantType, f.clergyTitle, f.participantGender) === 'male'
     )
+    const femaleChaperones = chaperoneForms.filter(
+      (f: LiabilityFormRecord) => getRatioGender(f.participantType, f.clergyTitle, f.participantGender) === 'female'
+    )
+    const roleLabel = (f: LiabilityFormRecord) => getClergyRoleLabel(f.participantType, f.clergyTitle) || 'Chaperone'
 
     const maleRatio = maleChaperones.length > 0 ? maleYouth / maleChaperones.length : null
     const femaleRatio = femaleChaperones.length > 0 ? femaleYouth / femaleChaperones.length : null
@@ -93,18 +100,18 @@ export async function POST(
       lines.push(`Female Ratio (Youth:Chaperone),${femaleRatio ? femaleRatio.toFixed(1) + ':1' : 'N/A'}`)
       lines.push('')
       lines.push('MALE CHAPERONES')
-      lines.push('Name,Group/Parish,Email,Phone')
+      lines.push('Name,Role,Group/Parish,Email,Phone')
       maleChaperones.forEach((c: LiabilityFormRecord) => {
         lines.push(
-          `"${c.participantFirstName} ${c.participantLastName}","${c.groupRegistration?.parishName || c.groupRegistration?.groupName || 'Unknown'}","${c.participantEmail || ''}","${c.participantPhone || ''}"`
+          `"${c.participantFirstName} ${c.participantLastName}","${roleLabel(c)}","${c.groupRegistration?.parishName || c.groupRegistration?.groupName || 'Unknown'}","${c.participantEmail || ''}","${c.participantPhone || ''}"`
         )
       })
       lines.push('')
       lines.push('FEMALE CHAPERONES')
-      lines.push('Name,Group/Parish,Email,Phone')
+      lines.push('Name,Role,Group/Parish,Email,Phone')
       femaleChaperones.forEach((c: LiabilityFormRecord) => {
         lines.push(
-          `"${c.participantFirstName} ${c.participantLastName}","${c.groupRegistration?.parishName || c.groupRegistration?.groupName || 'Unknown'}","${c.participantEmail || ''}","${c.participantPhone || ''}"`
+          `"${c.participantFirstName} ${c.participantLastName}","${roleLabel(c)}","${c.groupRegistration?.parishName || c.groupRegistration?.groupName || 'Unknown'}","${c.participantEmail || ''}","${c.participantPhone || ''}"`
         )
       })
 
@@ -118,13 +125,15 @@ export async function POST(
       })
     } else if (format === 'pdf') {
       const REQUIRED_RATIO = 10
-      const maleCompliant = maleRatio === null || maleRatio <= REQUIRED_RATIO
-      const femaleCompliant = femaleRatio === null || femaleRatio <= REQUIRED_RATIO
+      // Youth with no same-gender chaperone at all is out of ratio, not "N/A".
+      const maleCompliant = maleYouth === 0 || (maleRatio !== null && maleRatio <= REQUIRED_RATIO)
+      const femaleCompliant = femaleYouth === 0 || (femaleRatio !== null && femaleRatio <= REQUIRED_RATIO)
       const overallCompliant = maleCompliant && femaleCompliant
       const fmtRatio = (r: number | null) => (r ? `${r.toFixed(1)}:1` : 'N/A')
 
       const chaperoneColumns = [
         { label: 'Name', weight: 3 },
+        { label: 'Role', weight: 2 },
         { label: 'Group/Parish', weight: 4 },
         { label: 'Email', weight: 4 },
         { label: 'Phone', weight: 2 },
@@ -132,6 +141,7 @@ export async function POST(
       const chaperoneRows = (list: LiabilityFormRecord[]) =>
         list.map((c: LiabilityFormRecord) => [
           `${c.participantFirstName} ${c.participantLastName}`,
+          roleLabel(c),
           c.groupRegistration?.parishName || c.groupRegistration?.groupName || 'Unknown',
           c.participantEmail || '',
           c.participantPhone || '',
@@ -143,8 +153,8 @@ export async function POST(
           `${overallCompliant ? 'Meets' : 'Does NOT meet'} the ${REQUIRED_RATIO}:1 ratio requirement`,
         ],
       ]
-      if (!maleCompliant) complianceLines.push(['Male', `Ratio exceeds limit (${fmtRatio(maleRatio)})`])
-      if (!femaleCompliant) complianceLines.push(['Female', `Ratio exceeds limit (${fmtRatio(femaleRatio)})`])
+      if (!maleCompliant) complianceLines.push(['Male', maleRatio === null ? 'No male chaperones for male youth' : `Ratio exceeds limit (${fmtRatio(maleRatio)})`])
+      if (!femaleCompliant) complianceLines.push(['Female', femaleRatio === null ? 'No female chaperones for female youth' : `Ratio exceeds limit (${fmtRatio(femaleRatio)})`])
 
       const pdfBuffer = await generateTableReportPDF({
         title: 'Chaperone Summary Report',

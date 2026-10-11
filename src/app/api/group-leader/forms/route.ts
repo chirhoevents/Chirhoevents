@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,8 +78,9 @@ export async function GET(request: NextRequest) {
         firstName: participant.firstName,
         lastName: participant.lastName,
         age: participant.age,
-        gender: participant.gender,
+        gender: getRatioGender(participant.participantType, participant.clergyTitle, participant.gender),
         participantType: participant.participantType,
+        clergyRoleLabel: getClergyRoleLabel(participant.participantType, participant.clergyTitle),
         formStatus,
         formId: latestForm?.id,
         pdfUrl: latestForm?.pdfUrl,

@@ -34,6 +34,7 @@ interface Participant {
   age: number | null
   gender: Gender
   participantType: ParticipantType
+  clergyRoleLabel?: string | null
   email: string | null
   phone: string | null
   parentEmail: string | null
@@ -120,12 +121,16 @@ export default function ParticipantsPage() {
       youth_u18: 'Youth U18',
       youth_o18: 'Youth 18+',
       chaperone: 'Chaperone',
-      priest: 'Clergy'
+      priest: 'Clergy & Religious'
     }
     return labels[type]
   }
 
-  const getParticipantTypeBadge = (type: ParticipantType) => {
+  // Shows "Sister", "Seminarian", etc. for Clergy & Religious participants
+  const getParticipantLabel = (p: Participant): string =>
+    p.clergyRoleLabel || getParticipantTypeLabel(p.participantType)
+
+  const getParticipantTypeBadge = (type: ParticipantType, label?: string) => {
     const badges = {
       youth_u18: 'bg-blue-100 text-blue-800',
       youth_o18: 'bg-purple-100 text-purple-800',
@@ -134,7 +139,7 @@ export default function ParticipantsPage() {
     }
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badges[type]}`}>
-        {getParticipantTypeLabel(type)}
+        {label || getParticipantTypeLabel(type)}
       </span>
     )
   }
@@ -145,7 +150,7 @@ export default function ParticipantsPage() {
       p.lastName,
       p.firstName,
       p.preferredName || '',
-      getParticipantTypeLabel(p.participantType),
+      getParticipantLabel(p),
       p.age || '',
       p.gender,
       p.email || '',
@@ -221,7 +226,7 @@ export default function ParticipantsPage() {
             <p className="text-2xl font-bold text-amber-600">
               {participants.filter(p => p.participantType === 'priest').length}
             </p>
-            <p className="text-xs text-[#6B7280] mt-1">Clergy</p>
+            <p className="text-xs text-[#6B7280] mt-1">Clergy & Religious</p>
           </div>
         </Card>
       </div>
@@ -281,7 +286,7 @@ export default function ParticipantsPage() {
               size="sm"
               className={selectedType === 'priest' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-600 text-amber-600'}
             >
-              Clergy
+              Clergy & Religious
             </Button>
           </div>
 
@@ -332,7 +337,7 @@ export default function ParticipantsPage() {
                           </span>
                         )}
                       </h4>
-                      {getParticipantTypeBadge(participant.participantType)}
+                      {getParticipantTypeBadge(participant.participantType, getParticipantLabel(participant))}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-[#6B7280]">
@@ -415,7 +420,7 @@ export default function ParticipantsPage() {
                 <h3 className="text-xl font-semibold text-[#1E3A5F]">
                   {selectedParticipant.firstName} {selectedParticipant.lastName}
                 </h3>
-                {getParticipantTypeBadge(selectedParticipant.participantType)}
+                {getParticipantTypeBadge(selectedParticipant.participantType, getParticipantLabel(selectedParticipant))}
               </div>
               <button
                 onClick={() => setSelectedParticipant(null)}

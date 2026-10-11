@@ -45,6 +45,7 @@ interface Participant {
   age: number | null
   gender: string | null
   participantType: string | null
+  clergyRoleLabel?: string | null
   formStatus: string
   formId: string | null
   parentEmail: string | null
@@ -1291,7 +1292,7 @@ function ParticipantRow({
               <div className="text-sm text-gray-600">
                 Age: {participant.age || 'N/A'} |{' '}
                 {participant.gender || 'N/A'} |{' '}
-                {participant.participantType?.replace('_', ' ')}
+                {participant.clergyRoleLabel || participant.participantType?.replace('_', ' ')}
                 {participant.formStatus === 'pending_parent' && (
                   <span className="ml-2 text-orange-600 font-medium">Waiting on Parent</span>
                 )}

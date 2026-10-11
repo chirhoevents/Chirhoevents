@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { generateParticipantQRCode, generateIndividualRegistrationQRCode } from '@/lib/qr-code'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { hasPermission } from '@/lib/permissions'
+import { isClergyOrReligiousType, resolveParticipantType } from '@/lib/clergy-roles'
 
 async function requireSalveAccess(request: NextRequest, eventId: string) {
   const overrideUserId = await getClerkUserIdFromHeader(request)
@@ -252,9 +253,11 @@ async function generateGroupNameTags(
         fullName: `${p.firstName} ${p.lastName}`,
         groupName: p.groupRegistration.groupName,
         diocese: p.groupRegistration.dioceseName,
-        participantType: p.participantType,
+        // Sisters/brothers/seminarians/deacons are stored as 'priest' + a title;
+        // resolve so the badge reads "Sister", not "Priest".
+        participantType: resolveParticipantType(p.participantType, p.clergyTitle),
         isChaperone: p.participantType === 'chaperone',
-        isClergy: p.participantType === 'priest',
+        isClergy: isClergyOrReligiousType(p.participantType),
         housing: assignment
           ? {
               building: assignment.buildingName,

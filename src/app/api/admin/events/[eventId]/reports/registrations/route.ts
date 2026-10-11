@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyReportAccess } from '@/lib/api-auth'
+import { getClergyRole, getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
 
 export async function GET(
   request: NextRequest,
@@ -51,28 +52,32 @@ export async function GET(
       })
     }
 
-    // Demographics — map DB enum values to display buckets.
-    // DB enum is singular (chaperone, priest, deacon, ...); display groups them.
+    // Demographics — map DB enum values to display buckets. Clergy & Religious
+    // get one bucket per role (Sisters aren't clergy, and the Clergy & Religious
+    // form stores every title as 'priest'), added only when someone has that role.
     const demographics: any = {
       youth_u18: { total: 0, male: 0, female: 0 },
       youth_o18: { total: 0, male: 0, female: 0 },
       chaperones: { total: 0, male: 0, female: 0 },
-      clergy: { total: 0, male: 0, female: 0 },
+    }
+    const CLERGY_ROLE_BUCKETS: Record<string, string> = {
+      deacon: 'deacons',
+      seminarian: 'seminarians',
+      sister: 'sisters',
+      brother: 'brothers',
+      priest: 'priests',
+      bishop: 'bishops',
+    }
+    for (const bucket of Object.values(CLERGY_ROLE_BUCKETS)) {
+      demographics[bucket] = { total: 0, male: 0, female: 0 }
     }
 
-    const bucketForParticipantType = (t: string | null | undefined): string | null => {
+    const bucketForParticipantType = (t: string | null | undefined, clergyTitle?: string | null): string | null => {
       if (!t) return null
       if (t === 'youth_u18' || t === 'youth_o18') return t
       if (t === 'chaperone') return 'chaperones'
-      if (
-        t === 'priest' ||
-        t === 'deacon' ||
-        t === 'seminarian' ||
-        t === 'religious_sister' ||
-        t === 'religious_brother'
-      )
-        return 'clergy'
-      return null
+      const role = getClergyRole(t, clergyTitle)
+      return role ? CLERGY_ROLE_BUCKETS[role] : null
     }
 
     // Roster — flat list of every registered person for the full report
@@ -82,18 +87,20 @@ export async function GET(
     for (const group of groupRegistrations) {
       const groupLabel = group.groupName || group.parishName || 'Unnamed Group'
       for (const p of group.participants) {
-        const bucket = bucketForParticipantType(p.participantType)
+        const bucket = bucketForParticipantType(p.participantType, p.clergyTitle)
+        const gender = getRatioGender(p.participantType, p.clergyTitle, p.gender)
         if (bucket && demographics[bucket]) {
           demographics[bucket].total++
-          if (p.gender === 'male') demographics[bucket].male++
-          if (p.gender === 'female') demographics[bucket].female++
+          if (gender === 'male') demographics[bucket].male++
+          if (gender === 'female') demographics[bucket].female++
         }
         roster.push({
           name: `${p.firstName} ${p.lastName}`.trim(),
           participantType: p.participantType,
+          roleLabel: getClergyRoleLabel(p.participantType, p.clergyTitle),
           displayType: bucket || p.participantType || 'unknown',
           age: p.age,
-          gender: p.gender,
+          gender,
           group: groupLabel,
           registrationType: 'group',
           housingType: group.housingType || null,
@@ -123,6 +130,11 @@ export async function GET(
         registrationType: 'individual',
         housingType: ind.housingType || null,
       })
+    }
+
+    // Drop clergy/religious buckets nobody falls into
+    for (const bucket of Object.values(CLERGY_ROLE_BUCKETS)) {
+      if (demographics[bucket].total === 0) delete demographics[bucket]
     }
 
     // Sort roster: group name, then participant name

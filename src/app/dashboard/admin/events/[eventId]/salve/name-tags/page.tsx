@@ -44,6 +44,7 @@ import {
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { openBadgePrintWindow, generatePreviewHTML, previewNaturalSize } from '@/lib/badge-renderer'
+import { getClergyRoleLabel } from '@/lib/clergy-roles'
 
 // A small mock QR-code-looking pattern (data URI) used only for the live preview,
 // so the preview never depends on generating a real QR code for placeholder data.
@@ -745,7 +746,7 @@ export default function NameTagDesignerPage() {
                   { id: 'showName', label: 'Name' },
                   { id: 'showGroup', label: 'Group / Parish name' },
                   { id: 'showDiocese', label: 'Diocese' },
-                  { id: 'showParticipantType', label: 'Participant type badge (Youth / Chaperone / Clergy)' },
+                  { id: 'showParticipantType', label: 'Participant type badge (Youth / Chaperone / Priest / Sister ...)' },
                   { id: 'showHousing', label: 'Housing assignment' },
                   { id: 'showMealColor', label: 'Meal color indicator' },
                   { id: 'showQrCode', label: 'QR code' },
@@ -1066,7 +1067,7 @@ export default function NameTagDesignerPage() {
                       className="text-white text-xs px-2 py-0.5 rounded mt-2"
                       style={{ backgroundColor: template.accentColor }}
                     >
-                      {tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth'}
+                      {getClergyRoleLabel(tag.participantType, null) || (tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth')}
                     </span>
                   )}
                 </div>
