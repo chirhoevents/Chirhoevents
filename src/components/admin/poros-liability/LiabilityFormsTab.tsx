@@ -45,6 +45,7 @@ interface Participant {
   age: number | null
   gender: string | null
   participantType: string | null
+  clergyRoleLabel?: string | null
   formStatus: string
   formId: string | null
   parentEmail: string | null
@@ -84,6 +85,7 @@ interface Group {
   femaleYouthCount: number
   maleChaperoneCount: number
   femaleChaperoneCount: number
+  chaperoneRatio: number
   participants: Participant[]
 }
 
@@ -694,20 +696,26 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                   </div>
 
                   {/* Safe Environment Gender Ratio — chaperones present relative to
-                      youth of the same gender, based on actual submitted forms */}
+                      youth of the same gender, based on actual submitted forms,
+                      checked against this event's ratio (informational only) */}
                   <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b">
                     {([
                       { label: 'Male', youth: group.maleYouthCount, chaperones: group.maleChaperoneCount },
                       { label: 'Female', youth: group.femaleYouthCount, chaperones: group.femaleChaperoneCount },
                     ] as const).map(({ label, youth, chaperones }) => {
                       const noSameGenderChaperone = youth > 0 && chaperones === 0
+                      const ratio = group.chaperoneRatio
+                      const chaperonesNeeded = Math.ceil(youth / ratio)
+                      const overRatio = !noSameGenderChaperone && chaperones < chaperonesNeeded
                       return (
                         <div
                           key={label}
                           className={`px-3 py-2 rounded-lg flex-1 min-w-[160px] border ${
                             noSameGenderChaperone
                               ? 'bg-red-50 border-red-300'
-                              : 'bg-gray-50 border-gray-200'
+                              : overRatio
+                                ? 'bg-amber-50 border-amber-300'
+                                : 'bg-gray-50 border-gray-200'
                           }`}
                         >
                           <div className="text-xs text-gray-700 font-medium">
@@ -724,6 +732,12 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                           {noSameGenderChaperone && (
                             <div className="text-xs text-red-600 font-medium mt-1">
                               No {label.toLowerCase()} chaperone on file
+                            </div>
+                          )}
+                          {overRatio && (
+                            <div className="text-xs text-amber-700 font-medium mt-1">
+                              Over {ratio}:1 — needs {chaperonesNeeded - chaperones} more {label.toLowerCase()}{' '}
+                              chaperone{chaperonesNeeded - chaperones === 1 ? '' : 's'}
                             </div>
                           )}
                         </div>
@@ -1291,7 +1305,7 @@ function ParticipantRow({
               <div className="text-sm text-gray-600">
                 Age: {participant.age || 'N/A'} |{' '}
                 {participant.gender || 'N/A'} |{' '}
-                {participant.participantType?.replace('_', ' ')}
+                {participant.clergyRoleLabel || participant.participantType?.replace('_', ' ')}
                 {participant.formStatus === 'pending_parent' && (
                   <span className="ml-2 text-orange-600 font-medium">Waiting on Parent</span>
                 )}

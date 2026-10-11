@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getClergyRoleLabel } from '@/lib/clergy-roles'
 
 interface LiabilityFormWithRelations {
   id: string
@@ -166,11 +167,7 @@ export async function generateLiabilityFormPDF(
     throw new Error(`Unknown form type: ${formData.formType}`)
   }
 
-  const clergyTitleLabel =
-    formData.clergyTitle === 'priest' ? 'Priest' :
-    formData.clergyTitle === 'deacon' ? 'Deacon' :
-    formData.clergyTitle === 'bishop' ? 'Bishop' :
-    formData.clergyTitle === 'cardinal' ? 'Cardinal' : 'Clergy'
+  const clergyTitleLabel = getClergyRoleLabel(formData.participantType, formData.clergyTitle) || 'Clergy / Religious'
 
   const participantTypeLabel = formData.participantType === 'youth_o18' ? 'Youth (18+)' : 'Chaperone'
 
@@ -318,7 +315,7 @@ export async function generateLiabilityFormPDF(
         checkPage(32)
         doc.rect(M, y, W, 26).fillColor('#EDE9FE').fill()
         doc.font('Helvetica-Bold').fontSize(9).fillColor('#333333')
-          .text('Clergy Title:', M + 8, y + 8, { width: LW - 8, lineBreak: false })
+          .text('Title:', M + 8, y + 8, { width: LW - 8, lineBreak: false })
         doc.font('Helvetica-Bold').fontSize(9).fillColor(NAVY)
           .text(clergyTitleLabel, M + LW + 8, y + 8, { width: VW - 8 })
         y += 32

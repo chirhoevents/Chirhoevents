@@ -26,6 +26,7 @@ interface ParticipantForm {
   age: number | null
   gender: string | null
   participantType: ParticipantType | null
+  clergyRoleLabel?: string | null
   formStatus: FormStatus
   formId?: string
   pdfUrl?: string
@@ -89,7 +90,7 @@ export default function LiabilityFormsPage() {
       youth_u18: 'Youth U18',
       youth_o18: 'Youth 18+',
       chaperone: 'Chaperone',
-      priest: 'Clergy'
+      priest: 'Clergy & Religious'
     }
     return labels[type]
   }
@@ -439,7 +440,7 @@ export default function LiabilityFormsPage() {
                           ? 'bg-[#E8DCC8] text-[#1E3A5F]'
                           : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {getParticipantTypeLabel(form.participantType)}
+                        {form.clergyRoleLabel || getParticipantTypeLabel(form.participantType)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -587,7 +588,7 @@ export default function LiabilityFormsPage() {
                 <div>
                   <p className="text-sm text-[#6B7280]">Participant Type</p>
                   <p className="font-medium text-[#1F2937]">
-                    {getParticipantTypeLabel(selectedForm.participantType)}
+                    {selectedForm.clergyRoleLabel || getParticipantTypeLabel(selectedForm.participantType)}
                   </p>
                 </div>
                 <div>

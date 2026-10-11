@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { hasPermission } from '@/lib/permissions'
+import { countsAsChaperone, getClergyRoleLabel, getRatioGender, isClergyOrReligiousType, resolveParticipantType } from '@/lib/clergy-roles'
 
 // Helper function to check if user can access Salve portal
 async function requireSalveAccess(request: NextRequest, eventId: string) {
@@ -334,7 +335,7 @@ export async function POST(
               bedLetter: assignment?.bedNumber
                 ? String.fromCharCode(64 + assignment.bedNumber)
                 : null,
-              participantType: p.participantType,
+              participantType: resolveParticipantType(p.participantType, p.clergyTitle),
             }
           }),
         }
@@ -370,7 +371,7 @@ export async function POST(
             bedLetter: ra.bedNumber
               ? String.fromCharCode(64 + ra.bedNumber)
               : null,
-            participantType: participant.participantType,
+            participantType: resolveParticipantType(participant.participantType, participant.clergyTitle),
           })
         }
       }
@@ -432,18 +433,22 @@ export async function POST(
       participants: {
         total: group.participants.length,
         youth: group.participants.filter(
-          (p: any) => p.participantType !== 'chaperone' && p.participantType !== 'priest'
+          (p: any) => p.participantType !== 'chaperone' && !isClergyOrReligiousType(p.participantType)
         ).length,
-        chaperones: group.participants.filter((p: any) => p.participantType === 'chaperone').length,
-        clergy: group.participants.filter((p: any) => p.participantType === 'priest').length,
+        // Deacons, seminarians, sisters and brothers are chaperones; "clergy" here is priests only.
+        chaperones: group.participants.filter((p: any) => countsAsChaperone(p.participantType, p.clergyTitle)).length,
+        clergy: group.participants.filter(
+          (p: any) => isClergyOrReligiousType(p.participantType) && !countsAsChaperone(p.participantType, p.clergyTitle)
+        ).length,
         list: group.participants.map((p: any) => {
           const assignment = assignmentMap.get(p.id)
           return {
             name: `${p.firstName} ${p.lastName}`,
-            participantType: p.participantType,
+            participantType: resolveParticipantType(p.participantType, p.clergyTitle),
+            roleLabel: getClergyRoleLabel(p.participantType, p.clergyTitle),
             isChaperone: p.participantType === 'chaperone',
-            isClergy: p.participantType === 'priest',
-            gender: p.gender,
+            isClergy: isClergyOrReligiousType(p.participantType),
+            gender: getRatioGender(p.participantType, p.clergyTitle, p.gender),
             housing: assignment
               ? {
                   building: assignment.buildingName,

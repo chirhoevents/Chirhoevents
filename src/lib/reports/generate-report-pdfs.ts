@@ -694,10 +694,9 @@ export async function generateRegistrationReportPDF(reportData: any, eventName: 
             drawTableHeader(cols)
             zebra = false
           }
-          const typeLabel = safeTxt(
-            p?.participantType || p?.displayType || '—',
-            '—'
-          ).replace(/_/g, ' ')
+          const typeLabel = p?.roleLabel
+            ? safeTxt(p.roleLabel, '—')
+            : safeTxt(p?.participantType || p?.displayType || '—', '—').replace(/_/g, ' ')
           drawTableRow(
             cols,
             [

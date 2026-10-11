@@ -241,7 +241,7 @@ export function ReprintBadgeModal({
         diocese: null,
         participantType,
         isChaperone: participantType === 'chaperone',
-        isClergy: participantType === 'priest',
+        isClergy: ['priest', 'deacon', 'seminarian', 'religious_sister', 'religious_brother'].includes(participantType),
         housing: null,
         mealColor: mealColorObj,
         qrCode: null,
@@ -475,7 +475,11 @@ export function ReprintBadgeModal({
                   <SelectContent>
                     <SelectItem value="youth">Youth</SelectItem>
                     <SelectItem value="chaperone">Chaperone</SelectItem>
-                    <SelectItem value="priest">Clergy</SelectItem>
+                    <SelectItem value="priest">Priest</SelectItem>
+                    <SelectItem value="deacon">Deacon</SelectItem>
+                    <SelectItem value="seminarian">Seminarian</SelectItem>
+                    <SelectItem value="religious_sister">Sister</SelectItem>
+                    <SelectItem value="religious_brother">Brother</SelectItem>
                     <SelectItem value="staff">Staff</SelectItem>
                     <SelectItem value="individual">Individual</SelectItem>
                   </SelectContent>

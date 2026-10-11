@@ -94,6 +94,8 @@ const VALID_SETTINGS_FIELDS = [
   'letterOfGoodStandingContactEmail',
   'letterOfGoodStandingInstructions',
   'letterOfGoodStandingRequiredFor',
+  // Safe-environment youth-per-chaperone ratio
+  'chaperoneRatio',
 ]
 
 export async function PATCH(
@@ -147,6 +149,14 @@ export async function PATCH(
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
+    if ('chaperoneRatio' in updateData) {
+      const ratio = Number(updateData.chaperoneRatio)
+      if (!Number.isInteger(ratio) || ratio < 1 || ratio > 100) {
+        return NextResponse.json({ error: 'Chaperone ratio must be a whole number from 1 to 100' }, { status: 400 })
+      }
+      updateData.chaperoneRatio = ratio
     }
 
     // Poros / SALVE / Rapha can only be turned on if the org's plan includes them

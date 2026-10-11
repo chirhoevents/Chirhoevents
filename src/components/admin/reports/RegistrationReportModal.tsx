@@ -205,7 +205,7 @@ export default function RegistrationReportModal({
                             {person.name}
                           </td>
                           <td className="px-3 py-2 capitalize">
-                            {(person.participantType || person.displayType || '—').replace(/_/g, ' ')}
+                            {person.roleLabel || (person.participantType || person.displayType || '—').replace(/_/g, ' ')}
                           </td>
                           <td className="px-3 py-2 text-[#6B7280]">
                             {person.age ?? '—'}

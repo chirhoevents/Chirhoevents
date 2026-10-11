@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma, prismaIncludingCancelled } from '@/lib/prisma'
 import { verifyReportAccess } from '@/lib/api-auth'
+import { getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
+
+// Clergy & Religious show their actual role ("Sister", "Seminarian", ...);
+// everyone else keeps the stored participant type.
+function participantTypeForReport(participantType: string | null, clergyTitle: string | null): string | null {
+  return getClergyRoleLabel(participantType, clergyTitle) ?? participantType
+}
 
 // POST execute a custom report without saving as template
 export async function POST(
@@ -335,6 +342,9 @@ async function executeParticipantsReport(eventId: string, config: any) {
 
     return {
       ...p,
+      // "Sister", "Seminarian", ... instead of the stored 'priest'
+      participantType: participantTypeForReport(p.participantType, p.clergyTitle),
+      gender: getRatioGender(p.participantType, p.clergyTitle, p.gender),
       // Surface DOB collected on the liability form so the "Date of Birth"
       // report column populates. Participant itself doesn't store it.
       dateOfBirth: form?.dateOfBirth || null,
@@ -1000,11 +1010,21 @@ async function executeHousingReport(eventId: string, config: any) {
       firstName: true,
       lastName: true,
       participantType: true,
+      clergyTitle: true,
       gender: true,
       groupRegistration: { select: { groupName: true } },
     },
   })
-  const participantMap = new Map(participants.map((p: { id: string }) => [p.id, p]))
+  const participantMap = new Map(
+    participants.map((p: typeof participants[number]) => [
+      p.id,
+      {
+        ...p,
+        participantType: participantTypeForReport(p.participantType, p.clergyTitle),
+        gender: getRatioGender(p.participantType, p.clergyTitle, p.gender),
+      },
+    ])
+  )
 
   // Flatten to assignments
   let results: any[] = []
@@ -1063,6 +1083,7 @@ async function executeTShirtsReport(eventId: string, config: any) {
       lastName: true,
       tShirtSize: true,
       participantType: true,
+      clergyTitle: true,
       groupRegistration: {
         select: { groupName: true, parishName: true },
       },
@@ -1097,7 +1118,7 @@ async function executeTShirtsReport(eventId: string, config: any) {
       firstName: p.firstName,
       lastName: p.lastName,
       tShirtSize: p.tShirtSize,
-      participantType: p.participantType,
+      participantType: participantTypeForReport(p.participantType, p.clergyTitle),
       groupName: p.groupRegistration?.groupName,
       parishName: p.groupRegistration?.parishName,
       registrationType: 'participant',
@@ -1482,8 +1503,8 @@ async function executeGroupDetailReport(eventId: string, config: any) {
       preferredName: p.preferredName,
       fullName: `${p.firstName} ${p.lastName}`,
       age: p.age,
-      gender: p.gender,
-      participantType: p.participantType,
+      gender: getRatioGender(p.participantType, p.clergyTitle, p.gender),
+      participantType: participantTypeForReport(p.participantType, p.clergyTitle),
       participantCategory,
       tShirtSize: p.tShirtSize,
       checkedIn: p.checkedIn,

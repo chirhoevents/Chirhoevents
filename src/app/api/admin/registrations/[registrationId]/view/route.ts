@@ -69,6 +69,7 @@ async function getGroupRegistration(registrationId: string, organizationId: stri
           age: true,
           gender: true,
           participantType: true,
+          clergyTitle: true,
           tShirtSize: true,
           liabilityFormCompleted: true,
           liabilityFormUrl: true,
