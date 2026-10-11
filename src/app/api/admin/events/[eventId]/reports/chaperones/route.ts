@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyReportAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+import { getEventChaperoneRatio } from '@/lib/chaperone-ratio'
 import { countsAsChaperone, getClergyRole, getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
 
 interface ChaperoneInfo {
@@ -111,8 +112,8 @@ export async function GET(
     const maleRatio = maleChaperones.length > 0 ? maleYouth / maleChaperones.length : null
     const femaleRatio = femaleChaperones.length > 0 ? femaleYouth / femaleChaperones.length : null
 
-    // Check compliance (10:1 ratio requirement)
-    const REQUIRED_RATIO = 10
+    // Check compliance against this event's ratio (set per event — dioceses differ)
+    const REQUIRED_RATIO = await getEventChaperoneRatio(eventId)
     // Youth with no same-gender chaperone at all is out of ratio, not "N/A".
     const maleCompliant = maleYouth === 0 || (maleRatio !== null && maleRatio <= REQUIRED_RATIO)
     const femaleCompliant = femaleYouth === 0 || (femaleRatio !== null && femaleRatio <= REQUIRED_RATIO)

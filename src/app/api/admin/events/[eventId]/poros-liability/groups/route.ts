@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyFormsViewAccess } from '@/lib/api-auth'
 import { liabilityFormNeedsApproval } from '@/lib/liability-form-approval'
+import { getEventChaperoneRatio } from '@/lib/chaperone-ratio'
 import { countsAsChaperone, getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
 
 export async function GET(
@@ -63,6 +64,9 @@ export async function GET(
       },
       orderBy: { groupName: 'asc' },
     })
+
+    // This event's youth-per-chaperone ratio, for the safe-environment cards
+    const chaperoneRatio = await getEventChaperoneRatio(eventId)
 
     // Format response with stats
     type GroupResult = typeof groups[number]
@@ -152,6 +156,7 @@ export async function GET(
         femaleYouthCount,
         maleChaperoneCount,
         femaleChaperoneCount,
+        chaperoneRatio,
         chaperoneCount: group.chaperoneCount,
         chaperoneSubmittedCount,
         participants: [...allCompletedForms, ...pendingParentForms].map((form: GroupResult['liabilityForms'][number]) => ({

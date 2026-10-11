@@ -52,6 +52,10 @@ ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "external_balance_payment_
 COMMIT;
 
 BEGIN;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "chaperone_ratio" INTEGER NOT NULL DEFAULT 10;
+COMMIT;
+
+BEGIN;
 ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_enabled" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_title" VARCHAR(255);
 ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "registration_acknowledgment_items" JSONB;

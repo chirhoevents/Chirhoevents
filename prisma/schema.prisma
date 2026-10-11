@@ -439,6 +439,10 @@ model EventSettings {
   // JSON array of ParticipantType values that require a letter, e.g. ["priest","deacon","seminarian"]
   letterOfGoodStandingRequiredFor Json     @default("[\"priest\", \"deacon\", \"seminarian\"]") @map("letter_of_good_standing_required_for") @db.JsonB
 
+  // Safe-environment supervision ratio: max youth per same-gender chaperone
+  // (10 means 10:1). Varies by diocese, so it's set per event. Report-only.
+  chaperoneRatio                  Int      @default(10) @map("chaperone_ratio")
+
   createdAt                       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

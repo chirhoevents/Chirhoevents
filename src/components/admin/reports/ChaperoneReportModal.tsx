@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Download, Loader2, CheckCircle, XCircle, Users } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -69,6 +71,10 @@ export default function ChaperoneReportModal({
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null)
   const [groupFilter, setGroupFilter] = useState<string>('all')
   const [housingFilter, setHousingFilter] = useState<string>('all')
+  const { getToken } = useAuth()
+  const [ratioInput, setRatioInput] = useState('')
+  const [savingRatio, setSavingRatio] = useState(false)
+  const [ratioError, setRatioError] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -89,6 +95,7 @@ export default function ChaperoneReportModal({
       if (!response.ok) throw new Error('Failed to fetch')
       const reportData = await response.json()
       setData(reportData)
+      setRatioInput(String(reportData.ratios.requiredRatio))
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -119,6 +126,37 @@ export default function ChaperoneReportModal({
       alert('Failed to export report.')
     } finally {
       setExporting(null)
+    }
+  }
+
+  // The ratio is set per event, since safe-environment rules vary by diocese
+  const saveRatio = async () => {
+    const ratio = Number(ratioInput)
+    if (!Number.isInteger(ratio) || ratio < 1 || ratio > 100) {
+      setRatioError('Enter a whole number from 1 to 100')
+      return
+    }
+    setSavingRatio(true)
+    setRatioError(null)
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/admin/events/${eventId}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ chaperoneRatio: ratio }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to save ratio')
+      }
+      await fetchData()
+    } catch (error) {
+      setRatioError(error instanceof Error ? error.message : 'Failed to save ratio')
+    } finally {
+      setSavingRatio(false)
     }
   }
 
@@ -276,6 +314,34 @@ export default function ChaperoneReportModal({
             <Card className="border-[#9C8466]">
               <CardContent className="pt-6">
                 <h3 className="font-semibold text-[#1E3A5F] mb-4">RATIOS</h3>
+                <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
+                  <label htmlFor="chaperone-ratio" className="text-gray-700">
+                    Ratio for this event: 1 chaperone per
+                  </label>
+                  <Input
+                    id="chaperone-ratio"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={ratioInput}
+                    onChange={(e) => setRatioInput(e.target.value)}
+                    className="w-20 h-8"
+                  />
+                  <span className="text-gray-700">youth of the same gender</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={saveRatio}
+                    disabled={savingRatio || ratioInput === String(data.ratios.requiredRatio)}
+                  >
+                    {savingRatio ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                  </Button>
+                  {ratioError && <span className="text-red-600 w-full">{ratioError}</span>}
+                  <span className="text-xs text-gray-500 w-full">
+                    Follow the safe-environment policy of your diocese. This is for reporting only; it
+                    never blocks registration.
+                  </span>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-blue-50 rounded">
                     <p className="text-sm text-blue-800 font-medium">Male Ratio</p>

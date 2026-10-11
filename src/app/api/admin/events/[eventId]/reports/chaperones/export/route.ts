@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyReportAccess } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { generateTableReportPDF, pdfResponseInit } from '@/lib/reports/generate-table-report-pdf'
+import { getEventChaperoneRatio } from '@/lib/chaperone-ratio'
 import { countsAsChaperone, getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
 
 export async function POST(
@@ -79,6 +80,9 @@ export async function POST(
     const maleRatio = maleChaperones.length > 0 ? maleYouth / maleChaperones.length : null
     const femaleRatio = femaleChaperones.length > 0 ? femaleYouth / femaleChaperones.length : null
 
+    // This event's ratio (set per event — dioceses differ)
+    const REQUIRED_RATIO = await getEventChaperoneRatio(eventId)
+
     if (format === 'csv') {
       // Generate CSV
       const lines: string[] = []
@@ -98,6 +102,7 @@ export async function POST(
       lines.push('RATIOS')
       lines.push(`Male Ratio (Youth:Chaperone),${maleRatio ? maleRatio.toFixed(1) + ':1' : 'N/A'}`)
       lines.push(`Female Ratio (Youth:Chaperone),${femaleRatio ? femaleRatio.toFixed(1) + ':1' : 'N/A'}`)
+      lines.push(`Required Ratio (Youth:Chaperone),${REQUIRED_RATIO}:1`)
       lines.push('')
       lines.push('MALE CHAPERONES')
       lines.push('Name,Role,Group/Parish,Email,Phone')
@@ -124,7 +129,6 @@ export async function POST(
         },
       })
     } else if (format === 'pdf') {
-      const REQUIRED_RATIO = 10
       // Youth with no same-gender chaperone at all is out of ratio, not "N/A".
       const maleCompliant = maleYouth === 0 || (maleRatio !== null && maleRatio <= REQUIRED_RATIO)
       const femaleCompliant = femaleYouth === 0 || (femaleRatio !== null && femaleRatio <= REQUIRED_RATIO)

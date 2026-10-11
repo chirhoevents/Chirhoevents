@@ -176,6 +176,7 @@ export async function POST(
                 individualRegistrationEnabled: s.individualRegistrationEnabled,
                 liabilityFormsRequiredGroup: s.liabilityFormsRequiredGroup,
                 liabilityFormsRequiredIndividual: s.liabilityFormsRequiredIndividual,
+                chaperoneRatio: s.chaperoneRatio,
                 showDietaryRestrictions: s.showDietaryRestrictions,
                 dietaryRestrictionsRequired: s.dietaryRestrictionsRequired,
                 showAdaAccommodations: s.showAdaAccommodations,
