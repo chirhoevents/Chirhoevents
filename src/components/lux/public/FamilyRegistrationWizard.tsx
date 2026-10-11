@@ -293,12 +293,7 @@ export default function FamilyRegistrationWizard(props: {
                 <input className={input} type="email" autoComplete="email" value={household.email} onChange={e => setH({ email: e.target.value })} />
               </L>
               <L label={t.common.phone} required><input className={input} type="tel" autoComplete="tel" value={household.phone} onChange={e => setH({ phone: e.target.value })} /></L>
-              {registeringChildren ? (
-                <L label={w.relationship}><select className={input} value={household.guardian1Relationship} onChange={e => setH({ guardian1Relationship: e.target.value })}>
-                  <option value="">{t.common.choose}</option>
-                  {Object.entries(w.relationships).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select></L>
-              ) : <span className="hidden sm:block" />}
+              <span className="hidden sm:block" />
               <L label={t.common.street} className="sm:col-span-2"><input className={input} autoComplete="street-address" value={household.street} onChange={e => setH({ street: e.target.value })} /></L>
               <L label={t.common.city}><input className={input} autoComplete="address-level2" value={household.city} onChange={e => setH({ city: e.target.value })} /></L>
               <div className="grid grid-cols-2 gap-4">
@@ -526,6 +521,16 @@ export default function FamilyRegistrationWizard(props: {
                 </div>
               )
             })}
+
+            {/* Asked here, not on "About you", so an adult registering only themselves never sees it */}
+            {people.some(c => !c.isAdult) && (
+              <L label={w.relationship} className="max-w-xs">
+                <select className={input} value={household.guardian1Relationship} onChange={e => setH({ guardian1Relationship: e.target.value })}>
+                  <option value="">{t.common.choose}</option>
+                  {Object.entries(w.relationships).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </L>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {childPrograms.length > 0 && (
