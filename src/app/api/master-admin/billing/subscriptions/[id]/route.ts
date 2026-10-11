@@ -237,7 +237,10 @@ export async function PUT(
         updatedOrg = await prisma.organization.update({
           where: { id },
           data: {
+            // Also brings back a cancelled org, so the org status follows
+            status: 'active',
             subscriptionStatus: 'active',
+            cancelledAt: null,
             pauseReason: null,
             pauseReasonNote: null,
             pausedAt: null,

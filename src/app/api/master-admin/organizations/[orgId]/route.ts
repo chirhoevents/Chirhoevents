@@ -161,7 +161,23 @@ export async function PUT(
     if (body.storageLimitGb !== undefined) updateData.storageLimitGb = body.storageLimitGb
     if (body.setupFeePaid !== undefined) updateData.setupFeePaid = body.setupFeePaid
     if (body.setupFeeAmount !== undefined) updateData.setupFeeAmount = body.setupFeeAmount
-    if (body.status !== undefined) updateData.status = body.status
+    if (body.status !== undefined) {
+      updateData.status = body.status
+      // The edit form always sends status, so only touch billing fields when
+      // it actually changes. Then keep the billing status in step so the
+      // Status dropdown, the Suspend/Reactivate buttons and the Billing page
+      // all agree
+      const current = await prisma.organization.findUnique({ where: { id: orgId }, select: { status: true } })
+      if (current?.status !== body.status) {
+        if (body.status === 'active') {
+          Object.assign(updateData, { subscriptionStatus: 'active', cancelledAt: null, pauseReason: null, pauseReasonNote: null, pausedAt: null })
+        } else if (body.status === 'suspended') {
+          updateData.subscriptionStatus = 'suspended'
+        } else if (body.status === 'cancelled') {
+          Object.assign(updateData, { subscriptionStatus: 'archived', cancelledAt: new Date() })
+        }
+      }
+    }
     if (body.primaryColor !== undefined) updateData.primaryColor = toNullable(body.primaryColor)
     if (body.secondaryColor !== undefined) updateData.secondaryColor = toNullable(body.secondaryColor)
     if (body.modulesEnabled !== undefined) updateData.modulesEnabled = sanitizeModuleOverrides(body.modulesEnabled)

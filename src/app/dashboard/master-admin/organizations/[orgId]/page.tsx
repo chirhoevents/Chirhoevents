@@ -808,7 +808,7 @@ export default function OrganizationDetailPage() {
               )}
               Suspend
             </button>
-          ) : organization.status === 'suspended' && (
+          ) : (organization.status === 'suspended' || organization.status === 'cancelled') && (
             <button
               onClick={handleReactivate}
               disabled={actionLoading !== null}
