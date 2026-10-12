@@ -13,6 +13,12 @@ import { ticketLines } from '@/lib/lux/registrations'
 import { sendLuxEmail, simpleEventConfirmationEmail } from '@/lib/lux/email'
 import { handleLuxOrderCheckoutCompleted, handleLuxOrderCheckoutExpired } from '@/lib/lux/order-payments'
 import { abandonUnpaidCheckout } from '@/lib/abandoned-checkout'
+import {
+  sendOrgPaymentReceipt,
+  sendOrgPaymentFailedEmail,
+  notifyMasterAdminPaymentReceived,
+  notifyMasterAdminPaymentFailed,
+} from '@/lib/platform-payment-emails'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -86,6 +92,14 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        // Stripe retries webhooks; remember whether this invoice was already
+        // paid so a redelivery doesn't send the receipt/notification twice.
+        const existingInvoice = await prisma.invoice.findUnique({
+          where: { id: invoiceId },
+          select: { status: true },
+        })
+        const alreadyPaid = existingInvoice?.status === 'paid'
+
         // Update invoice status to paid
         await prisma.invoice.update({
           where: { id: invoiceId },
@@ -104,6 +118,8 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             invoiceNumber: true,
+            invoiceType: true,
+            description: true,
             amount: true,
             organizationId: true,
             organization: {
@@ -211,46 +227,30 @@ export async function POST(request: NextRequest) {
         // one for automated webhook payments. The payment is recorded in the
         // Payment table and invoice status is updated to 'paid'.
 
-        // Send payment confirmation email
-        try {
-          await resend.emails.send({
-            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-            reply_to: 'support@chirhoevents.com',
+        if (alreadyPaid) {
+          console.log('⏭️ Invoice was already paid — skipping payment emails:', invoiceNumber)
+        } else {
+          const amountPaid = (session.amount_total ?? 0) / 100
+
+          // Receipt to the organization
+          await sendOrgPaymentReceipt({
             to: invoice.organization.contactEmail,
-            subject: `Payment Received - Invoice #${invoiceNumber}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="text-align: center; padding: 20px 0; background-color: #1E3A5F;">
-                  <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 200px; height: auto;" />
-                </div>
-
-                <div style="padding: 30px 20px;">
-                  <div style="background-color: #D4EDDA; padding: 20px; border-left: 4px solid #28A745; margin-bottom: 20px;">
-                    <h2 style="color: #155724; margin-top: 0;">Payment Received!</h2>
-                    <p style="margin: 0; color: #155724;">Thank you for your payment.</p>
-                  </div>
-
-                  <div style="background-color: #F5F5F5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                    <p style="margin: 5px 0;"><strong>Invoice #:</strong> ${invoiceNumber}</p>
-                    <p style="margin: 5px 0;"><strong>Amount Paid:</strong> $${(session.amount_total! / 100).toFixed(2)}</p>
-                    <p style="margin: 5px 0;"><strong>Payment Method:</strong> Credit Card</p>
-                    <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  </div>
-
-                  <p>This email serves as your receipt. If you have any questions, please contact us at support@chirhoevents.com.</p>
-
-                  <p>Best regards,<br><strong>ChirhoEvents Team</strong></p>
-                </div>
-
-                <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
-                  <p>&copy; ${new Date().getFullYear()} ChirhoEvents. All rights reserved.</p>
-                </div>
-              </div>
-            `,
+            invoiceNumber: invoice.invoiceNumber,
+            amount: amountPaid,
+            paymentMethod: 'credit_card',
+            description: invoice.description,
           })
-          console.log('✅ Payment confirmation email sent to:', invoice.organization.contactEmail)
-        } catch (emailError) {
-          console.error('⚠️ Failed to send payment confirmation email:', emailError)
+
+          // Heads-up to ChiRho's master-admin inbox
+          await notifyMasterAdminPaymentReceived({
+            organizationId: invoice.organization.id,
+            organizationName: invoice.organization.name,
+            amount: amountPaid,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceType: invoice.invoiceType,
+            description: invoice.description,
+            source: 'Online invoice payment (Stripe)',
+          })
         }
 
         return NextResponse.json({ received: true })
@@ -1091,9 +1091,22 @@ export async function POST(request: NextRequest) {
           },
         })
 
+        const paymentIntentId = typeof stripeInvoice.payment_intent === 'string'
+          ? stripeInvoice.payment_intent
+          : null
+
+        // Stripe retries webhooks — if we already recorded this payment, don't
+        // create a second invoice record or send the emails again.
+        const alreadyRecorded = paymentIntentId
+          ? await prisma.invoice.findFirst({
+              where: { stripePaymentIntentId: paymentIntentId },
+              select: { id: true },
+            })
+          : null
+
         // Create a local invoice record so it shows up in the billing panel
         // Skip if this is a $0 trial invoice
-        if (stripeInvoice.amount_paid > 0) {
+        if (stripeInvoice.amount_paid > 0 && !alreadyRecorded) {
           const lastInvoice = await prisma.invoice.findFirst({
             orderBy: { invoiceNumber: 'desc' },
             select: { invoiceNumber: true },
@@ -1101,24 +1114,46 @@ export async function POST(request: NextRequest) {
           const nextInvoiceNumber = (lastInvoice?.invoiceNumber || 1000) + 1
           const isFirstPayment = stripeInvoice.billing_reason === 'subscription_create'
 
+          const description = isFirstPayment ? 'First subscription payment (via Stripe)' : 'Monthly subscription renewal (via Stripe)'
+          const paidAt = stripeInvoice.status_transitions?.paid_at
+            ? new Date(stripeInvoice.status_transitions.paid_at * 1000)
+            : new Date()
+
           await prisma.invoice.create({
             data: {
               organizationId: org.id,
               invoiceNumber: nextInvoiceNumber,
               invoiceType: 'subscription',
               amount: stripeInvoice.amount_paid / 100,
-              description: isFirstPayment ? 'First subscription payment (via Stripe)' : 'Monthly subscription renewal (via Stripe)',
+              description,
               status: 'paid',
-              paidAt: stripeInvoice.status_transitions?.paid_at
-                ? new Date(stripeInvoice.status_transitions.paid_at * 1000)
-                : new Date(),
+              paidAt,
               dueDate: periodEnd,
-              stripePaymentIntentId: typeof stripeInvoice.payment_intent === 'string'
-                ? stripeInvoice.payment_intent
-                : null,
+              stripePaymentIntentId: paymentIntentId,
             },
           })
           console.log('✅ Local invoice record created for subscription payment')
+
+          const amountPaid = stripeInvoice.amount_paid / 100
+
+          await sendOrgPaymentReceipt({
+            to: org.contactEmail,
+            invoiceNumber: nextInvoiceNumber,
+            amount: amountPaid,
+            paymentMethod: 'credit_card',
+            description: isFirstPayment ? 'ChiRho Events subscription' : 'ChiRho Events subscription renewal',
+            paidAt,
+          })
+
+          await notifyMasterAdminPaymentReceived({
+            organizationId: org.id,
+            organizationName: org.name,
+            amount: amountPaid,
+            invoiceNumber: nextInvoiceNumber,
+            invoiceType: 'subscription',
+            description,
+            source: 'Automatic subscription charge (Stripe)',
+          })
         }
 
         // Log platform activity
@@ -1161,6 +1196,27 @@ export async function POST(request: NextRequest) {
             activityType: 'subscription_payment_failed',
             description: `Subscription payment of $${(invoice.amount_due / 100).toFixed(2)} failed`,
           },
+        })
+
+        const amountDue = invoice.amount_due / 100
+        const nextAttemptAt = invoice.next_payment_attempt
+          ? new Date(invoice.next_payment_attempt * 1000)
+          : null
+
+        await sendOrgPaymentFailedEmail({
+          to: org.contactEmail,
+          amount: amountDue,
+          attemptCount: invoice.attempt_count,
+          nextAttemptAt,
+          updatePaymentUrl: invoice.hosted_invoice_url,
+        })
+
+        await notifyMasterAdminPaymentFailed({
+          organizationId: org.id,
+          organizationName: org.name,
+          amount: amountDue,
+          attemptCount: invoice.attempt_count,
+          nextAttemptAt,
         })
 
         console.log('⚠️ Invoice payment failed for org:', org.id)

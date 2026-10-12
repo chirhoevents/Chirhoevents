@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { sendOrgPaymentReceipt, invoiceTypeLabel } from '@/lib/platform-payment-emails'
 
 export async function POST(request: NextRequest) {
   try {
@@ -198,9 +199,16 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // TODO: Send receipt email if sendReceipt is true
     if (sendReceipt && org.contactEmail) {
-      console.log(`Would send receipt to ${org.contactEmail}`)
+      await sendOrgPaymentReceipt({
+        to: org.contactEmail,
+        invoiceNumber: invoice?.invoiceNumber,
+        amount: parseFloat(amount),
+        paymentMethod,
+        description: description || invoiceTypeLabel(paymentType === 'extra_help' ? 'custom' : paymentType),
+        paidAt: paymentDate ? new Date(paymentDate) : new Date(),
+        checkNumber,
+      })
     }
 
     return NextResponse.json({
