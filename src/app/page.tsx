@@ -618,7 +618,7 @@ export default function LandingPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-600">
-                    <strong>Required for Chapel tier.</strong> Documentation and video walkthroughs only — no live support.
+                    <strong>Included with Chapel and Parish.</strong> Documentation and video walkthroughs only — no live support.
                   </p>
                 </CardContent>
               </Card>
@@ -654,7 +654,7 @@ export default function LandingPage() {
               </Card>
             </div>
             <p className="text-center text-sm text-gray-600 mt-8">
-              Need ongoing help? We offer consulting at <strong>$75/hr</strong> (1-hour minimum).
+              Need ongoing help? We offer consulting at <strong>$90/hr</strong> (1-hour minimum).
             </p>
           </div>
         </div>

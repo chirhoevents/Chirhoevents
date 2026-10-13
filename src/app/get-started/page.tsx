@@ -427,8 +427,9 @@ export default function GetStartedPage() {
             <div className="rounded-xl border border-[#1E3A5F]/20 bg-white p-5">
               <p className="text-sm text-gray-500">Based on your answers, we suggest</p>
               <p className="text-xl font-bold text-[#1E3A5F] mt-1">
-                {plan.name} plan · ${plan.monthlyPrice}/month
-                {formData.billingCycle === 'annual' && plan.annualPrice ? ` or $${plan.annualPrice.toLocaleString()}/year` : ''}
+                {plan.billingOptions.includes('monthly')
+                  ? `${plan.name} plan · $${plan.monthlyPrice}/month${formData.billingCycle === 'annual' && plan.annualPrice ? ` or $${plan.annualPrice.toLocaleString()}/year` : ''}`
+                  : `${plan.name} plan · starting at $${(plan.annualPrice ?? 0).toLocaleString()}/year`}
               </p>
               <p className="text-sm text-gray-600 mt-2">
                 {plan.setupFee !== null ? `Plus a one-time ${plan.setupFeeLabel.toLowerCase()} of $${plan.setupFee}. ` : 'Setup is priced for your needs. '}

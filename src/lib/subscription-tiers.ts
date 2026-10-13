@@ -157,7 +157,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'basilica',
     name: 'Basilica',
     description: 'Fully custom enterprise solution for large organizations',
-    monthlyPrice: 5000, // Starting annual price shown as monthly equivalent
+    monthlyPrice: 417, // Monthly equivalent of the $5,000/year starting price (billed annually only)
     annualPrice: 5000, // Starting at $5,000/year - custom pricing
     setupFee: null, // Custom
     setupFeeLabel: 'Custom',
@@ -491,7 +491,7 @@ export const CONSULTING_PACKAGES = [
     name: 'Self-Serve',
     price: 0,
     priceLabel: 'Free',
-    description: 'Required for Chapel tier. Documentation and video walkthroughs only — no live support.',
+    description: 'Included with Chapel and Parish. Documentation and video walkthroughs only — no live support.',
   },
   {
     key: 'guided_setup',
@@ -510,9 +510,10 @@ export const CONSULTING_PACKAGES = [
 ] as const;
 
 /**
- * Hourly consulting rate (1-hour minimum)
+ * Hourly consulting rate (1-hour minimum). Kept equal to
+ * PLATFORM_FEES.extraHelpHourlyRate so every page quotes one rate.
  */
-export const CONSULTING_HOURLY_RATE = 75;
+export const CONSULTING_HOURLY_RATE = 90;
 
 /**
  * Platform fees configuration.
