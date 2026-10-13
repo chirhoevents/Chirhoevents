@@ -83,14 +83,6 @@ export default function LandingPage() {
 
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 sm:pt-24 sm:pb-28 lg:pt-32 lg:pb-32">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs sm:text-sm font-medium text-white/80 backdrop-blur-sm mb-6 sm:mb-8">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold-300 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-gold-300" />
-              </span>
-              Built by ministry, for ministry
-            </div>
-
             <h1 className="font-display font-extrabold text-4xl leading-[1.1] sm:text-6xl md:text-7xl tracking-[-0.035em] text-balance mb-6 sm:mb-8">
               The Complete Catholic Registration Platform{" "}
               <span className="bg-gradient-to-r from-gold-200 via-gold-300 to-gold-400 bg-clip-text text-transparent">
