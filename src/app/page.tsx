@@ -66,54 +66,75 @@ export default function LandingPage() {
       <PublicNav currentPage="/" />
 
       {/* Section 1: Hero */}
-      <section
-        className="relative text-white py-12 sm:py-20"
-        style={{
-          backgroundImage: `url('/ChiRho Event Logos/ChiRho events BG.png')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
-        <div className="absolute inset-0 bg-navy/70"></div>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <section className="relative isolate overflow-hidden bg-navy-800 text-white">
+        {/* St. Peter's dome background */}
+        <Image
+          src="/ChiRho Event Logos/ChiRho events BG.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="-z-30 object-cover object-top"
+        />
+        {/* Overlays: navy wash, subtle grid, and a soft glow behind the headline */}
+        <div className="absolute inset-0 -z-20 bg-gradient-to-b from-navy-900/50 via-navy-800/70 to-navy-900/95" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]" />
+        <div className="absolute left-1/2 top-[30%] -z-10 h-[420px] w-[720px] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-navy-400/25 blur-3xl" />
+
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 sm:pt-24 sm:pb-28 lg:pt-32 lg:pb-32">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 leading-tight">
-              The Complete Catholic Registration Platform for Ministry
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs sm:text-sm font-medium text-white/80 backdrop-blur-sm mb-6 sm:mb-8">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold-300 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-gold-300" />
+              </span>
+              Built by ministry, for ministry
+            </div>
+
+            <h1 className="font-display font-extrabold text-4xl leading-[1.1] sm:text-6xl md:text-7xl tracking-[-0.035em] text-balance mb-6 sm:mb-8">
+              The Complete Catholic Registration Platform{" "}
+              <span className="bg-gradient-to-r from-gold-200 via-gold-300 to-gold-400 bg-clip-text text-transparent">
+                for Ministry
+              </span>
             </h1>
-            <p className="text-xl sm:text-2xl mb-8 text-gray-200">
+
+            <p className="max-w-2xl mx-auto text-lg sm:text-xl leading-relaxed text-white/70 mb-10">
               A registration and event-management platform built specifically for Catholic ministry so you can spend less time on spreadsheets and more time forming disciples.
             </p>
-            <div className="space-y-4 mb-10">
-              <div className="flex items-center justify-center space-x-2">
-                <Check className="h-6 w-6 text-gold" />
-                <span className="text-lg">All-in-one registration & event management</span>
-              </div>
-              <div className="flex items-center justify-center space-x-2">
-                <Check className="h-6 w-6 text-gold" />
-                <span className="text-lg">Catholic-specific forms & safe environment tracking</span>
-              </div>
-              <div className="flex items-center justify-center space-x-2">
-                <Check className="h-6 w-6 text-gold" />
-                <span className="text-lg">Complete housing, seating, and meal assignments</span>
-              </div>
-            </div>
-            <div className="flex flex-row items-center justify-center gap-3 sm:gap-4">
-              <Link href="/get-started" className="flex-1 sm:flex-initial">
-                <Button size="lg" className="w-full text-base sm:text-lg px-4 sm:px-8 py-5 sm:py-6">
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-10 sm:mb-12">
+              <Link href="/get-started" className="w-full sm:w-auto">
+                <Button size="lg" className="group w-full sm:w-auto h-auto rounded-lg px-7 py-3.5 text-base font-semibold bg-gold-300 text-navy-800 hover:bg-gold-200 shadow-lg shadow-gold-500/20">
                   Get Started
+                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Button>
               </Link>
-              <a href="#pricing" className="flex-1 sm:flex-initial">
-                <Button size="lg" variant="outline" className="w-full text-base sm:text-lg px-4 sm:px-8 py-5 sm:py-6 bg-transparent border-white text-white hover:bg-white hover:text-navy">
+              <a href="#pricing" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto h-auto rounded-lg px-7 py-3.5 text-base font-semibold bg-white/5 backdrop-blur-sm border border-white/25 text-white hover:bg-white hover:text-navy">
                   See Pricing
                 </Button>
               </a>
             </div>
-            <a href="#lux" className="inline-flex items-center gap-2 mt-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/30 px-4 py-2 text-sm sm:text-base transition-colors">
-              <span className="rounded-full bg-gold text-navy text-xs font-bold px-2 py-0.5">LUX</span>
-              <span>For parishes: faith formation registration and simple sign-ups, from $39/mo</span>
-              <ArrowRight className="h-4 w-4" />
+
+            <ul className="inline-flex flex-col items-start text-left gap-3 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-center xl:flex-nowrap xl:-mx-24 text-sm text-white/80">
+              <li className="inline-flex items-center gap-2 sm:rounded-full sm:border sm:border-white/10 sm:bg-white/5 sm:px-3.5 sm:py-1.5 sm:backdrop-blur-sm sm:whitespace-nowrap">
+                <Check className="h-4 w-4 shrink-0 text-gold-300" />
+                All-in-one registration & event management
+              </li>
+              <li className="inline-flex items-center gap-2 sm:rounded-full sm:border sm:border-white/10 sm:bg-white/5 sm:px-3.5 sm:py-1.5 sm:backdrop-blur-sm sm:whitespace-nowrap">
+                <Check className="h-4 w-4 shrink-0 text-gold-300" />
+                Catholic-specific forms & safe environment tracking
+              </li>
+              <li className="inline-flex items-center gap-2 sm:rounded-full sm:border sm:border-white/10 sm:bg-white/5 sm:px-3.5 sm:py-1.5 sm:backdrop-blur-sm sm:whitespace-nowrap">
+                <Check className="h-4 w-4 shrink-0 text-gold-300" />
+                Housing, seating & meal assignments
+              </li>
+            </ul>
+
+            <a href="#lux" className="group inline-flex items-center gap-2.5 mt-10 sm:mt-12 rounded-full bg-white/[0.07] hover:bg-white/15 border border-white/20 pl-1.5 pr-4 py-1.5 text-sm text-white/85 backdrop-blur-sm transition-colors">
+              <span className="rounded-full bg-gold-300 text-navy-800 text-[11px] font-bold tracking-wider px-2.5 py-1">LUX</span>
+              <span className="text-left">For parishes: faith formation registration and simple sign-ups, from $39/mo</span>
+              <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
             </a>
           </div>
         </div>
