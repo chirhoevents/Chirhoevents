@@ -54,24 +54,6 @@ export async function GET(request: NextRequest) {
       billing_address_city: '',
       billing_address_state: '',
       billing_address_zip: '',
-      // Per-tier monthly / annual / setup or access fees
-      starter_monthly: '39',
-      starter_annual: '468',
-      starter_setup_fee: '99',
-      parish_monthly: '59',
-      parish_annual: '708',
-      parish_setup_fee: '199',
-      cathedral_monthly: '109',
-      cathedral_annual: '1080',
-      cathedral_setup_fee: '349',
-      shrine_monthly: '159',
-      shrine_annual: '1908',
-      shrine_setup_fee: '499',
-      basilica_annual: '15000',
-      // Consulting packages
-      guided_setup_price: '199',
-      full_implementation_price: '499',
-      consulting_hourly_rate: '75',
     }
 
     // Merge with defaults

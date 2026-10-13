@@ -142,8 +142,6 @@ export default function GetStartedPage() {
   const chooseKind = (value: NeedKind) => {
     setKind(value)
     setNeeds(prev => ({ ...prev, kind: value }))
-    // Chapel and Parish are monthly only
-    if (value === 'lux') setFormData(prev => ({ ...prev, billingCycle: 'monthly' }))
   }
 
   // /get-started?tier=chapel from the pricing cards preselects what they need and the plan
@@ -392,7 +390,7 @@ export default function GetStartedPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Billing cycle</label>
                   <select name="billingCycle" value={formData.billingCycle} onChange={handleChange} className={inputClass}>
                     <option value="monthly">Monthly</option>
-                    {kind !== 'lux' && <option value="annual">Annual (save 2 months)</option>}
+                    <option value="annual">Annual (save 2 months)</option>
                   </select>
                 </div>
                 <div>
@@ -427,8 +425,9 @@ export default function GetStartedPage() {
             <div className="rounded-xl border border-[#1E3A5F]/20 bg-white p-5">
               <p className="text-sm text-gray-500">Based on your answers, we suggest</p>
               <p className="text-xl font-bold text-[#1E3A5F] mt-1">
-                {plan.name} plan · ${plan.monthlyPrice}/month
-                {formData.billingCycle === 'annual' && plan.annualPrice ? ` or $${plan.annualPrice.toLocaleString()}/year` : ''}
+                {plan.billingOptions.includes('monthly')
+                  ? `${plan.name} plan · $${plan.monthlyPrice}/month${formData.billingCycle === 'annual' && plan.annualPrice ? ` or $${plan.annualPrice.toLocaleString()}/year` : ''}`
+                  : `${plan.name} plan · starting at $${(plan.annualPrice ?? 0).toLocaleString()}/year`}
               </p>
               <p className="text-sm text-gray-600 mt-2">
                 {plan.setupFee !== null ? `Plus a one-time ${plan.setupFeeLabel.toLowerCase()} of $${plan.setupFee}. ` : 'Setup is priced for your needs. '}
@@ -454,7 +453,7 @@ export default function GetStartedPage() {
 
             <div className="bg-[#F5F1E8] rounded-lg p-4 text-sm text-gray-700">
               After approval, you&apos;ll receive an invoice for your plan&apos;s setup fee ($50 for Chapel/Parish, $250 for Cathedral, $400 for Shrine,
-              custom for Basilica) and your first subscription payment. Extra one-on-one help, training, or custom setup work is available at $90/hour.
+              custom for Basilica), which covers us setting up your account and branding, and your first subscription payment. Extra one-on-one help, training, or custom setup work is available at $90/hour.
             </div>
 
             <button type="submit" disabled={loading || !formData.agreedToTerms}

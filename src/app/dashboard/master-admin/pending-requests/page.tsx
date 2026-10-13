@@ -306,7 +306,7 @@ export default function PendingRequestsPage() {
       approveForm.billingMode === 'manual'
         ? { mode: 'manual', note: approveForm.billingNote }
         : setupFee > 0
-          ? { mode: 'online', amount: setupFee, label: tier?.isSelfServe ? 'Basic Access Fee' : 'Setup Fee', payUrl: '#' }
+          ? { mode: 'online', amount: setupFee, label: 'Setup Fee', payUrl: '#' }
           : { mode: 'manual', note: approveForm.billingNote || 'Your plan includes custom setup work. Our team will reach out to scope it with you and send your first invoice.' }
     return generateOrgAdminOnboardingEmail({
       orgName: selectedRequest.organizationName,
@@ -329,7 +329,7 @@ export default function PendingRequestsPage() {
 
   const approveTier = selectedRequest ? getTier(selectedRequest.requestedTier) : undefined
   const approveSetupFee = approveTier?.setupFee ?? 0
-  const approveFeeLabel = approveTier?.isSelfServe ? 'Basic Access Fee' : 'Setup Fee'
+  const approveFeeLabel = 'Setup Fee'
   const approvePrice = approveForm && selectedRequest
     ? approveForm.billingMode === 'manual'
       ? Number(approveForm.subscriptionPrice)

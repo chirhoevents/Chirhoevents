@@ -18,8 +18,8 @@ export interface SubscriptionTier {
   monthlyPrice: number;
   annualPrice: number | null; // null if no annual option
   setupFee: number | null; // null = custom (Basilica)
-  setupFeeLabel: 'Basic Access Fee' | 'Setup Fee' | 'Custom';
-  isSelfServe: boolean; // true = no onboarding call included
+  setupFeeLabel: 'Setup Fee' | 'Custom';
+  isSelfServe: boolean; // true = no onboarding call (we still set up the account and branding)
   includesSetupCall: boolean; // true = includes 1-hour setup phone call
   eventsPerYear: number | null; // null = unlimited (full Events portal events)
   maxPeoplePerYear: number | null; // null = unlimited
@@ -49,9 +49,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     name: 'Chapel',
     description: 'Lux for small parishes: simple events, sign-ups and faith formation registration',
     monthlyPrice: 39,
-    annualPrice: null, // Monthly only
+    annualPrice: 390, // 2 months free vs. monthly ($39 x 10)
     setupFee: 50,
-    setupFeeLabel: 'Basic Access Fee',
+    setupFeeLabel: 'Setup Fee',
     isSelfServe: true,
     includesSetupCall: false,
     eventsPerYear: 1,
@@ -69,16 +69,16 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
       dedicatedManager: false,
       apiAccess: false,
     },
-    billingOptions: ['monthly'],
+    billingOptions: ['monthly', 'annual'],
   },
   parish: {
     key: 'parish',
     name: 'Parish',
     description: 'Lux for active parishes: more simple events, sign-ups and faith formation registration',
     monthlyPrice: 59,
-    annualPrice: null, // Monthly only
+    annualPrice: 590, // 2 months free vs. monthly ($59 x 10)
     setupFee: 50,
-    setupFeeLabel: 'Basic Access Fee',
+    setupFeeLabel: 'Setup Fee',
     isSelfServe: true,
     includesSetupCall: false,
     eventsPerYear: 3,
@@ -96,7 +96,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
       dedicatedManager: false,
       apiAccess: false,
     },
-    billingOptions: ['monthly'],
+    billingOptions: ['monthly', 'annual'],
   },
   cathedral: {
     key: 'cathedral',
@@ -157,7 +157,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTierKey, SubscriptionTier> =
     key: 'basilica',
     name: 'Basilica',
     description: 'Fully custom enterprise solution for large organizations',
-    monthlyPrice: 5000, // Starting annual price shown as monthly equivalent
+    monthlyPrice: 417, // Monthly equivalent of the $5,000/year starting price (billed annually only)
     annualPrice: 5000, // Starting at $5,000/year - custom pricing
     setupFee: null, // Custom
     setupFeeLabel: 'Custom',
@@ -447,11 +447,11 @@ export function migrateOldTierKey(oldKey: string): SubscriptionTierKey {
 export const STRIPE_PRICE_ENV_VARS: Record<SubscriptionTierKey, { monthly: string | null; annual: string | null }> = {
   chapel: {
     monthly: 'STRIPE_PRICE_CHAPEL_MONTHLY',
-    annual: null, // No annual option
+    annual: 'STRIPE_PRICE_CHAPEL_ANNUAL',
   },
   parish: {
     monthly: 'STRIPE_PRICE_PARISH_MONTHLY',
-    annual: null, // No annual option
+    annual: 'STRIPE_PRICE_PARISH_ANNUAL',
   },
   cathedral: {
     monthly: 'STRIPE_PRICE_CATHEDRAL_MONTHLY',
@@ -483,38 +483,6 @@ export function getSuggestedTierByEvents(eventsPerYear: number): SubscriptionTie
 }
 
 /**
- * Implementation & consulting packages (separate from tier subscriptions)
- */
-export const CONSULTING_PACKAGES = [
-  {
-    key: 'self_serve',
-    name: 'Self-Serve',
-    price: 0,
-    priceLabel: 'Free',
-    description: 'Required for Chapel tier. Documentation and video walkthroughs only — no live support.',
-  },
-  {
-    key: 'guided_setup',
-    name: 'Guided Setup',
-    price: 199,
-    priceLabel: '$199',
-    description: 'One onboarding call + we configure your first event',
-  },
-  {
-    key: 'full_implementation',
-    name: 'Full Implementation',
-    price: 499,
-    priceLabel: '$499',
-    description: 'We build everything, train your team, and provide go-live support',
-  },
-] as const;
-
-/**
- * Hourly consulting rate (1-hour minimum)
- */
-export const CONSULTING_HOURLY_RATE = 75;
-
-/**
  * Platform fees configuration.
  *
  * Note: per-tier setup/access fees are defined on each tier (see SUBSCRIPTION_TIERS).
@@ -522,7 +490,7 @@ export const CONSULTING_HOURLY_RATE = 75;
  */
 export const PLATFORM_FEES = {
   setupFee: 250, // Legacy fallback; per-tier setupFee lives on SubscriptionTier
-  reactivationFee: 150,
+  // Reactivating a canceled account costs one month of its plan; see getReactivationFee.
   platformFeePercent: 1, // 1% of registrations
   stripeProcessingPercent: 2.9,
   stripeTransactionFee: 0.30,
@@ -531,6 +499,18 @@ export const PLATFORM_FEES = {
   // what's included in the tier, training calls, etc.
   extraHelpHourlyRate: 90,
 };
+
+/**
+ * Fee to reactivate a canceled account: one month of its plan.
+ * Annual-only plans (Basilica) use their annual price / 12.
+ */
+export function getReactivationFee(tierKey: string): number {
+  const tier = getTier(tierKey);
+  if (!tier) return 0;
+  return tier.billingOptions.includes('monthly')
+    ? tier.monthlyPrice
+    : Math.round((tier.annualPrice ?? 0) / 12);
+}
 
 /**
  * Calculate net revenue from a registration amount

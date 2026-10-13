@@ -2,30 +2,31 @@
 
 This guide explains how to set up subscription products and prices in Stripe for ChiRho Events.
 
-> **Note on tier naming:** The "Chapel" tier is stored internally under the DB enum value `starter`
-> (preserved for backward compatibility). The Stripe price ID env var `STRIPE_PRICE_STARTER_MONTHLY`
-> still corresponds to the Chapel tier. New Stripe prices must be created in the dashboard to match
-> the updated amounts below.
+> **Source of truth:** prices live in `src/lib/subscription-tiers.ts`. If you change a price
+> there, create a matching new price in Stripe and update the env var below. Existing
+> organizations keep the price saved on their record until you edit it in master admin.
+>
+> The Chapel monthly price can use `STRIPE_PRICE_CHAPEL_MONTHLY` or the older
+> `STRIPE_PRICE_STARTER_MONTHLY`; both work.
 
 ## Subscription Tier Overview
 
-| Tier | Monthly Price | Annual Price | One-Time Fee | Events/Year | Max People | Modules Included |
-|------|---------------|--------------|--------------|-------------|------------|------------------|
-| **Chapel** | $39/mo | N/A | $99 Basic Access Fee (self-serve) | 3 | 500 | Basic registration only |
-| **Parish** | $59/mo | N/A | $199 Basic Access Fee (self-serve) | 5 | 1,000 | Basic registration only |
-| **Cathedral** | $109/mo | $1,080/year | $349 Setup Fee | 10 | 2,000 | POROS, SALVE, RAPHA |
-| **Shrine** | $159/mo | $1,908/year | $499 Setup Fee | 20 | 4,000 | POROS, SALVE, RAPHA |
-| **Basilica** | Custom | Starting $15,000/year | Custom | Unlimited | 10,000+ | All features |
+Paying yearly gets 2 months free on every plan (annual = monthly x 10).
 
-## Implementation & Consulting Packages
+| Tier | Monthly | Annual | One-Time Setup Fee | Events/Year | Max People | Includes |
+|------|---------|--------|--------------------|-------------|------------|----------|
+| **Chapel** | $39/mo | $390/year | $50 (account + branding set up, no call) | 5 simple events + unlimited faith formation | Unlimited | Lux |
+| **Parish** | $59/mo | $590/year | $50 (account + branding set up, no call) | 10 simple events + unlimited faith formation | Unlimited | Lux |
+| **Cathedral** | $150/mo | $1,500/year | $250 (includes 1-hour setup call) | 5 | 1,250 | Events portal, POROS, SALVE, RAPHA |
+| **Shrine** | $200/mo | $2,000/year | $400 (includes 1-hour setup call) | 10 | 3,000 | Events portal, POROS, SALVE, RAPHA |
+| **Basilica** | n/a | Starting at $5,000/year | Custom | Unlimited | Custom | All features |
 
-| Package | Price | Description |
-|---------|-------|-------------|
-| Self-Serve | Free | Required for Chapel tier. Documentation and video walkthroughs only — no live support. |
-| Guided Setup | $199 | One onboarding call + we configure your first event |
-| Full Implementation | $499 | We build everything, train your team, and provide go-live support |
+## Other Fees
 
-Ongoing consulting available at **$75/hr** (1-hour minimum).
+- **Extra help** (training, custom setup beyond what the setup fee covers): $90/hour
+- **Event overage:** $50 per event over the plan limit
+- **Reactivation** after canceling: one month of the plan ($39 / $59 / $150 / $200)
+- **Platform fee:** 1%, only on online card payments made through ChiRho (not checks, cash, or outside payment systems)
 
 ---
 
@@ -41,31 +42,31 @@ Ongoing consulting available at **$75/hr** (1-hour minimum).
 
 For each subscription tier, create a **Product** in Stripe:
 
-### Chapel Product (internal key: `starter`)
+### Chapel Product
 1. Click **+ Add product**
 2. **Name:** `ChiRho Events - Chapel`
-3. **Description:** `Chapel subscription - 3 events/year, 500 people max, basic registration (self-serve)`
+3. **Description:** `Chapel subscription - Lux: 5 simple events/year, unlimited faith formation`
 4. **Pricing:** Recurring
 5. Click **Add product**
 
 ### Parish Product
 1. Click **+ Add product**
 2. **Name:** `ChiRho Events - Parish`
-3. **Description:** `Parish subscription - 5 events/year, 1,000 people max, basic registration (self-serve)`
+3. **Description:** `Parish subscription - Lux: 10 simple events/year, unlimited faith formation`
 4. **Pricing:** Recurring
 5. Click **Add product**
 
 ### Cathedral Product
 1. Click **+ Add product**
 2. **Name:** `ChiRho Events - Cathedral`
-3. **Description:** `Cathedral subscription - 10 events/year, 2,000 people max, includes POROS/SALVE/RAPHA`
+3. **Description:** `Cathedral subscription - 5 events/year, 1,250 people max, includes POROS/SALVE/RAPHA`
 4. **Pricing:** Recurring
 5. Click **Add product**
 
 ### Shrine Product
 1. Click **+ Add product**
 2. **Name:** `ChiRho Events - Shrine`
-3. **Description:** `Shrine subscription - 20 events/year, 4,000 people max, includes POROS/SALVE/RAPHA`
+3. **Description:** `Shrine subscription - 10 events/year, 3,000 people max, includes POROS/SALVE/RAPHA`
 4. **Pricing:** Recurring
 5. Click **Add product**
 
@@ -73,19 +74,25 @@ For each subscription tier, create a **Product** in Stripe:
 
 ## Step 3: Create Prices for Each Product
 
-For each product, create the appropriate price(s):
+For each product, create a monthly and a yearly price:
 
 ### Chapel Prices
-On the Chapel product, click **Add another price**:
+On the Chapel product, add TWO prices:
 
 **Monthly Price:**
 - **Pricing model:** Standard pricing
 - **Price:** $39.00 USD
 - **Billing period:** Monthly
-- **Price ID:** Copy this for `STRIPE_PRICE_STARTER_MONTHLY` (env var name preserved for backward compat)
+- **Price ID:** Copy this for `STRIPE_PRICE_CHAPEL_MONTHLY`
+
+**Annual Price:**
+- **Pricing model:** Standard pricing
+- **Price:** $390.00 USD
+- **Billing period:** Yearly
+- **Price ID:** Copy this for `STRIPE_PRICE_CHAPEL_ANNUAL`
 
 ### Parish Prices
-On the Parish product, click **Add another price**:
+On the Parish product, add TWO prices:
 
 **Monthly Price:**
 - **Pricing model:** Standard pricing
@@ -93,18 +100,24 @@ On the Parish product, click **Add another price**:
 - **Billing period:** Monthly
 - **Price ID:** Copy this for `STRIPE_PRICE_PARISH_MONTHLY`
 
+**Annual Price:**
+- **Pricing model:** Standard pricing
+- **Price:** $590.00 USD
+- **Billing period:** Yearly
+- **Price ID:** Copy this for `STRIPE_PRICE_PARISH_ANNUAL`
+
 ### Cathedral Prices
 On the Cathedral product, add TWO prices:
 
 **Monthly Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $109.00 USD
+- **Price:** $150.00 USD
 - **Billing period:** Monthly
 - **Price ID:** Copy this for `STRIPE_PRICE_CATHEDRAL_MONTHLY`
 
 **Annual Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $1,080.00 USD
+- **Price:** $1,500.00 USD
 - **Billing period:** Yearly
 - **Price ID:** Copy this for `STRIPE_PRICE_CATHEDRAL_ANNUAL`
 
@@ -113,13 +126,13 @@ On the Shrine product, add TWO prices:
 
 **Monthly Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $159.00 USD
+- **Price:** $200.00 USD
 - **Billing period:** Monthly
 - **Price ID:** Copy this for `STRIPE_PRICE_SHRINE_MONTHLY`
 
 **Annual Price:**
 - **Pricing model:** Standard pricing
-- **Price:** $1,908.00 USD
+- **Price:** $2,000.00 USD
 - **Billing period:** Yearly
 - **Price ID:** Copy this for `STRIPE_PRICE_SHRINE_ANNUAL`
 
@@ -136,8 +149,10 @@ STRIPE_PUBLISHABLE_KEY=<your-stripe-publishable-key>
 STRIPE_WEBHOOK_SECRET=<your-stripe-webhook-secret>
 
 # Subscription Price IDs (copy from Stripe Dashboard after creating prices)
-STRIPE_PRICE_STARTER_MONTHLY=<price-id-from-stripe>
+STRIPE_PRICE_CHAPEL_MONTHLY=<price-id-from-stripe>
+STRIPE_PRICE_CHAPEL_ANNUAL=<price-id-from-stripe>
 STRIPE_PRICE_PARISH_MONTHLY=<price-id-from-stripe>
+STRIPE_PRICE_PARISH_ANNUAL=<price-id-from-stripe>
 STRIPE_PRICE_CATHEDRAL_MONTHLY=<price-id-from-stripe>
 STRIPE_PRICE_CATHEDRAL_ANNUAL=<price-id-from-stripe>
 STRIPE_PRICE_SHRINE_MONTHLY=<price-id-from-stripe>

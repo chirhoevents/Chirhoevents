@@ -130,9 +130,7 @@ export async function POST(
     // links to it). For manual billing it's optional and never emailed.
     const createSetupInvoice = billingMode === 'online' || body.createSetupInvoice !== false
 
-    // Self-serve tiers (Chapel, Parish) charge "Basic Access Fee" instead of "Setup Fee"
-    const isSelfServeTier = requestedTier === 'chapel' || requestedTier === 'starter' || requestedTier === 'parish'
-    const feeLabel = isSelfServeTier ? 'Basic Access Fee' : 'Setup Fee'
+    const feeLabel = 'Setup Fee'
 
     // The applicant may already have a ChiRho login: anyone who signs up on
     // the site gets a user record, and emails are unique. Reuse that record

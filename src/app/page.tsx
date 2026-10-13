@@ -413,11 +413,14 @@ export default function LandingPage() {
           <p className="text-center text-gray-600 mb-4 text-lg">
             Processing Fee: 2.9% + $0.30 per ticket (Stripe) • Platform Fee: 1% • Setup fees vary by plan
           </p>
+          <p className="text-center text-navy font-semibold mb-4">
+            Pay yearly and get 2 months free on any plan.
+          </p>
           <p className="text-center text-gray-600 mb-4 max-w-3xl mx-auto">
             <strong className="text-navy">Chapel and Parish</strong> are Lux plans for parish life. <strong className="text-navy">Cathedral, Shrine and Basilica</strong> include the full Events portal for retreats, conferences and diocesan gatherings, and can add Lux.
           </p>
           <p className="text-center text-sm text-gray-500 mb-2">
-            All payments are processed securely via Stripe. The 1% platform fee helps us maintain and improve ChiRho Events.
+            All payments are processed securely via Stripe. The 1% platform fee only applies to online card payments made through ChiRho; checks, cash and outside payment systems are never charged it.
           </p>
           <p className="text-center text-sm text-gray-500 mb-12">
             Need extra help, training, or custom setup work? We offer additional one-on-one time at <span className="font-semibold">$90/hour</span>.
@@ -433,6 +436,7 @@ export default function LandingPage() {
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-navy">$39</span>
                   <span className="text-gray-600">/mo</span>
+                  <p className="text-sm text-gray-500 mt-1">or $390/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -441,11 +445,11 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• Family registration with sibling discounts</p>
                 <p className="text-sm text-gray-600">• Secure document uploads</p>
                 <p className="text-sm text-gray-600">• 5GB storage</p>
-                <p className="text-sm text-gray-600">• Self-serve (no setup call)</p>
+                <p className="text-sm text-gray-600">• We set up your account &amp; parish branding</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
-                    <li>• $50 one-time basic access fee</li>
+                    <li>• $50 one-time setup fee</li>
                     <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
                     <li>• ChiRho platform fee: 1% of registrations</li>
                     <li>• Extra help available at $90/hr</li>
@@ -467,6 +471,7 @@ export default function LandingPage() {
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-navy">$59</span>
                   <span className="text-gray-600">/mo</span>
+                  <p className="text-sm text-gray-500 mt-1">or $590/year</p>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -475,11 +480,11 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600">• Family registration with sibling discounts</p>
                 <p className="text-sm text-gray-600">• Secure document uploads</p>
                 <p className="text-sm text-gray-600">• 10GB storage</p>
-                <p className="text-sm text-gray-600">• Self-serve (no setup call)</p>
+                <p className="text-sm text-gray-600">• We set up your account &amp; parish branding</p>
                 <div className="mt-4 text-xs text-gray-600">
                   <p className="font-semibold mb-1">Additional Fees:</p>
                   <ul className="space-y-1">
-                    <li>• $50 one-time basic access fee</li>
+                    <li>• $50 one-time setup fee</li>
                     <li>• Stripe fees: 2.9% + $0.30 per transaction</li>
                     <li>• ChiRho platform fee: 1% of registrations</li>
                     <li>• Extra help available at $90/hr</li>
@@ -599,64 +604,6 @@ export default function LandingPage() {
             <p className="mt-2"><strong>You receive: $95.80</strong></p>
           </div>
 
-          {/* Implementation & Consulting */}
-          <div className="mt-16">
-            <h3 className="text-2xl sm:text-3xl font-bold text-center text-navy mb-4">
-              Implementation &amp; Consulting
-            </h3>
-            <p className="text-center text-gray-600 mb-10 max-w-2xl mx-auto">
-              Need help getting started? Choose the level of hands-on support that fits your team.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {/* Self-Serve */}
-              <Card className="border-2 border-gray-200">
-                <CardHeader>
-                  <CardTitle className="text-xl">Self-Serve</CardTitle>
-                  <div className="mt-2">
-                    <span className="text-3xl font-bold text-navy">Free</span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">
-                    <strong>Required for Chapel tier.</strong> Documentation and video walkthroughs only — no live support.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Guided Setup */}
-              <Card className="border-2 border-gray-200">
-                <CardHeader>
-                  <CardTitle className="text-xl">Guided Setup</CardTitle>
-                  <div className="mt-2">
-                    <span className="text-3xl font-bold text-navy">$199</span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">
-                    One onboarding call + we configure your first event.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Full Implementation */}
-              <Card className="border-2 border-gold">
-                <CardHeader>
-                  <CardTitle className="text-xl">Full Implementation</CardTitle>
-                  <div className="mt-2">
-                    <span className="text-3xl font-bold text-navy">$499</span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">
-                    We build everything, train your team, and provide go-live support.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-            <p className="text-center text-sm text-gray-600 mt-8">
-              Need ongoing help? We offer consulting at <strong>$75/hr</strong> (1-hour minimum).
-            </p>
-          </div>
         </div>
       </section>
 
@@ -682,7 +629,7 @@ export default function LandingPage() {
                   Can I cancel anytime?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  Yes! You can cancel your subscription at any time with no penalties. Your data is archived and can be reactivated for a $75-$400 fee depending on your plan.
+                  Yes! You can cancel your subscription at any time with no penalties. Your data is archived, and you can reactivate any time for a one-time fee equal to one month of your plan.
                 </AccordionContent>
               </AccordionItem>
 
@@ -781,7 +728,7 @@ export default function LandingPage() {
                   Is there a free trial?
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
-                  We don&apos;t offer free trials. Cathedral and Shrine plans include a one-time setup fee with a 1-hour onboarding phone call. Chapel and Parish are self-serve with a low basic access fee. If you ever need extra help, training, or custom setup work, we&apos;re available at $90/hour.
+                  We don&apos;t offer free trials. Every plan has a one-time setup fee, and we set up your account and branding for you. Cathedral and Shrine also include a 1-hour onboarding phone call. If you ever need extra help, training, or custom setup work, we&apos;re available at $90/hour.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

@@ -20,7 +20,7 @@ const faqCategories = [
       },
       {
         q: "What subscription plan is right for me?",
-        a: "It depends on how many events you run per year and how many participants you expect. The Chapel plan ($39/mo) works for small parishes with 1 event and up to 500 people. Parish ($59/mo) covers up to 3 events and 750 people. For diocesan-level events, consider Cathedral ($150/mo, 5 events / 1,250 people) or Shrine ($200/mo, 10 events / 3,000 people). Cathedral and above include POROS, SALVE, and RAPHA modules plus a 1-hour setup phone call. Basilica is custom, starting at $5,000/year."
+        a: "It depends on what you run. Chapel ($39/mo) and Parish ($59/mo) are Lux plans for parish life: unlimited faith formation and sacrament programs, plus 5 or 10 simple events a year, with no limit on people. For retreats, conferences and diocesan-level events, consider Cathedral ($150/mo, 5 events / 1,250 people) or Shrine ($200/mo, 10 events / 3,000 people). Cathedral and above include POROS, SALVE, and RAPHA modules plus a 1-hour setup phone call. Basilica is custom, starting at $5,000/year."
       },
       {
         q: "How long does setup take?",
@@ -35,7 +35,7 @@ const faqCategories = [
     questions: [
       {
         q: "What fees does ChiRho charge?",
-        a: "ChiRho charges a 1% platform fee on all event registrations plus a monthly or annual subscription fee based on your plan. Standard Stripe processing fees (2.9% + $0.30) also apply to credit card transactions. There's also a one-time setup fee that varies by plan: $50 for Chapel/Parish (basic access), $250 for Cathedral, $400 for Shrine, and custom for Basilica. Need extra help, training, or custom setup work? We're available at $90/hour."
+        a: "ChiRho charges a monthly or annual subscription based on your plan (paying yearly gets you 2 months free). A 1% platform fee applies only to online card payments made through ChiRho, along with standard Stripe processing fees (2.9% + $0.30); checks, cash and outside payment systems aren't charged either. There's also a one-time setup fee for us to set up your account and branding: $50 for Chapel/Parish, $250 for Cathedral, $400 for Shrine (both include a 1-hour onboarding call), and custom for Basilica. Need extra help, training, or custom setup work? We're available at $90/hour."
       },
       {
         q: "Can I pay by check?",
@@ -47,7 +47,7 @@ const faqCategories = [
       },
       {
         q: "Can I cancel anytime?",
-        a: "Yes! You can cancel your subscription at any time with no penalties. Your data is archived and can be reactivated for a $75-$400 fee depending on your plan."
+        a: "Yes! You can cancel your subscription at any time with no penalties. Your data is archived, and you can reactivate any time for a one-time fee equal to one month of your plan."
       },
       {
         q: "How do refunds work for participants?",

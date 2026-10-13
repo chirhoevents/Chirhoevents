@@ -178,8 +178,8 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
               </tr>
             </thead>
             <tbody>
-              <tr><td className="border p-3">Chapel</td><td className="border p-3">$39/mo</td><td className="border p-3">5</td><td className="border p-3">Unlimited</td></tr>
-              <tr><td className="border p-3">Parish</td><td className="border p-3">$59/mo</td><td className="border p-3">10</td><td className="border p-3">Unlimited</td></tr>
+              <tr><td className="border p-3">Chapel</td><td className="border p-3">$39/mo or $390/yr</td><td className="border p-3">5</td><td className="border p-3">Unlimited</td></tr>
+              <tr><td className="border p-3">Parish</td><td className="border p-3">$59/mo or $590/yr</td><td className="border p-3">10</td><td className="border p-3">Unlimited</td></tr>
             </tbody>
           </table>
         </div>
@@ -196,8 +196,8 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
               </tr>
             </thead>
             <tbody>
-              <tr><td className="border p-3">Cathedral</td><td className="border p-3">$150/mo</td><td className="border p-3">5</td><td className="border p-3">1,250</td></tr>
-              <tr><td className="border p-3">Shrine</td><td className="border p-3">$200/mo</td><td className="border p-3">10</td><td className="border p-3">3,000</td></tr>
+              <tr><td className="border p-3">Cathedral</td><td className="border p-3">$150/mo or $1,500/yr</td><td className="border p-3">5</td><td className="border p-3">1,250</td></tr>
+              <tr><td className="border p-3">Shrine</td><td className="border p-3">$200/mo or $2,000/yr</td><td className="border p-3">10</td><td className="border p-3">3,000</td></tr>
               <tr><td className="border p-3">Basilica</td><td className="border p-3">Starting at $5,000/yr</td><td className="border p-3">Unlimited</td><td className="border p-3">Custom</td></tr>
             </tbody>
           </table>
@@ -206,8 +206,9 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <strong>Additional fees:</strong> A one-time setup fee that varies by plan
           (Chapel & Parish: $50, Cathedral: $250, Shrine: $400, Basilica: custom),
           Stripe processing (2.9% + $0.30 per transaction), and 1% ChiRho platform fee.
-          Cathedral and Shrine plans include a 1-hour onboarding phone call;
-          Chapel and Parish are self-serve. Extra help, training, or custom setup work
+          The setup fee covers us setting up your account and branding, and Cathedral and
+          Shrine also include a 1-hour onboarding phone call. Paying yearly gets you 2 months
+          free on any plan. Extra help, training, or custom setup work
           is available for any plan at <strong>$90/hour</strong>.
         </p>
       </div>
@@ -222,11 +223,11 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           from the moment you are approved to your recurring monthly charges.
         </p>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Step 1 — Access or Setup Fee</h3>
+        <h3 className="text-xl font-semibold text-navy mt-6">Step 1 — Setup Fee</h3>
         <p>
           After your onboarding request is approved, you will receive an email with a link to pay
           a one-time setup fee. The amount depends on your plan: <strong>$50</strong> for
-          Chapel/Parish (basic access fee, self-serve), <strong>$250</strong> for Cathedral,
+          Chapel/Parish, <strong>$250</strong> for Cathedral,
           <strong> $400</strong> for Shrine (both include a 1-hour onboarding phone call), and
           custom pricing for Basilica.
         </p>
@@ -406,7 +407,7 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
         </ol>
         <div className="bg-beige p-4 rounded-lg mt-6">
           <p className="text-sm">
-            <strong>Tip:</strong> Chapel and Parish plans are self-serve, so these docs are your guide. If
+            <strong>Tip:</strong> Chapel and Parish plans don&apos;t include an onboarding call, so these docs are your guide. If
             something isn&apos;t working the way they describe, email{" "}
             <a href="mailto:support@chirhoevents.com" className="text-navy underline">support@chirhoevents.com</a>.
             Hands-on setup help and training are available on any plan at <strong>$90/hour</strong>.

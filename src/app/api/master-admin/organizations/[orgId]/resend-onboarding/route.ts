@@ -181,7 +181,7 @@ export async function POST(
       billing = {
         mode: 'online',
         amount: Number(setupInvoice.amount),
-        label: tier?.isSelfServe ? 'Basic Access Fee' : 'Setup Fee',
+        label: 'Setup Fee',
         payUrl: `${appUrl}/pay/invoice/${paymentToken ?? 'preview'}`,
       }
     } else if (billingNote || paysByCheck || setupInvoice) {
