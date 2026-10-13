@@ -142,8 +142,6 @@ export default function GetStartedPage() {
   const chooseKind = (value: NeedKind) => {
     setKind(value)
     setNeeds(prev => ({ ...prev, kind: value }))
-    // Chapel and Parish are monthly only
-    if (value === 'lux') setFormData(prev => ({ ...prev, billingCycle: 'monthly' }))
   }
 
   // /get-started?tier=chapel from the pricing cards preselects what they need and the plan
@@ -392,7 +390,7 @@ export default function GetStartedPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Billing cycle</label>
                   <select name="billingCycle" value={formData.billingCycle} onChange={handleChange} className={inputClass}>
                     <option value="monthly">Monthly</option>
-                    {kind !== 'lux' && <option value="annual">Annual (save 2 months)</option>}
+                    <option value="annual">Annual (save 2 months)</option>
                   </select>
                 </div>
                 <div>
@@ -455,7 +453,7 @@ export default function GetStartedPage() {
 
             <div className="bg-[#F5F1E8] rounded-lg p-4 text-sm text-gray-700">
               After approval, you&apos;ll receive an invoice for your plan&apos;s setup fee ($50 for Chapel/Parish, $250 for Cathedral, $400 for Shrine,
-              custom for Basilica) and your first subscription payment. Extra one-on-one help, training, or custom setup work is available at $90/hour.
+              custom for Basilica), which covers us setting up your account and branding, and your first subscription payment. Extra one-on-one help, training, or custom setup work is available at $90/hour.
             </div>
 
             <button type="submit" disabled={loading || !formData.agreedToTerms}

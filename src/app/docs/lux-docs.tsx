@@ -72,8 +72,8 @@ export const luxDocContent: Record<string, { title: string; content: React.React
               </tr>
             </thead>
             <tbody>
-              <tr><td className="border p-3">Chapel</td><td className="border p-3">$39/mo</td><td className="border p-3">5</td><td className="border p-3">Unlimited</td></tr>
-              <tr><td className="border p-3">Parish</td><td className="border p-3">$59/mo</td><td className="border p-3">10</td><td className="border p-3">Unlimited</td></tr>
+              <tr><td className="border p-3">Chapel</td><td className="border p-3">$39/mo or $390/yr</td><td className="border p-3">5</td><td className="border p-3">Unlimited</td></tr>
+              <tr><td className="border p-3">Parish</td><td className="border p-3">$59/mo or $590/yr</td><td className="border p-3">10</td><td className="border p-3">Unlimited</td></tr>
             </tbody>
           </table>
         </div>

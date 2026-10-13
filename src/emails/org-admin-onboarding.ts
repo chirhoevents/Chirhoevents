@@ -9,7 +9,7 @@
 
 import { getTier, resolveModuleAccess } from '@/lib/subscription-tiers'
 
-/** How the org's setup / basic access fee is handled in this email. */
+/** How the org's setup fee is handled in this email. */
 export type OnboardingBilling =
   // A secure link to pay the fee online; the subscription starts after payment
   | { mode: 'online'; amount: number; label: string; payUrl: string }
@@ -122,7 +122,7 @@ export function generateOrgAdminOnboardingEmail({
   const supportLabel = !tier
     ? 'Email support'
     : tier.isSelfServe
-      ? 'Self-serve: help docs + email support'
+      ? 'Account and branding set up for you, plus help docs + email support'
       : tier.includesSetupCall
         ? 'Email support + a 1-hour onboarding call'
         : 'Email support'
@@ -386,7 +386,7 @@ export function generateOrgAdminOnboardingEmail({
     supportHtml = `
     <div style="background: #FEF3C7; border: 1px solid #FCD34D; padding: 16px 18px; border-radius: 6px; margin: 0 0 30px 0;">
       <p style="margin: 0 0 8px 0; font-weight: bold; color: #92400E;">How support works on the ${tier.name} plan</p>
-      <p style="margin: 0 0 8px 0; color: #92400E;">Your plan is self-serve, which is what keeps it affordable. It doesn't include an onboarding call or setup done for you, so this email and the help docs are your guide.</p>
+      <p style="margin: 0 0 8px 0; color: #92400E;">We've set up your account and parish branding for you. Your plan doesn't include an onboarding call, which is what keeps it affordable, so this email and the help docs are your guide from here.</p>
       <p style="margin: 0 0 8px 0; color: #92400E;">Questions are always welcome. Email <a href="mailto:support@chirhoevents.com" style="color: #92400E;">support@chirhoevents.com</a> or reply to this email any time, and we'll point you in the right direction.</p>
       <p style="margin: 0; color: #92400E;">Want us to set things up for you or train your team? Hands-on help is available at <strong>$90/hour</strong>. Just reply to ask.</p>
     </div>`

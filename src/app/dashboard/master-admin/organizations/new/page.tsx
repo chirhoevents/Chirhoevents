@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 import {
   Building2,
   ArrowLeft,
@@ -29,15 +30,25 @@ const organizationTypes = [
   { value: 'other', label: 'Other' },
 ]
 
-// setupFee: 0 for Basilica means "custom" — UI handles that case.
-const subscriptionTiers = [
-  { value: 'chapel', label: 'Chapel', monthly: 39, annual: 39 * 12, setupFee: 50, setupFeeLabel: 'Basic Access Fee', description: '1 event, up to 500 people' },
-  { value: 'parish', label: 'Parish', monthly: 59, annual: 59 * 12, setupFee: 50, setupFeeLabel: 'Basic Access Fee', description: 'Up to 3 events, 750 people' },
-  { value: 'cathedral', label: 'Cathedral', monthly: 150, annual: 1500, setupFee: 250, setupFeeLabel: 'Setup Fee', description: 'Up to 5 events, 1,250 people (1-hr setup call)', popular: true },
-  { value: 'shrine', label: 'Shrine', monthly: 200, annual: 2000, setupFee: 400, setupFeeLabel: 'Setup Fee', description: 'Up to 10 events, 3,000 people (1-hr setup call)' },
-  { value: 'basilica', label: 'Basilica', monthly: 5000, annual: 5000, setupFee: null as number | null, setupFeeLabel: 'Custom', description: 'Custom — unlimited events, custom people cap' },
-  { value: 'test', label: 'Test/Free Account', monthly: 0, annual: 0, setupFee: 0, setupFeeLabel: 'Setup Fee', description: 'No billing (for testing only)' },
-]
+// Built from the shared tier config so this page always matches the pricing page.
+const TIER_SUMMARIES: Record<string, string> = {
+  chapel: 'Lux: 5 simple events/year, unlimited faith formation',
+  parish: 'Lux: 10 simple events/year, unlimited faith formation',
+  cathedral: 'Up to 5 events, 1,250 people (1-hr setup call)',
+  shrine: 'Up to 10 events, 3,000 people (1-hr setup call)',
+  basilica: 'Custom: unlimited events, custom people cap',
+  test: 'No billing (for testing only)',
+}
+const subscriptionTiers = Object.values(SUBSCRIPTION_TIERS).map(tier => ({
+  value: tier.key,
+  label: tier.key === 'test' ? 'Test/Free Account' : tier.name,
+  monthly: tier.monthlyPrice,
+  annual: tier.annualPrice ?? tier.monthlyPrice * 12,
+  setupFee: tier.setupFee,
+  setupFeeLabel: tier.setupFeeLabel,
+  description: TIER_SUMMARIES[tier.key] ?? tier.description,
+  popular: tier.isPopular ?? false,
+}))
 
 export default function CreateOrganizationPage() {
   const router = useRouter()

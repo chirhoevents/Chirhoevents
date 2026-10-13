@@ -36,16 +36,16 @@ const TIER_PRICES: Record<string, { monthly: string | null; annual: string | nul
   // Current tier names
   chapel: {
     monthly: process.env.STRIPE_PRICE_CHAPEL_MONTHLY || process.env.STRIPE_PRICE_STARTER_MONTHLY || null,
-    annual: null, // Chapel is monthly only
+    annual: process.env.STRIPE_PRICE_CHAPEL_ANNUAL || null,
   },
   // Legacy tier name kept for any orgs whose subscription_tier column is still 'starter'.
   starter: {
     monthly: process.env.STRIPE_PRICE_CHAPEL_MONTHLY || process.env.STRIPE_PRICE_STARTER_MONTHLY || null,
-    annual: null,
+    annual: process.env.STRIPE_PRICE_CHAPEL_ANNUAL || null,
   },
   parish: {
     monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY || null,
-    annual: null, // Parish is monthly only
+    annual: process.env.STRIPE_PRICE_PARISH_ANNUAL || null,
   },
   cathedral: {
     monthly: process.env.STRIPE_PRICE_CATHEDRAL_MONTHLY || null,
@@ -62,7 +62,7 @@ const TIER_PRICES: Record<string, { monthly: string | null; annual: string | nul
   // Legacy tier names (for backward compatibility with existing orgs)
   small_diocese: {
     monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY || null,
-    annual: null,
+    annual: process.env.STRIPE_PRICE_PARISH_ANNUAL || null,
   },
   growing: {
     monthly: process.env.STRIPE_PRICE_CATHEDRAL_MONTHLY || null,

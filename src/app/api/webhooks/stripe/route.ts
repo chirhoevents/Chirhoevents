@@ -23,8 +23,11 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 function getSubscriptionPriceId(tier: string, billingCycle: string): string | null {
   const key = `${tier}_${billingCycle}`
   const priceMap: Record<string, string | undefined> = {
-    starter_monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,
+    chapel_monthly: process.env.STRIPE_PRICE_CHAPEL_MONTHLY || process.env.STRIPE_PRICE_STARTER_MONTHLY,
+    chapel_annual: process.env.STRIPE_PRICE_CHAPEL_ANNUAL,
+    starter_monthly: process.env.STRIPE_PRICE_CHAPEL_MONTHLY || process.env.STRIPE_PRICE_STARTER_MONTHLY,
     parish_monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY,
+    parish_annual: process.env.STRIPE_PRICE_PARISH_ANNUAL,
     small_diocese_monthly: process.env.STRIPE_PRICE_PARISH_MONTHLY,
     cathedral_monthly: process.env.STRIPE_PRICE_CATHEDRAL_MONTHLY,
     cathedral_annual: process.env.STRIPE_PRICE_CATHEDRAL_ANNUAL,

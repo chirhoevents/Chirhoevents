@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import MasterAdminNotificationsTab from '@/components/master-admin/MasterAdminNotificationsTab'
 import MasterAdminLuxBrandTab from '@/components/master-admin/MasterAdminLuxBrandTab'
+import { getPublicTiers } from '@/lib/subscription-tiers'
 
 interface SettingsData {
   platform_name: string
@@ -38,16 +39,6 @@ interface SettingsData {
   billing_address_city: string
   billing_address_state: string
   billing_address_zip: string
-  starter_monthly: string
-  starter_annual: string
-  parish_monthly: string
-  parish_annual: string
-  cathedral_monthly: string
-  cathedral_annual: string
-  shrine_monthly: string
-  shrine_annual: string
-  basilica_monthly: string
-  basilica_annual: string
   [key: string]: string
 }
 
@@ -593,44 +584,33 @@ export default function SettingsPage() {
             <h2 className="text-lg font-semibold text-gray-900">Tier Pricing</h2>
           </div>
 
+          <p className="text-sm text-gray-600 mb-4">
+            Prices come from <code className="bg-gray-100 px-1 rounded">src/lib/subscription-tiers.ts</code>, the same
+            place the pricing page reads from. To give one organization a different price, edit that organization.
+          </p>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Tier</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Monthly ($)</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Annual ($)</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Monthly Equivalent</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Monthly</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Annual</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Setup Fee</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {[
-                  { key: 'chapel', label: 'Chapel' },
-                  { key: 'parish', label: 'Parish' },
-                  { key: 'cathedral', label: 'Cathedral' },
-                  { key: 'shrine', label: 'Shrine' },
-                  { key: 'basilica', label: 'Basilica' },
-                ].map((tier) => (
+                {getPublicTiers().map((tier) => (
                   <tr key={tier.key}>
-                    <td className="py-3 px-4 font-medium text-gray-900">{tier.label}</td>
-                    <td className="py-3 px-4">
-                      <input
-                        type="number"
-                        value={settings[`${tier.key}_monthly`]}
-                        onChange={(e) => handleChange(`${tier.key}_monthly`, e.target.value)}
-                        className="w-24 border border-gray-300 rounded-lg px-3 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      />
+                    <td className="py-3 px-4 font-medium text-gray-900">{tier.name}</td>
+                    <td className="py-3 px-4 text-gray-700">
+                      {tier.billingOptions.includes('monthly') ? `$${tier.monthlyPrice}/mo` : '—'}
                     </td>
-                    <td className="py-3 px-4">
-                      <input
-                        type="number"
-                        value={settings[`${tier.key}_annual`]}
-                        onChange={(e) => handleChange(`${tier.key}_annual`, e.target.value)}
-                        className="w-24 border border-gray-300 rounded-lg px-3 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      />
+                    <td className="py-3 px-4 text-gray-700">
+                      {tier.annualPrice !== null ? `$${tier.annualPrice.toLocaleString()}/yr` : '—'}
+                      {tier.isEnterprise ? '+' : ''}
                     </td>
-                    <td className="py-3 px-4 text-gray-500">
-                      ${Math.round(parseInt(settings[`${tier.key}_annual`] || '0') / 12)}/mo
+                    <td className="py-3 px-4 text-gray-700">
+                      {tier.setupFee !== null ? `$${tier.setupFee}` : 'Custom'}
                     </td>
                   </tr>
                 ))}
