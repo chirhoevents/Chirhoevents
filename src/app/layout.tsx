@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs'
 import { Analytics } from '@vercel/analytics/next'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import "./globals.css";
+
+// Display font for marketing headlines; exposed as a CSS variable so it only
+// applies where `font-display` is used.
+const displayFont = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['600', '700', '800'],
+  variable: '--font-display',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chirhoevents.com'),
@@ -59,7 +69,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" className={displayFont.variable}>
         <body className="antialiased">
           {/* Skip to main content link for accessibility */}
           <a
