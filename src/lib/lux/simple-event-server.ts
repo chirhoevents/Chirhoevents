@@ -88,12 +88,14 @@ export function validateSimpleEventInput(raw: any): { ok: true; value: SimpleEve
 
   const closeDate = typeof raw?.closeDate === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw.closeDate) ? raw.closeDate : null
 
+  // Volunteer sign-ups are always free: shifts have no price and nobody pays
+  const volunteer = !!raw?.config?.volunteer
   const rawTickets: any[] = Array.isArray(raw?.tickets) ? raw.tickets : []
   const tickets: TicketInput[] = []
   for (const t of rawTickets) {
     const name = str(t?.name, 100)
-    if (!name) return { ok: false, error: 'Every ticket type needs a name.' }
-    const price = Number(t?.price ?? 0)
+    if (!name) return { ok: false, error: volunteer ? 'Every shift needs a name.' : 'Every ticket type needs a name.' }
+    const price = volunteer ? 0 : Number(t?.price ?? 0)
     if (!Number.isFinite(price) || price < 0 || price > 100000) return { ok: false, error: `Enter a valid price for "${name}".` }
     let ticketCapacity: number | null = null
     if (t?.capacity !== null && t?.capacity !== undefined && t?.capacity !== '') {
@@ -108,8 +110,10 @@ export function validateSimpleEventInput(raw: any): { ok: true; value: SimpleEve
       description: str(t?.description, 255),
     })
   }
-  if (tickets.length === 0) return { ok: false, error: 'Add at least one ticket type (it can be free).' }
-  if (tickets.length > 10) return { ok: false, error: 'Up to 10 ticket types per event.' }
+  if (tickets.length === 0) {
+    return { ok: false, error: volunteer ? 'Add at least one shift or role.' : 'Add at least one ticket type (it can be free).' }
+  }
+  if (tickets.length > 10) return { ok: false, error: volunteer ? 'Up to 10 shifts per sign-up.' : 'Up to 10 ticket types per event.' }
 
   const rawQuestions: any[] = Array.isArray(raw?.questions) ? raw.questions : []
   const questions: QuestionInput[] = []
@@ -126,7 +130,8 @@ export function validateSimpleEventInput(raw: any): { ok: true; value: SimpleEve
     questions.push({ id: typeof q?.id === 'string' ? q.id : undefined, questionText, questionType, options, required: !!q?.required })
   }
 
-  const config = parseSimpleEventConfig(raw?.config)
+  let config = parseSimpleEventConfig(raw?.config)
+  if (config.volunteer) config = { ...config, onlinePayment: false, officePayment: { enabled: false, instructions: '' } }
   const hasPaidTickets = tickets.some(t => t.price > 0)
   if (hasPaidTickets && !config.onlinePayment && !config.officePayment.enabled) {
     return { ok: false, error: 'Choose how people can pay: online by card, at the parish office, or both.' }
@@ -298,13 +303,28 @@ export async function updateSimpleEvent(params: {
   const { organizationId, eventId, input, hasRapha } = params
   const sold = await soldCounts(eventId)
 
+  // Switching between a volunteer sign-up and a ticketed event would change
+  // what past registrations mean (and drop prices to $0), so only before anyone signs up
+  const current = await prisma.event.findUnique({ where: { id: eventId }, select: { luxConfig: true } })
+  if (sold.total > 0 && parseSimpleEventConfig(current?.luxConfig).volunteer !== input.config.volunteer) {
+    return {
+      ok: false,
+      error: 'People have already signed up, so this can’t be switched between a volunteer sign-up and a ticketed event.',
+    }
+  }
+
   if (input.capacity !== null && input.capacity < sold.total) {
     return { ok: false, error: `${sold.total} spots are already taken, so capacity can't be lower than that.` }
   }
   for (const t of input.tickets) {
     const soldForOption = t.id ? sold.byOption.get(t.id) || 0 : 0
     if (t.capacity !== null && t.capacity < soldForOption) {
-      return { ok: false, error: `${soldForOption} "${t.name}" tickets are already sold, so its limit can't be lower than that.` }
+      return {
+        ok: false,
+        error: input.config.volunteer
+          ? `${soldForOption} people already signed up for "${t.name}", so its limit can't be lower than that.`
+          : `${soldForOption} "${t.name}" tickets are already sold, so its limit can't be lower than that.`,
+      }
     }
   }
 

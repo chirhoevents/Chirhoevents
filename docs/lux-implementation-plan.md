@@ -58,6 +58,7 @@
 * `EventTicketOption` provides ticket types with per-ticket limits. Capacity is decremented atomically by head count (`ticketQuantity`).
 * Public page: `/events/[slug]` renders `SimpleEventPublicPage`. Registration closes at the event's start (time-zone aware) unless set otherwise.
 * "Convert to full event" flips `mode` (needs the `events` module; otherwise an upgrade message).
+* **Volunteer sign-ups** are simple events with `luxConfig.volunteer = true` (no migration). Ticket options act as shifts or roles. `validateSimpleEventInput` forces every price to $0 and turns payment off, and `calculateSimpleEventTotal(..., { volunteer: true })` allows one spot per shift per person. The public form shows a checkbox per shift, staff see a roster per shift, and the confirmation email lists the shifts. `updateSimpleEvent` refuses to switch an event in or out of volunteer mode once anyone has signed up. Started from **New → A volunteer sign-up** (`/dashboard/lux/events/new?type=volunteer`).
 
 ### Programs and families
 * Templates: Faith Formation, Family Faith Formation, First Communion, Confirmation, Baptism Preparation, OCIA, Custom (`program-templates.ts`), copied into the program and editable. `COMMON_DOCUMENTS` gives one-click document requirements (baptismal, First Communion and Confirmation certificates, sponsor and godparent letters, birth certificate).

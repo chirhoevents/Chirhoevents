@@ -22,6 +22,7 @@ export const luxDocSections = [
       { id: "lux-overview", title: "What is Lux?" },
       { id: "lux-setup", title: "Setting Up Lux" },
       { id: "lux-simple-events", title: "Simple Events & Sign-Ups" },
+      { id: "lux-volunteers", title: "Volunteer Sign-Ups" },
       { id: "lux-programs", title: "Faith Formation & Sacrament Programs" },
       { id: "lux-program-types", title: "OCIA, Family Programs & Baptism Preparation" },
       { id: "lux-class-times", title: "Class Times, Days & Grades" },
@@ -79,7 +80,8 @@ export const luxDocContent: Record<string, { title: string; content: React.React
         </div>
         <h3 className={h3}>What you can do with Lux</h3>
         <ul className={ul}>
-          <li><strong>Simple events</strong>: fish fry, Bible study, retreat, picnic, volunteer sign-up. One page with tickets, a few questions, and card or office payment.</li>
+          <li><strong>Simple events</strong>: fish fry, Bible study, retreat, picnic. One page with tickets, a few questions, and card or office payment.</li>
+          <li><strong>Volunteer sign-ups</strong>: list the shifts or jobs you need help with and how many people each needs. People pick where they can serve, and you see a roster for every shift.</li>
           <li><strong>Faith formation and sacrament programs</strong>: Faith Formation, Family Faith Formation, First Communion, Confirmation, Baptism Preparation, OCIA, Vacation Bible School. Families register everyone on one form: children, adults, or the whole family together.</li>
           <li><strong>Class times</strong>: offer several days or times, or split classes by grade, each with its own limit.</li>
           <li><strong>Sibling discounts and a family maximum</strong>, worked out automatically.</li>
@@ -154,7 +156,7 @@ export const luxDocContent: Record<string, { title: string; content: React.React
         <p>A simple event is one sign-up page with tickets, a few questions, and payment. It&apos;s built for parish events, not conferences.</p>
         <h3 className={h3}>Creating an event</h3>
         <ol className={ol}>
-          <li><strong>Click Set something up → An event or sign-up</strong></li>
+          <li><strong>Click Set something up → An event or sign-up</strong> (for volunteers, choose <strong>A volunteer sign-up</strong> instead. See <a href="/docs?section=lux-volunteers" className={link}>Volunteer Sign-Ups</a>.)</li>
           <li>
             <strong>The basics</strong>
             <p className={step}>Title, a short description, dates and times, where it is, and the language it&apos;s in (English, Spanish or bilingual).</p>
@@ -165,7 +167,7 @@ export const luxDocContent: Record<string, { title: string; content: React.React
           </li>
           <li>
             <strong>What to ask</strong>
-            <p className={step}>Name and email are always collected. Add questions like &quot;Dietary needs?&quot; or &quot;Which shift can you help with?&quot;</p>
+            <p className={step}>Name and email are always collected. Add questions like &quot;Dietary needs?&quot; or &quot;How did you hear about us?&quot;</p>
           </li>
           <li>
             <strong>Payment</strong>
@@ -194,6 +196,66 @@ export const luxDocContent: Record<string, { title: string; content: React.React
           Chapel includes 5 simple events per year and Parish includes 10, counted from your subscription date. An event counts when you
           publish it. Drafts don&apos;t count, and faith formation programs never count. Need more? Contact support and we can raise your limit.
         </p>
+      </div>
+    ),
+  },
+
+  "lux-volunteers": {
+    title: "Volunteer Sign-Ups",
+    content: (
+      <div className="space-y-4">
+        <p>
+          A volunteer sign-up is a simple event made for helpers: fish fry crews, festival booths, ushers and lectors for a special Mass,
+          Vacation Bible School helpers, parish clean-up days. Instead of tickets, you list the shifts or jobs you need help with, and people
+          check the ones they can do. It&apos;s always free, so nobody is asked to pay.
+        </p>
+        <h3 className={h3}>Setting one up</h3>
+        <ol className={ol}>
+          <li><strong>Click Set something up → A volunteer sign-up</strong></li>
+          <li>
+            <strong>The basics</strong>
+            <p className={step}>Title (like &quot;Fish Fry Volunteers&quot;), a short description, the dates and where to go.</p>
+          </li>
+          <li>
+            <strong>Shifts or roles</strong>
+            <p className={step}>
+              Add one line per shift or job, such as &quot;Fri 4–7 pm · Setup&quot;, &quot;Fri 5–8 pm · Kitchen&quot; or &quot;Sat · Clean-up&quot;.
+              Add a short note if it helps (&quot;Wear closed-toe shoes&quot;) and the number of people you need. Leave the number blank for no limit.
+              You can have up to 10 shifts.
+            </p>
+          </li>
+          <li>
+            <strong>Most shifts per person</strong>
+            <p className={step}>How many shifts one person can sign up for. Each person can take a spot in a shift only once.</p>
+          </li>
+          <li>
+            <strong>What to ask</strong>
+            <p className={step}>Phone is asked by default so you can reach people on the day. Add questions like &quot;T-shirt size?&quot; or &quot;Have you completed Safe Environment training?&quot;</p>
+          </li>
+          <li>
+            <strong>Optional extras</strong>
+            <p className={step}>Require a waiver signature, and add a message for the confirmation email: where to check in, what to wear, who to ask for.</p>
+          </li>
+          <li>
+            <strong>Publish</strong> and share the link in the bulletin, on your website, or from the pulpit.
+          </li>
+        </ol>
+        <div className={tip}>
+          <strong>Already made an event?</strong> Open it, click <strong>Edit</strong>, and turn on <strong>Volunteer sign-up</strong> at the top.
+          This can only be changed before anyone has signed up.
+        </div>
+        <h3 className={h3}>What volunteers see</h3>
+        <ul className={ul}>
+          <li>Each shift with a checkbox and how many spots are still open. Full shifts can&apos;t be picked.</li>
+          <li>A &quot;Thank you for volunteering!&quot; email listing their shifts, in English or Spanish. If they reply, it goes to your office.</li>
+        </ul>
+        <h3 className={h3}>Seeing who&apos;s coming</h3>
+        <ul className={ul}>
+          <li>Open the sign-up to see every shift with the names and phone numbers of the people in it, and how many spots are still open.</li>
+          <li>The <strong>Volunteers</strong> list below lets you search, see answers and waivers, and cancel someone&apos;s sign-up to open their spots back up.</li>
+          <li><strong>Export</strong> downloads everyone with their shifts and answers as a spreadsheet.</li>
+        </ul>
+        <p>Volunteer sign-ups count toward your yearly simple event allowance, just like any other event.</p>
       </div>
     ),
   },
@@ -569,7 +631,7 @@ export const luxDocContent: Record<string, { title: string; content: React.React
         <ul className={ul}>
           <li><strong>Program roster</strong>: each child with grade, parents, contact information, allergies, sacrament details, payment and document status. Good for catechists and sacramental records.</li>
           <li><strong>Documents still needed</strong>: who is missing what, with contact information.</li>
-          <li><strong>Event sign-ups</strong>: everyone registered for an event, with tickets, answers and payment.</li>
+          <li><strong>Event sign-ups</strong>: everyone registered for an event, with tickets, answers and payment. For a volunteer sign-up, it lists each person&apos;s shifts instead.</li>
           <li><strong>Payments</strong>: every payment, online and at the office, for the finance office.</li>
           <li><strong>Households</strong>: every family on file.</li>
         </ul>

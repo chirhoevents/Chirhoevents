@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Trash2, CreditCard, Building2, ShieldCheck, HeartPulse } from 'lucide-react'
+import { Plus, Trash2, CreditCard, Building2, ShieldCheck, HeartPulse, HandHeart } from 'lucide-react'
 import { useLux, useLuxApi } from '@/contexts/LuxContext'
 import { toast } from '@/lib/toast'
 import QuestionEditor, { type EditableQuestion } from '@/components/lux/QuestionEditor'
@@ -11,7 +11,7 @@ import {
   Button, Card, ErrorNote, Field, Select, TextArea, TextInput, Toggle,
 } from '@/components/lux/ui'
 import {
-  DEFAULT_SIMPLE_EVENT_CONFIG, DEFAULT_WAIVER_TEXT, type FieldMode, type SimpleEventConfig,
+  DEFAULT_SIMPLE_EVENT_CONFIG, DEFAULT_VOLUNTEER_CONFIG, DEFAULT_WAIVER_TEXT, type FieldMode, type SimpleEventConfig,
 } from '@/lib/lux/simple-event'
 
 interface EditableTicket {
@@ -60,9 +60,13 @@ function browserTimezone(): string {
   }
 }
 
-export default function SimpleEventForm({ initial, soldByOption }: {
+const blankShift = (): EditableTicket => ({ key: key(), name: '', price: '0', capacity: '', description: '' })
+
+export default function SimpleEventForm({ initial, soldByOption, startAsVolunteer }: {
   initial?: SimpleEventFormValue
   soldByOption?: Record<string, number>
+  // New volunteer sign-up (from "Volunteer sign-up" on the New page)
+  startAsVolunteer?: boolean
 }) {
   const router = useRouter()
   const api = useLuxApi()
@@ -88,19 +92,25 @@ export default function SimpleEventForm({ initial, soldByOption }: {
           id: t.id, key: key(), name: t.name, price: t.price ? String(t.price) : '0',
           capacity: t.capacity === null ? '' : String(t.capacity), description: t.description,
         }))
-      : [{ key: key(), name: 'General admission', price: '0', capacity: '', description: '' }]
+      : startAsVolunteer
+        ? [blankShift()]
+        : [{ key: key(), name: 'General admission', price: '0', capacity: '', description: '' }]
   )
   const [questions, setQuestions] = useState<EditableQuestion[]>(
     (initial?.questions ?? []).map(q => ({ ...q, key: key() }))
   )
-  const [config, setConfig] = useState<SimpleEventConfig>(initial?.config ?? DEFAULT_SIMPLE_EVENT_CONFIG)
+  const [config, setConfig] = useState<SimpleEventConfig>(
+    initial?.config ?? (startAsVolunteer ? DEFAULT_VOLUNTEER_CONFIG : DEFAULT_SIMPLE_EVENT_CONFIG)
+  )
+  const volunteer = config.volunteer
+  const anySold = Object.values(soldByOption ?? {}).some(n => n > 0)
   const [contactName, setContactName] = useState(initial?.contactName ?? '')
   const [contactEmail, setContactEmail] = useState(initial?.contactEmail ?? '')
   const [contactPhone, setContactPhone] = useState(initial?.contactPhone ?? '')
   const [saving, setSaving] = useState<null | 'draft' | 'publish'>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const hasPaidTickets = useMemo(() => tickets.some(t => Number(t.price) > 0), [tickets])
+  const hasPaidTickets = useMemo(() => !volunteer && tickets.some(t => Number(t.price) > 0), [tickets, volunteer])
   const patchConfig = (patch: Partial<SimpleEventConfig>) => setConfig(c => ({ ...c, ...patch }))
   const updateTicket = (index: number, patch: Partial<EditableTicket>) =>
     setTickets(ts => ts.map((t, i) => (i === index ? { ...t, ...patch } : t)))
@@ -113,6 +123,23 @@ export default function SimpleEventForm({ initial, soldByOption }: {
       { key: key(), name: 'Child (under 12)', price: '0', capacity: '', description: '' },
     ]
     setTickets(onlyDefault ? preset : [...tickets, ...preset])
+  }
+
+  const setVolunteer = (on: boolean) => {
+    if (on) {
+      setConfig(c => ({ ...c, volunteer: true, onlinePayment: false, officePayment: { enabled: false, instructions: '' } }))
+      setTickets(ts => {
+        const onlyDefault = ts.length === 1 && !ts[0].id && ts[0].name === 'General admission'
+        return onlyDefault ? [blankShift()] : ts.map(t => ({ ...t, price: '0' }))
+      })
+    } else {
+      setConfig(c => ({
+        ...c,
+        volunteer: false,
+        onlinePayment: DEFAULT_SIMPLE_EVENT_CONFIG.onlinePayment,
+        officePayment: DEFAULT_SIMPLE_EVENT_CONFIG.officePayment,
+      }))
+    }
   }
 
   const payload = () => ({
@@ -130,7 +157,7 @@ export default function SimpleEventForm({ initial, soldByOption }: {
     tickets: tickets.map(t => ({
       id: t.id,
       name: t.name,
-      price: Number(t.price || 0),
+      price: volunteer ? 0 : Number(t.price || 0),
       capacity: t.capacity === '' ? null : Number(t.capacity),
       description: t.description,
     })),
@@ -155,7 +182,7 @@ export default function SimpleEventForm({ initial, soldByOption }: {
       if (publish && isDraft) {
         try {
           await api(`/api/lux/events/${id}/status`, { method: 'POST', json: { action: 'publish' } })
-          toast.success('Published! Registration is open.')
+          toast.success(volunteer ? 'Published! Volunteers can sign up now.' : 'Published! Registration is open.')
         } catch (publishError) {
           toast.error((publishError as Error).message, { duration: 6000 })
           router.push(`/dashboard/lux/events/${id}`)
@@ -185,14 +212,33 @@ export default function SimpleEventForm({ initial, soldByOption }: {
     <div className="space-y-5 max-w-3xl">
       <ErrorNote message={error} />
 
-      <Card title="The basics" description="What families will see on the sign-up page.">
+      <Card>
+        <div className="flex items-start gap-3">
+          <HandHeart className="h-5 w-5 text-[#9C8466] mt-2.5" />
+          <div className="flex-1">
+            <Toggle
+              checked={volunteer}
+              onChange={setVolunteer}
+              disabled={anySold}
+              label="Volunteer sign-up"
+              description={anySold
+                ? 'People have already signed up, so this can’t be changed.'
+                : 'People pick the shifts or roles they can help with. Always free, one spot per shift per person.'}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card title="The basics" description="What people will see on the sign-up page.">
         <div className="space-y-4">
           <Field label="Title" required>
-            <TextInput value={title} onChange={e => setTitle(e.target.value)} placeholder="Lenten Fish Fry" maxLength={255} />
+            <TextInput value={title} onChange={e => setTitle(e.target.value)} placeholder={volunteer ? 'Fish Fry Volunteers' : 'Lenten Fish Fry'} maxLength={255} />
           </Field>
           <Field label="Short description" hint="A sentence or two. Line breaks are kept.">
             <TextArea value={description} onChange={e => setDescription(e.target.value)} rows={4}
-              placeholder="Join us in the parish hall for fried fish, mac and cheese, and fellowship." />
+              placeholder={volunteer
+                ? 'We need help setting up, serving and cleaning up. Pick the shifts that work for you. Thank you!'
+                : 'Join us in the parish hall for fried fish, mac and cheese, and fellowship.'} />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={multiDay ? 'Start date' : 'Date'} required>
@@ -232,54 +278,103 @@ export default function SimpleEventForm({ initial, soldByOption }: {
         </div>
       </Card>
 
-      <Card title="Tickets" description="Use one ticket type, or a few (adult, child...). A $0 ticket makes it a free sign-up.">
-        <div className="space-y-3">
-          {tickets.map((t, index) => {
-            const sold = t.id ? soldByOption?.[t.id] ?? 0 : 0
-            return (
-              <div key={t.key} className="grid grid-cols-12 gap-2 items-start">
-                <div className="col-span-12 sm:col-span-5">
-                  <TextInput value={t.name} onChange={e => updateTicket(index, { name: e.target.value })} placeholder="Ticket name" maxLength={100} aria-label="Ticket name" />
+      {volunteer ? (
+        <Card title="Shifts or roles" description="One line per shift or job, e.g. “Fri 4–7 pm · Setup” or “Kitchen.” Set how many people you need for each.">
+          <div className="space-y-3">
+            {tickets.map((t, index) => {
+              const sold = t.id ? soldByOption?.[t.id] ?? 0 : 0
+              return (
+                <div key={t.key} className="grid grid-cols-12 gap-2 items-start">
+                  <div className="col-span-12 sm:col-span-5">
+                    <TextInput value={t.name} onChange={e => updateTicket(index, { name: e.target.value })} placeholder="Fri 4–7 pm · Setup" maxLength={100} aria-label="Shift or role" />
+                  </div>
+                  <div className="col-span-7 sm:col-span-4">
+                    <TextInput value={t.description} onChange={e => updateTicket(index, { description: e.target.value })} placeholder="Note (optional)" maxLength={255} aria-label="Note for this shift" />
+                  </div>
+                  <div className="col-span-3 sm:col-span-2">
+                    <TextInput type="number" min={sold || 0} value={t.capacity} onChange={e => updateTicket(index, { capacity: e.target.value })}
+                      placeholder="Any" aria-label="People needed" />
+                    {sold > 0 && <p className="text-xs text-gray-500 mt-1">{sold} signed up</p>}
+                  </div>
+                  <div className="col-span-2 sm:col-span-1 flex justify-end">
+                    <button type="button" onClick={() => setTickets(ts => ts.filter((_, i) => i !== index))} disabled={tickets.length === 1}
+                      className="p-2 rounded text-red-600 hover:bg-red-50 disabled:opacity-30" aria-label="Remove shift">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="col-span-5 sm:col-span-3 relative">
-                  <span className="absolute left-3 top-2 text-sm text-gray-400">$</span>
-                  <TextInput type="number" min="0" step="0.01" value={t.price} onChange={e => updateTicket(index, { price: e.target.value })}
-                    className="pl-6" aria-label="Price" />
-                </div>
-                <div className="col-span-5 sm:col-span-3">
-                  <TextInput type="number" min={sold || 0} value={t.capacity} onChange={e => updateTicket(index, { capacity: e.target.value })}
-                    placeholder="No limit" aria-label="Limit for this ticket" />
-                  {sold > 0 && <p className="text-xs text-gray-500 mt-1">{sold} sold</p>}
-                </div>
-                <div className="col-span-2 sm:col-span-1 flex justify-end">
-                  <button type="button" onClick={() => setTickets(ts => ts.filter((_, i) => i !== index))} disabled={tickets.length === 1}
-                    className="p-2 rounded text-red-600 hover:bg-red-50 disabled:opacity-30" aria-label="Remove ticket">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Button variant="secondary" onClick={() => setTickets(ts => [...ts, { key: key(), name: '', price: '0', capacity: '', description: '' }])}>
-              <Plus className="h-4 w-4" /> Add a ticket type
-            </Button>
-            <Button variant="ghost" onClick={addAdultChild}>Add Adult + Child</Button>
+              )
+            })}
+            <p className="text-xs text-gray-500">The number is how many people you need. Leave it blank for no limit.</p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button variant="secondary" onClick={() => setTickets(ts => [...ts, blankShift()])} disabled={tickets.length >= 10}>
+                <Plus className="h-4 w-4" /> Add a shift
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#E8E2D4]">
+              <Field label="Most shifts per person">
+                <TextInput type="number" min="1" max="100" value={config.maxPerRegistration}
+                  onChange={e => patchConfig({ maxPerRegistration: Math.max(1, Number(e.target.value) || 1) })} />
+              </Field>
+              <Field label="Total spots" hint="Across all shifts. Blank = no limit.">
+                <TextInput type="number" min="1" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="No limit" />
+              </Field>
+              <Field label="Sign-up closes" hint="Blank = when the event starts">
+                <TextInput type="datetime-local" value={closeDate} onChange={e => setCloseDate(e.target.value)} />
+              </Field>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#E8E2D4]">
-            <Field label="Total capacity" hint="People across all tickets. Blank = no limit.">
-              <TextInput type="number" min="1" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="No limit" />
-            </Field>
-            <Field label="Most per registration" hint="Tickets one person can buy">
-              <TextInput type="number" min="1" max="100" value={config.maxPerRegistration}
-                onChange={e => patchConfig({ maxPerRegistration: Math.max(1, Number(e.target.value) || 1) })} />
-            </Field>
-            <Field label="Registration closes" hint="Blank = when the event starts">
-              <TextInput type="datetime-local" value={closeDate} onChange={e => setCloseDate(e.target.value)} />
-            </Field>
+        </Card>
+      ) : (
+        <Card title="Tickets" description="Use one ticket type, or a few (adult, child...). A $0 ticket makes it a free sign-up.">
+          <div className="space-y-3">
+            {tickets.map((t, index) => {
+              const sold = t.id ? soldByOption?.[t.id] ?? 0 : 0
+              return (
+                <div key={t.key} className="grid grid-cols-12 gap-2 items-start">
+                  <div className="col-span-12 sm:col-span-5">
+                    <TextInput value={t.name} onChange={e => updateTicket(index, { name: e.target.value })} placeholder="Ticket name" maxLength={100} aria-label="Ticket name" />
+                  </div>
+                  <div className="col-span-5 sm:col-span-3 relative">
+                    <span className="absolute left-3 top-2 text-sm text-gray-400">$</span>
+                    <TextInput type="number" min="0" step="0.01" value={t.price} onChange={e => updateTicket(index, { price: e.target.value })}
+                      className="pl-6" aria-label="Price" />
+                  </div>
+                  <div className="col-span-5 sm:col-span-3">
+                    <TextInput type="number" min={sold || 0} value={t.capacity} onChange={e => updateTicket(index, { capacity: e.target.value })}
+                      placeholder="No limit" aria-label="Limit for this ticket" />
+                    {sold > 0 && <p className="text-xs text-gray-500 mt-1">{sold} sold</p>}
+                  </div>
+                  <div className="col-span-2 sm:col-span-1 flex justify-end">
+                    <button type="button" onClick={() => setTickets(ts => ts.filter((_, i) => i !== index))} disabled={tickets.length === 1}
+                      className="p-2 rounded text-red-600 hover:bg-red-50 disabled:opacity-30" aria-label="Remove ticket">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button variant="secondary" onClick={() => setTickets(ts => [...ts, { key: key(), name: '', price: '0', capacity: '', description: '' }])}>
+                <Plus className="h-4 w-4" /> Add a ticket type
+              </Button>
+              <Button variant="ghost" onClick={addAdultChild}>Add Adult + Child</Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#E8E2D4]">
+              <Field label="Total capacity" hint="People across all tickets. Blank = no limit.">
+                <TextInput type="number" min="1" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="No limit" />
+              </Field>
+              <Field label="Most per registration" hint="Tickets one person can buy">
+                <TextInput type="number" min="1" max="100" value={config.maxPerRegistration}
+                  onChange={e => patchConfig({ maxPerRegistration: Math.max(1, Number(e.target.value) || 1) })} />
+              </Field>
+              <Field label="Registration closes" hint="Blank = when the event starts">
+                <TextInput type="datetime-local" value={closeDate} onChange={e => setCloseDate(e.target.value)} />
+              </Field>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       <Card title="What to ask" description="Name and email are always collected so we can send a confirmation.">
         <div className="space-y-3">
@@ -298,41 +393,43 @@ export default function SimpleEventForm({ initial, soldByOption }: {
         </div>
       </Card>
 
-      <Card title="Payment" description={hasPaidTickets ? 'How people can pay for paid tickets.' : 'All tickets are free, so nobody will be asked to pay.'}>
-        <div className="divide-y divide-[#F0EBDF]">
-          <div className="flex items-start gap-3">
-            <CreditCard className="h-5 w-5 text-[#9C8466] mt-2.5" />
-            <div className="flex-1">
-              <Toggle
-                checked={config.onlinePayment}
-                onChange={v => patchConfig({ onlinePayment: v })}
-                label="Pay online by card"
-                description={info.paymentsReady
-                  ? 'Paid straight to your parish’s Stripe account.'
-                  : <>Needs Stripe connected first. <Link href="/dashboard/lux/settings?tab=integrations" className="underline">Connect Stripe</Link></>}
-              />
+      {!volunteer && (
+        <Card title="Payment" description={hasPaidTickets ? 'How people can pay for paid tickets.' : 'All tickets are free, so nobody will be asked to pay.'}>
+          <div className="divide-y divide-[#F0EBDF]">
+            <div className="flex items-start gap-3">
+              <CreditCard className="h-5 w-5 text-[#9C8466] mt-2.5" />
+              <div className="flex-1">
+                <Toggle
+                  checked={config.onlinePayment}
+                  onChange={v => patchConfig({ onlinePayment: v })}
+                  label="Pay online by card"
+                  description={info.paymentsReady
+                    ? 'Paid straight to your parish’s Stripe account.'
+                    : <>Needs Stripe connected first. <Link href="/dashboard/lux/settings?tab=integrations" className="underline">Connect Stripe</Link></>}
+                />
+              </div>
+            </div>
+            <div className="flex items-start gap-3 pt-2">
+              <Building2 className="h-5 w-5 text-[#9C8466] mt-2.5" />
+              <div className="flex-1">
+                <Toggle
+                  checked={config.officePayment.enabled}
+                  onChange={v => patchConfig({ officePayment: { ...config.officePayment, enabled: v } })}
+                  label="Pay at the parish office"
+                  description="They register now and bring cash or a check. You mark it paid."
+                />
+                {config.officePayment.enabled && (
+                  <Field label="Instructions" hint="Shown on the confirmation, e.g. office hours or who to make checks out to." className="mt-2 mb-2">
+                    <TextArea value={config.officePayment.instructions} rows={2}
+                      onChange={e => patchConfig({ officePayment: { ...config.officePayment, instructions: e.target.value } })}
+                      placeholder="Make checks payable to St. Mary's Parish. Office hours: Mon–Fri 9–4." />
+                  </Field>
+                )}
+              </div>
             </div>
           </div>
-          <div className="flex items-start gap-3 pt-2">
-            <Building2 className="h-5 w-5 text-[#9C8466] mt-2.5" />
-            <div className="flex-1">
-              <Toggle
-                checked={config.officePayment.enabled}
-                onChange={v => patchConfig({ officePayment: { ...config.officePayment, enabled: v } })}
-                label="Pay at the parish office"
-                description="They register now and bring cash or a check. You mark it paid."
-              />
-              {config.officePayment.enabled && (
-                <Field label="Instructions" hint="Shown on the confirmation, e.g. office hours or who to make checks out to." className="mt-2 mb-2">
-                  <TextArea value={config.officePayment.instructions} rows={2}
-                    onChange={e => patchConfig({ officePayment: { ...config.officePayment, instructions: e.target.value } })}
-                    placeholder="Make checks payable to St. Mary's Parish. Office hours: Mon–Fri 9–4." />
-                </Field>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       <Card title="Optional extras">
         <div className="divide-y divide-[#F0EBDF]">
@@ -371,7 +468,7 @@ export default function SimpleEventForm({ initial, soldByOption }: {
             </div>
           )}
           <div className="pt-3 space-y-4">
-            <Field label="Message on the confirmation" hint="Optional: what to bring, where to park, etc.">
+            <Field label="Message on the confirmation" hint={volunteer ? 'Optional: where to check in, what to wear, who to ask for.' : 'Optional: what to bring, where to park, etc.'}>
               <TextArea value={config.confirmationMessage} rows={3}
                 onChange={e => patchConfig({ confirmationMessage: e.target.value })} />
             </Field>

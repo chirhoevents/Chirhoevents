@@ -9,6 +9,9 @@ import { parseDateTimeInTimezone } from '@/lib/timezone'
 export type FieldMode = 'required' | 'optional' | 'hidden'
 
 export interface SimpleEventConfig {
+  // Volunteer sign-up: ticket types are shifts or roles, everything is free,
+  // and each person takes a spot in a shift at most once
+  volunteer: boolean
   phoneField: FieldMode
   addressField: FieldMode
   // Most tickets one person can buy in one registration
@@ -29,6 +32,7 @@ export const DEFAULT_WAIVER_TEXT =
   'except in cases of gross negligence. I give permission for photos taken at the event to be used in parish communications.'
 
 export const DEFAULT_SIMPLE_EVENT_CONFIG: SimpleEventConfig = {
+  volunteer: false,
   phoneField: 'required',
   addressField: 'hidden',
   maxPerRegistration: 10,
@@ -40,6 +44,15 @@ export const DEFAULT_SIMPLE_EVENT_CONFIG: SimpleEventConfig = {
   language: null,
 }
 
+/** Starting settings for a new volunteer sign-up: free, phone required, a few shifts at most */
+export const DEFAULT_VOLUNTEER_CONFIG: SimpleEventConfig = {
+  ...DEFAULT_SIMPLE_EVENT_CONFIG,
+  volunteer: true,
+  maxPerRegistration: 3,
+  onlinePayment: false,
+  officePayment: { enabled: false, instructions: '' },
+}
+
 const FIELD_MODES: FieldMode[] = ['required', 'optional', 'hidden']
 
 export function parseSimpleEventConfig(raw: unknown): SimpleEventConfig {
@@ -49,6 +62,7 @@ export function parseSimpleEventConfig(raw: unknown): SimpleEventConfig {
     FIELD_MODES.includes(value as FieldMode) ? (value as FieldMode) : fallback
   const max = Number(c.maxPerRegistration)
   return {
+    volunteer: !!c.volunteer,
     phoneField: mode(c.phoneField, d.phoneField),
     addressField: mode(c.addressField, d.addressField),
     maxPerRegistration: Number.isInteger(max) && max >= 1 && max <= 100 ? max : d.maxPerRegistration,
@@ -105,7 +119,9 @@ const toCents = (dollars: number) => Math.round(dollars * 100)
 export function calculateSimpleEventTotal(
   options: PricedTicketOption[],
   selections: TicketSelectionInput[],
-  maxPerRegistration: number
+  maxPerRegistration: number,
+  // Volunteer sign-ups: one spot per shift, since only one name is collected
+  { volunteer = false }: { volunteer?: boolean } = {}
 ): SimpleEventTotal {
   const byId = new Map(options.map(o => [o.id, o]))
   const merged = new Map<string, number>()
@@ -121,13 +137,18 @@ export function calculateSimpleEventTotal(
   let quantity = 0
   for (const [optionId, qty] of merged) {
     const option = byId.get(optionId)
-    if (!option || !option.isActive) return { ok: false, error: 'One of the selected tickets is no longer available.' }
+    if (!option || !option.isActive) {
+      return { ok: false, error: volunteer ? 'One of the selected shifts is no longer available.' : 'One of the selected tickets is no longer available.' }
+    }
+    if (volunteer && qty > 1) return { ok: false, error: `You can sign up for ${option.name} once.` }
     if (option.remaining !== null && qty > option.remaining) {
       return {
         ok: false,
-        error: option.remaining === 0
-          ? `${option.name} tickets are sold out.`
-          : `Only ${option.remaining} ${option.name} ticket${option.remaining === 1 ? '' : 's'} left.`,
+        error: volunteer
+          ? `${option.name} is full.`
+          : option.remaining === 0
+            ? `${option.name} tickets are sold out.`
+            : `Only ${option.remaining} ${option.name} ticket${option.remaining === 1 ? '' : 's'} left.`,
       }
     }
     const amountCents = toCents(option.price) * qty
@@ -136,9 +157,14 @@ export function calculateSimpleEventTotal(
     lines.push({ optionId, name: option.name, unitPrice: option.price, quantity: qty, amount: amountCents / 100 })
   }
 
-  if (quantity === 0) return { ok: false, error: 'Choose at least one ticket.' }
+  if (quantity === 0) return { ok: false, error: volunteer ? 'Choose at least one shift.' : 'Choose at least one ticket.' }
   if (quantity > maxPerRegistration) {
-    return { ok: false, error: `You can register up to ${maxPerRegistration} per registration.` }
+    return {
+      ok: false,
+      error: volunteer
+        ? `You can sign up for up to ${maxPerRegistration} shift${maxPerRegistration === 1 ? '' : 's'}.`
+        : `You can register up to ${maxPerRegistration} per registration.`,
+    }
   }
   return { ok: true, lines, quantity, total: totalCents / 100 }
 }

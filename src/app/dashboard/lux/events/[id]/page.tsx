@@ -31,8 +31,9 @@ interface EventDetail {
   locationName: string
   capacity: number | null
   capacityRemaining: number | null
-  tickets: Array<{ id: string; name: string; price: number; capacity: number | null }>
+  tickets: Array<{ id: string; name: string; price: number; capacity: number | null; description: string }>
   sold: { total: number; byOption: Record<string, number> }
+  config: { volunteer: boolean }
 }
 
 interface Registration {
@@ -46,7 +47,7 @@ interface Registration {
   state: string | null
   zip: string | null
   ticketQuantity: number
-  ticketSelections: Array<{ name?: string; quantity?: number; amount?: number }>
+  ticketSelections: Array<{ optionId?: string; name?: string; quantity?: number; amount?: number }>
   luxDetails: { waiver?: { signedName: string; signedAt: string }; medical?: Record<string, string> } | null
   registrationStatus: string
   confirmationCode: string | null
@@ -124,6 +125,19 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
     }
   }, [registrations])
 
+  // Volunteer sign-ups: who is in each shift (cancelled registrations left out)
+  const roster = useMemo(() => {
+    const byShift = new Map<string, Registration[]>()
+    for (const r of registrations ?? []) {
+      if (r.cancelledAt) continue
+      for (const line of r.ticketSelections) {
+        if (!line.optionId) continue
+        byShift.set(line.optionId, [...(byShift.get(line.optionId) ?? []), r])
+      }
+    }
+    return byShift
+  }, [registrations])
+
   const setStatus = async (action: string, success: string) => {
     setBusy(action)
     try {
@@ -152,6 +166,10 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
   if (error) return <ErrorNote message={error} />
   if (!event || !registrations) return <Spinner label="Loading event…" />
 
+  const volunteer = event.config?.volunteer ?? false
+  const selectionText = (r: Registration) => volunteer
+    ? r.ticketSelections.map(l => l.name).join(', ')
+    : r.ticketSelections.map(l => `${l.quantity}× ${l.name}`).join(', ')
   const when = `${formatEventDate(event.startDate)}${event.endDate !== event.startDate ? ` – ${formatEventDate(event.endDate)}` : ''}${formatTimeRange(event.startTime, event.endTime) ? ` · ${formatTimeRange(event.startTime, event.endTime)}` : ''}`
 
   return (
@@ -161,6 +179,7 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
         back={{ href: '/dashboard/lux/programs', label: 'Programs & Events' }}
         description={<span className="flex flex-wrap items-center gap-2">
           <Badge tone={STATUS_TONE[event.liveStatus]}>{SIMPLE_EVENT_STATUS_LABELS[event.liveStatus]}</Badge>
+          {volunteer && <Badge tone="blue">Volunteer sign-up</Badge>}
           {!event.isPublished && event.status !== 'draft' && <Badge tone="gray">Page hidden</Badge>}
           <span>{when}</span>
           {event.locationName && <span>· {event.locationName}</span>}
@@ -199,18 +218,73 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
         </Card>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Registrations" value={totals.count} />
-        <StatCard
-          label="People / tickets"
-          value={event.sold.total}
-          hint={event.capacity ? `of ${event.capacity} (${event.capacityRemaining ?? 0} left)` : 'No capacity limit'}
-        />
-        <StatCard label="Collected" value={formatMoney(totals.paid)} tone="good" />
-        <StatCard label="Owed (pay at office)" value={formatMoney(totals.outstanding)} tone={totals.outstanding > 0 ? 'warn' : 'default'} />
-      </div>
+      {volunteer ? (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard label="Volunteers" value={totals.count} />
+          <StatCard
+            label="Shift spots filled"
+            value={event.sold.total}
+            hint={event.capacity ? `of ${event.capacity} (${event.capacityRemaining ?? 0} open)` : undefined}
+          />
+          <StatCard
+            label="Shifts with open spots"
+            value={event.tickets.filter(t => t.capacity === null || (event.sold.byOption[t.id] ?? 0) < t.capacity).length}
+            hint={`of ${event.tickets.length} shift${event.tickets.length === 1 ? '' : 's'}`}
+            tone={event.tickets.some(t => t.capacity !== null && (event.sold.byOption[t.id] ?? 0) < t.capacity) ? 'warn' : 'good'}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Registrations" value={totals.count} />
+          <StatCard
+            label="People / tickets"
+            value={event.sold.total}
+            hint={event.capacity ? `of ${event.capacity} (${event.capacityRemaining ?? 0} left)` : 'No capacity limit'}
+          />
+          <StatCard label="Collected" value={formatMoney(totals.paid)} tone="good" />
+          <StatCard label="Owed (pay at office)" value={formatMoney(totals.outstanding)} tone={totals.outstanding > 0 ? 'warn' : 'default'} />
+        </div>
+      )}
 
-      {event.tickets.length > 1 && (
+      {volunteer && (
+        <Card title="Shifts" description="Who’s signed up for each shift or role.">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {event.tickets.map(t => {
+              const people = roster.get(t.id) ?? []
+              const filled = event.sold.byOption[t.id] ?? 0
+              const open = t.capacity === null ? null : Math.max(0, t.capacity - filled)
+              return (
+                <div key={t.id} className="rounded-lg bg-[#FAF8F3] px-4 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-[#1E3A5F]">{t.name}</p>
+                      {t.description && <p className="text-xs text-gray-500">{t.description}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-lg font-semibold text-[#1E3A5F]">{filled}{t.capacity !== null && <span className="text-sm text-gray-500 font-normal"> / {t.capacity}</span>}</p>
+                      {open !== null && (open === 0 ? <Badge tone="green">Full</Badge> : <Badge tone="amber">{open} open</Badge>)}
+                    </div>
+                  </div>
+                  {people.length === 0 ? (
+                    <p className="text-sm text-gray-500 mt-2">Nobody yet.</p>
+                  ) : (
+                    <ul className="mt-2 space-y-0.5 text-sm text-gray-800">
+                      {people.map(r => (
+                        <li key={r.id} className="flex justify-between gap-2">
+                          <span className="truncate">{r.firstName} {r.lastName}</span>
+                          {r.phone && <span className="text-gray-500 shrink-0">{r.phone}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+
+      {!volunteer && event.tickets.length > 1 && (
         <Card title="By ticket type">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {event.tickets.map(t => (
@@ -224,10 +298,10 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
       )}
 
       <Card
-        title="Who’s registered"
+        title={volunteer ? 'Volunteers' : 'Who’s registered'}
         actions={
           <Button variant="secondary" onClick={() =>
-            downloadFromApi(getToken, `/api/lux/exports/event-registrations?eventId=${id}`, 'registrations.csv').catch(e => toast.error(e.message))}>
+            downloadFromApi(getToken, `/api/lux/exports/event-registrations?eventId=${id}`, volunteer ? 'volunteers.csv' : 'registrations.csv').catch(e => toast.error(e.message))}>
             <Download className="h-4 w-4" /> Export
           </Button>
         }
@@ -244,7 +318,7 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
         </div>
 
         {filtered.length === 0 ? (
-          <p className="text-sm text-gray-500 py-8 text-center">{registrations.length === 0 ? 'No registrations yet.' : 'No matches.'}</p>
+          <p className="text-sm text-gray-500 py-8 text-center">{registrations.length === 0 ? (volunteer ? 'Nobody has signed up yet.' : 'No registrations yet.') : 'No matches.'}</p>
         ) : (
           <div className="divide-y divide-[#F0EBDF] -mx-5">
             {filtered.map(r => {
@@ -257,11 +331,17 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
                       <p className="font-medium text-[#1E3A5F] truncate">{r.firstName} {r.lastName}</p>
                       <p className="text-xs text-gray-500 truncate">{r.email}</p>
                     </div>
-                    <div className="hidden sm:block text-sm text-gray-600 w-40 truncate">
-                      {r.ticketSelections.map(l => `${l.quantity}× ${l.name}`).join(', ')}
+                    <div className={`hidden sm:block text-sm text-gray-600 truncate ${volunteer ? 'w-64' : 'w-40'}`}>
+                      {selectionText(r)}
                     </div>
-                    <div className="text-sm text-gray-800 w-20 text-right">{formatMoney(r.balance?.totalAmountDue ?? 0)}</div>
-                    <div className="w-28 text-right">{paymentBadge(r)}</div>
+                    {volunteer ? (
+                      r.cancelledAt && <div className="w-28 text-right"><Badge tone="red">Cancelled</Badge></div>
+                    ) : (
+                      <>
+                        <div className="text-sm text-gray-800 w-20 text-right">{formatMoney(r.balance?.totalAmountDue ?? 0)}</div>
+                        <div className="w-28 text-right">{paymentBadge(r)}</div>
+                      </>
+                    )}
                   </button>
                   {open && (
                     <div className="px-12 pb-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -270,7 +350,7 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
                         <p><span className="text-gray-500">Registered</span> {formatDateTime(r.createdAt)}</p>
                         {r.phone && <p><span className="text-gray-500">Phone</span> {r.phone}</p>}
                         {r.street && <p><span className="text-gray-500">Address</span> {r.street}, {r.city}, {r.state} {r.zip}</p>}
-                        <p><span className="text-gray-500">Tickets</span> {r.ticketSelections.map(l => `${l.quantity}× ${l.name}`).join(', ')}</p>
+                        <p><span className="text-gray-500">{volunteer ? 'Shifts' : 'Tickets'}</span> {selectionText(r)}</p>
                         {r.luxDetails?.waiver && (
                           <p><span className="text-gray-500">Waiver</span> signed by “{r.luxDetails.waiver.signedName}” on {formatDateTime(r.luxDetails.waiver.signedAt)}</p>
                         )}
@@ -290,7 +370,8 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
                         {r.cancelledAt && <p className="text-red-700">Cancelled {formatDateTime(r.cancelledAt)}{r.cancellationReason ? `: ${r.cancellationReason}` : ''}</p>}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-700 mb-1">Payments</p>
+                        {!volunteer && <>
+                          <p className="font-medium text-gray-700 mb-1">Payments</p>
                         {r.payments.length === 0 && <p className="text-gray-500">None yet.</p>}
                         {r.payments.map((p, i) => (
                           <p key={i}>
@@ -308,6 +389,7 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
                         {r.balance && r.balance.amountRemaining > 0 && !r.cancelledAt && (
                           <p className="mt-1 text-amber-700">Still owed: {formatMoney(r.balance.amountRemaining)}</p>
                         )}
+                        </>}
                         {info.canManage && (!r.cancelledAt || (r.balance && r.balance.amountPaid > 0)) && (
                           <div className="flex flex-wrap gap-2 mt-3">
                             {!r.cancelledAt && r.balance && r.balance.amountRemaining > 0 && r.registrationStatus !== 'incomplete' && (
@@ -358,7 +440,7 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
         onClose={() => setPaying(null)}
         onDone={load}
       />
-      <CancelModal registration={cancelling} onClose={() => setCancelling(null)} onDone={load} />
+      <CancelModal registration={cancelling} volunteer={volunteer} onClose={() => setCancelling(null)} onDone={load} />
       <RefundModal
         open={!!refunding}
         kind="event"
@@ -372,7 +454,12 @@ export default function SimpleEventDetailPage({ params }: { params: Promise<{ id
   )
 }
 
-function CancelModal({ registration, onClose, onDone }: { registration: Registration | null; onClose: () => void; onDone: () => void }) {
+function CancelModal({ registration, volunteer, onClose, onDone }: {
+  registration: Registration | null
+  volunteer: boolean
+  onClose: () => void
+  onDone: () => void
+}) {
   const api = useLuxApi()
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
@@ -383,7 +470,7 @@ function CancelModal({ registration, onClose, onDone }: { registration: Registra
     setSaving(true)
     try {
       await api(`/api/lux/registrations/${registration.id}/cancel`, { method: 'POST', json: { reason } })
-      toast.success('Registration cancelled and tickets released')
+      toast.success(volunteer ? 'Sign-up cancelled and shifts opened up' : 'Registration cancelled and tickets released')
       onClose()
       onDone()
     } catch (e) {
@@ -397,7 +484,9 @@ function CancelModal({ registration, onClose, onDone }: { registration: Registra
     <Modal open={!!registration} onClose={onClose} title="Cancel this registration?"
       footer={<><Button variant="ghost" onClick={onClose}>Keep it</Button><Button variant="danger" onClick={cancel} loading={saving}>Cancel registration</Button></>}>
       <p className="text-sm text-gray-700 mb-3">
-        {registration?.firstName} {registration?.lastName}’s {registration?.ticketQuantity} ticket(s) will be released for others.
+        {volunteer
+          ? `${registration?.firstName} ${registration?.lastName}’s shift spot(s) will open up for others.`
+          : `${registration?.firstName} ${registration?.lastName}’s ${registration?.ticketQuantity} ticket(s) will be released for others.`}
         {registration?.balance && registration.balance.amountPaid > 0 && ' What they paid stays on record. To give money back, use Refund after cancelling.'}
       </p>
       <Field label="Reason" hint="Optional"><TextInput value={reason} onChange={e => setReason(e.target.value)} /></Field>

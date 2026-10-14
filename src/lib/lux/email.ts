@@ -176,6 +176,8 @@ export function simpleEventConfirmationEmail(data: {
   }
   lines: Array<{ name: string; quantity: number; unitPrice: number; amount: number }>
   total: number
+  // Volunteer sign-up: lists the shifts instead of tickets
+  volunteer?: boolean
   payment: 'paid' | 'free' | 'office'
   receiptUrl?: string | null
   officeInstructions?: string
@@ -194,6 +196,7 @@ export function simpleEventConfirmationEmail(data: {
     `${escapeHtml(l.name)} × ${l.quantity}`,
     l.unitPrice > 0 ? formatMoney(l.amount) : L(lang, 'Free', 'Gratis'),
   ] as [string, string])
+  const shiftList = `<ul>${data.lines.map(l => `<li>${escapeHtml(l.name)}</li>`).join('')}</ul>`
 
   const receipt = data.receiptUrl ? ` <a href="${escapeHtml(data.receiptUrl)}">${L(lang, 'View your card receipt', 'Ver el recibo de su tarjeta')}</a>.` : ''
   const paymentBlock =
@@ -202,6 +205,27 @@ export function simpleEventConfirmationEmail(data: {
       : data.payment === 'office'
         ? infoBox(`<strong>${L(lang, 'Amount due', 'Saldo a pagar')}: ${formatMoney(data.total)}.</strong> ${L(lang, 'Please pay at the parish office.', 'Pague en la oficina parroquial, por favor.')}${data.officeInstructions ? `<br>${escapeHtml(data.officeInstructions)}` : ''}`, 'warn')
         : ''
+
+  if (data.volunteer) {
+    const html = luxEmailLayout(
+      `<h1>${L(lang, 'Thank you for volunteering!', '¡Gracias por ofrecerse como voluntario!')}</h1>
+      <p>${L(lang, 'Hi', 'Hola')} ${escapeHtml(data.firstName)},</p>
+      <p>${L(lang, `You're signed up to help with <strong>${escapeHtml(e.name)}</strong>. Here are your details.`, `Ya está inscrito para ayudar en <strong>${escapeHtml(e.name)}</strong>. Estos son sus datos.`)}</p>
+      ${table([
+        [`<strong>${L(lang, 'When', 'Cuándo')}</strong>`, escapeHtml(when)],
+        ...(where ? [[`<strong>${L(lang, 'Where', 'Dónde')}</strong>`, where] as [string, string]] : []),
+        [`<strong>${L(lang, 'Confirmation #', 'Confirmación n.º')}</strong>`, escapeHtml(data.confirmationCode)],
+      ])}
+      <h2>${L(lang, data.lines.length === 1 ? 'Your shift' : 'Your shifts', data.lines.length === 1 ? 'Su turno' : 'Sus turnos')}</h2>
+      ${shiftList}
+      ${data.confirmationMessage ? paragraphs(data.confirmationMessage) : ''}
+      <p>${L(lang, 'If something comes up and you can’t make it, please reply to this email so the parish can find someone else.', 'Si surge algo y no puede venir, responda a este correo para que la parroquia pueda buscar a otra persona.')}</p>
+      ${button(appUrl(`/events/${e.slug}`), L(lang, 'View sign-up details', 'Ver los detalles'))}
+      <p>${L(lang, 'Thank you for serving!', '¡Gracias por su servicio!')}</p>`,
+      { organizationName: data.organizationName, preheader: L(lang, `You're signed up to volunteer: ${e.name}`, `Inscrito como voluntario: ${e.name}`), lang }
+    )
+    return { subject: L(lang, `You're signed up to volunteer: ${e.name}`, `Inscrito como voluntario: ${e.name}`), html }
+  }
 
   const html = luxEmailLayout(
     `<h1>${L(lang, 'You\'re registered!', '¡Ya está inscrito!')}</h1>

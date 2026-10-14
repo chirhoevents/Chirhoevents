@@ -70,7 +70,7 @@ export default async function LuxRegisteredPage({ params, searchParams }: {
         ) : (
           <>
             <CheckCircle2 className="h-14 w-14 text-green-600 mx-auto" />
-            <h1 className="text-2xl font-bold text-[#1E3A5F] mt-4">{t.registered.done}</h1>
+            <h1 className="text-2xl font-bold text-[#1E3A5F] mt-4">{config.volunteer ? t.volunteer.done : t.registered.done}</h1>
             <p className="text-gray-600 mt-2">{t.registered.confirmationTo} <strong>{registration.email}</strong>.</p>
 
             <div className="text-left mt-6 rounded-xl bg-[#FAF8F3] p-5 space-y-2 text-sm">
@@ -78,7 +78,10 @@ export default async function LuxRegisteredPage({ params, searchParams }: {
               <p>{formatEventDate(event.startDate, {}, lang)}{timeRange ? ` · ${timeRange}` : ''}</p>
               {event.locationName && <p>{event.locationName}</p>}
               <div className="border-t border-[#E8E2D4] pt-2 mt-2">
-                {lines.map((l, i) => (
+                {config.volunteer && <p className="font-medium text-gray-700">{t.volunteer.yourShifts}</p>}
+                {lines.map((l, i) => config.volunteer ? (
+                  <p key={i}>{l.name}</p>
+                ) : (
                   <p key={i} className="flex justify-between"><span>{l.quantity}× {l.name}</span><span>{Number(l.amount) > 0 ? formatMoney(Number(l.amount)) : t.common.free}</span></p>
                 ))}
                 {total > 0 && <p className="flex justify-between font-semibold mt-1"><span>{t.common.total}</span><span>{formatMoney(total)}</span></p>}

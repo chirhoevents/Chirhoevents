@@ -40,6 +40,29 @@ async function main() {
     !calculateSimpleEventTotal(options, [{ optionId: 'a', quantity: -1 }], 5).ok &&
     !calculateSimpleEventTotal(options, [{ optionId: 'a', quantity: 1.5 }], 5).ok)
 
+  section('Volunteer shifts')
+  const shifts = [
+    { id: 's1', name: 'Setup', price: 0, remaining: 2, isActive: true },
+    { id: 's2', name: 'Kitchen', price: 0, remaining: 0, isActive: true },
+    { id: 's3', name: 'Clean-up', price: 0, remaining: null, isActive: true },
+  ]
+  check('volunteer picks two shifts', (() => {
+    const v = calculateSimpleEventTotal(shifts, [{ optionId: 's1', quantity: 1 }, { optionId: 's3', quantity: 1 }], 3, { volunteer: true })
+    return v.ok && v.quantity === 2 && v.total === 0
+  })())
+  check('one spot per shift per person',
+    !calculateSimpleEventTotal(shifts, [{ optionId: 's1', quantity: 2 }], 3, { volunteer: true }).ok &&
+    !calculateSimpleEventTotal(shifts, [{ optionId: 's3', quantity: 1 }, { optionId: 's3', quantity: 1 }], 3, { volunteer: true }).ok)
+  check('a full shift says it is full', (() => {
+    const v = calculateSimpleEventTotal(shifts, [{ optionId: 's2', quantity: 1 }], 3, { volunteer: true })
+    return !v.ok && /Kitchen is full/.test(v.error)
+  })())
+  check('most shifts per person', (() => {
+    const v = calculateSimpleEventTotal(shifts, [{ optionId: 's1', quantity: 1 }, { optionId: 's3', quantity: 1 }], 1, { volunteer: true })
+    return !v.ok && /up to 1 shift\b/.test(v.error)
+  })())
+  check('volunteer flag defaults off', parseSimpleEventConfig({}).volunteer === false && parseSimpleEventConfig({ volunteer: true }).volunteer === true)
+
   // ------------------------------------------------------------------
   section('Open / closed')
   const base = {
@@ -234,6 +257,50 @@ async function main() {
     const fullCount = await (await import('../../src/lib/event-usage')).countEventsUsedInCurrentPeriod(org.id, org.createdAt)
     check('simple events don’t count against the full-event limit', fullCount === 0, fullCount)
     check('parseSimpleEventConfig fills defaults', parseSimpleEventConfig(null).maxPerRegistration === 10)
+
+    // ------------------------------------------------------------------
+    section('Volunteer sign-ups')
+    const volInput = validateSimpleEventInput({
+      title: 'Fish Fry Volunteers',
+      startDate: futureDay(12),
+      tickets: [
+        { name: 'Setup', price: 15, capacity: 2 },
+        { name: 'Kitchen', price: 0, capacity: null },
+      ],
+      config: { volunteer: true, maxPerRegistration: 2, onlinePayment: true, officePayment: { enabled: true } },
+    })
+    check('volunteer input is accepted', volInput.ok, !volInput.ok && volInput.error)
+    if (!volInput.ok) throw new Error('volunteer input invalid')
+    check('volunteer shifts are always free and payment is off',
+      volInput.value.tickets.every(t => t.price === 0) && !volInput.value.config.onlinePayment && !volInput.value.config.officePayment.enabled)
+    const volEvent = await createSimpleEvent({ organizationId: org.id, userId: user.id, input: volInput.value, hasRapha: false })
+    await prisma.event.update({ where: { id: volEvent.id }, data: { status: 'registration_open', isPublished: true } })
+    const volOptions = await prisma.eventTicketOption.findMany({ where: { eventId: volEvent.id } })
+    const setup = volOptions.find(o => o.name === 'Setup')!
+    const kitchen = volOptions.find(o => o.name === 'Kitchen')!
+    const volCall = async (body: unknown) => {
+      const res = await register(jsonRequest(`http://x/${volEvent.slug}`, body), { params: Promise.resolve({ slug: volEvent.slug }) })
+      return { status: res.status, data: await res.json() }
+    }
+    const helper = { firstName: 'Tom', lastName: 'Reyes', email: 'tom@example.com', phone: '555-0101' }
+    let v = await volCall({ ...helper, tickets: [{ optionId: setup.id, quantity: 2 }] })
+    check('can’t take two spots in one shift', v.status === 400, v.data)
+    v = await volCall({ ...helper, tickets: [{ optionId: setup.id, quantity: 1 }, { optionId: kitchen.id, quantity: 1 }] })
+    const volReg = v.data.registrationId ? await prisma.individualRegistration.findUnique({ where: { id: v.data.registrationId } }) : null
+    check('signs up for two shifts, free and complete', v.status === 200 && volReg?.registrationStatus === 'complete' && volReg.ticketQuantity === 2, v.data)
+    const volEmail = v.data.registrationId ? await prisma.emailLog.findFirst({ where: { registrationId: v.data.registrationId } }) : null
+    check('volunteer confirmation email', !!volEmail && /signed up to volunteer/.test(volEmail.subject ?? ''), volEmail?.subject)
+    await volCall({ ...helper, firstName: 'Ana', email: 'ana@example.com', tickets: [{ optionId: setup.id, quantity: 1 }] })
+    v = await volCall({ ...helper, firstName: 'Late', email: 'late@example.com', tickets: [{ optionId: setup.id, quantity: 1 }] })
+    check('a full shift can’t be picked', v.status === 400 && /Setup is full/.test(v.data.error), v.data)
+
+    const toTicketed = validateSimpleEventInput({
+      ...volInput.value,
+      tickets: volInput.value.tickets.map(t => ({ ...t, id: t.name === 'Setup' ? setup.id : kitchen.id })),
+      config: { ...volInput.value.config, volunteer: false },
+    })
+    const switched = toTicketed.ok ? await updateSimpleEvent({ organizationId: org.id, eventId: volEvent.id, input: toTicketed.value, hasRapha: false }) : null
+    check('can’t switch out of volunteer mode once people signed up', !!switched && !switched.ok, switched)
   } finally {
     await deleteOrg(prisma, org.id)
     await prisma.$disconnect()

@@ -114,6 +114,7 @@ export default function FeaturesPage() {
                         <li>• Ticket types, limits and custom questions</li>
                         <li>• Free events, card payments or pay at the office</li>
                         <li>• Optional waiver and allergy questions</li>
+                        <li>• Volunteer sign-ups: list shifts or roles and how many people each needs, and see a roster for every shift</li>
                         <li>• Your own parish page with your photo, welcome and colors, plus a button for your website</li>
                         <li>• Confirmations and receipts from Lux, with replies going to your office</li>
                         <li>• Need group registration or housing? Move to the Cathedral plan and convert it to a full event</li>

@@ -19,6 +19,7 @@ interface EventRow {
   capacityTotal: number | null
   amountPaid: number
   amountOutstanding: number
+  volunteer: boolean
 }
 
 interface ProgramRow {
@@ -99,9 +100,12 @@ export default function ProgramsAndEventsPage() {
       </Card>
 
       <Card title={<span className="flex items-center gap-2"><CalendarHeart className="h-5 w-5 text-[#C8A24A]" /> Events &amp; sign-ups</span>}
-        actions={info.canManage && <Button variant="secondary" href="/dashboard/lux/events/new">New event</Button>}>
+        actions={info.canManage && <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" href="/dashboard/lux/events/new?type=volunteer">New volunteer sign-up</Button>
+          <Button variant="secondary" href="/dashboard/lux/events/new">New event</Button>
+        </div>}>
         {events.length === 0 ? (
-          <EmptyState title="No events yet" description="Fish fry, Bible study, retreat or picnic: a sign-up page in a couple of minutes."
+          <EmptyState title="No events yet" description="Fish fry, Bible study, retreat, picnic or a volunteer sign-up: a page in a couple of minutes."
             action={info.canManage && <Button href="/dashboard/lux/events/new">Set up an event</Button>} />
         ) : (
           <div className="space-y-4">
@@ -115,11 +119,18 @@ export default function ProgramsAndEventsPage() {
                         <p className="text-xs text-gray-500">{formatShortDate(e.startDate).split(',')[0]}</p>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-[#1E3A5F] truncate">{e.name}</p>
-                        <p className="text-xs text-gray-500">{e.registrations} registration{e.registrations === 1 ? '' : 's'} · {e.ticketsSold}{e.capacityTotal ? ` / ${e.capacityTotal}` : ''} people</p>
+                        <p className="font-medium text-[#1E3A5F] truncate">
+                          {e.name}
+                          {e.volunteer && <span className="ml-2 align-middle"><Badge tone="blue">Volunteers</Badge></span>}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {e.volunteer
+                            ? `${e.registrations} volunteer${e.registrations === 1 ? '' : 's'} · ${e.ticketsSold}${e.capacityTotal ? ` / ${e.capacityTotal}` : ''} shift spots filled`
+                            : `${e.registrations} registration${e.registrations === 1 ? '' : 's'} · ${e.ticketsSold}${e.capacityTotal ? ` / ${e.capacityTotal}` : ''} people`}
+                        </p>
                       </div>
                       <div className="hidden md:block text-right text-sm w-32">
-                        <p className="text-gray-800">{formatMoney(e.amountPaid)}</p>
+                        {!e.volunteer && <p className="text-gray-800">{formatMoney(e.amountPaid)}</p>}
                         {e.amountOutstanding > 0 && <p className="text-xs text-amber-700">{formatMoney(e.amountOutstanding)} owed</p>}
                       </div>
                       <div className="w-24 text-right"><Badge tone={EVENT_TONE[e.liveStatus]}>{SIMPLE_EVENT_STATUS_LABELS[e.liveStatus]}</Badge></div>

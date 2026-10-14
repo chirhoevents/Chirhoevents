@@ -68,12 +68,13 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'This parish is not taking registrations right now.' }, { status: 400 })
     }
 
+    const config = parseSimpleEventConfig(event.luxConfig)
     const status = getSimpleEventStatus(event)
     if (status !== 'open') {
       const messages: Record<string, string> = {
         draft: 'This event isn’t open for registration yet.',
         not_yet_open: 'Registration hasn’t opened yet.',
-        full: 'Sorry, this event is full.',
+        full: config.volunteer ? 'Thank you! Every volunteer spot is already filled.' : 'Sorry, this event is full.',
         closed: 'Registration for this event is closed.',
         ended: 'This event has already happened.',
       }
@@ -88,8 +89,6 @@ export async function POST(request: NextRequest, { params }: Params) {
         return NextResponse.json({ alreadyPaid: true, registrationId: body.previousRegistrationId })
       }
     }
-
-    const config = parseSimpleEventConfig(event.luxConfig)
 
     // --- Who's registering -------------------------------------------------
     const firstName = clean(body.firstName, 100)
@@ -145,7 +144,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     const priced = calculateSimpleEventTotal(
       event.ticketOptions.map(o => ({ id: o.id, name: o.name, price: Number(o.price), remaining: o.remaining, isActive: o.isActive })),
       Array.isArray(body.tickets) ? body.tickets : [],
-      config.maxPerRegistration
+      config.maxPerRegistration,
+      { volunteer: config.volunteer }
     )
     if (!priced.ok) return NextResponse.json({ error: priced.error }, { status: 400 })
     const { lines, quantity, total } = priced
@@ -177,7 +177,9 @@ export async function POST(request: NextRequest, { params }: Params) {
         WHERE id = ${event.id}::uuid AND capacity_remaining >= ${quantity}
       `
       if (taken === 0) {
-        return NextResponse.json({ error: 'Sorry, there aren’t enough spots left for that many tickets.' }, { status: 409 })
+        return NextResponse.json({
+          error: config.volunteer ? 'Sorry, there aren’t enough volunteer spots left for that many shifts.' : 'Sorry, there aren’t enough spots left for that many tickets.',
+        }, { status: 409 })
       }
       rollback.push(() => prisma.$executeRaw`
         UPDATE events SET capacity_remaining = LEAST(capacity_total, capacity_remaining + ${quantity})
@@ -193,7 +195,9 @@ export async function POST(request: NextRequest, { params }: Params) {
       `
       if (taken === 0) {
         await runRollback()
-        return NextResponse.json({ error: `Sorry, ${line.name} tickets just sold out.` }, { status: 409 })
+        return NextResponse.json({
+          error: config.volunteer ? `Sorry, ${line.name} just filled up.` : `Sorry, ${line.name} tickets just sold out.`,
+        }, { status: 409 })
       }
       rollback.push(() => releaseTicketOptionCapacity([{ optionId: line.optionId, quantity: line.quantity }]))
     }
@@ -325,6 +329,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       event: eventForEmail,
       lines,
       total,
+      volunteer: config.volunteer,
       payment: method === 'free' ? 'free' : 'office',
       officeInstructions: config.officePayment.instructions,
       confirmationMessage: config.confirmationMessage,
