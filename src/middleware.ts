@@ -10,6 +10,7 @@ const RATE_LIMIT_RULES: Array<{ pattern: RegExp; configKey: keyof typeof RATE_LI
   { pattern: /^\/api\/admin\/virtual-terminal\//, configKey: 'payment' },
   { pattern: /^\/api\/invoices\//, configKey: 'payment' },
   { pattern: /^\/api\/events\//, configKey: 'publicLookup' },
+  { pattern: /^\/api\/survey\//, configKey: 'publicLookup' },
   { pattern: /^\/api\/auth\//, configKey: 'auth' },
   { pattern: /^\/sign-in/, configKey: 'auth' },
   { pattern: /^\/sign-up/, configKey: 'auth' },
@@ -41,6 +42,7 @@ const isPublicRoute = createRouteMatcher([
   '/cookies(.*)',
   '/invite(.*)',
   '/pay(.*)',  // Public invoice payment pages
+  '/survey(.*)',  // Survey links - anonymous, the token in the link is the access check
   '/portal(.*)',  // All portal routes (salve, rapha, youth-group) - they handle their own auth
   '/vendor-dashboard(.*)',  // Vendor dashboard - uses access code auth
   '/dashboard(.*)',  // All dashboard routes - they handle their own auth
@@ -59,6 +61,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/vendor(.*)',  // Vendor portal APIs - use access code auth
   '/api/webhooks(.*)',
   '/api/events(.*)',
+  '/api/survey(.*)',  // Survey load/submit - anonymous, checks the link token itself
   '/api/invites(.*)',
   '/api/invoices(.*)',  // Public invoice APIs for payment page
   '/api/stripe(.*)',  // Stripe APIs - handle their own auth
