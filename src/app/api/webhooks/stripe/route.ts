@@ -13,6 +13,7 @@ import { ticketLines } from '@/lib/lux/registrations'
 import { sendLuxEmail, simpleEventConfirmationEmail } from '@/lib/lux/email'
 import { handleLuxOrderCheckoutCompleted, handleLuxOrderCheckoutExpired } from '@/lib/lux/order-payments'
 import { abandonUnpaidCheckout } from '@/lib/abandoned-checkout'
+import { recordVendorPayment } from '@/lib/vendor-payments'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -73,6 +74,34 @@ export async function POST(request: NextRequest) {
   }
 
   console.log('✅ Webhook signature verified, event type:', event.type)
+
+  // Vendor booth payments (Mount 2000 collects these on the platform account,
+  // other events on the org's connected account — same handling either way)
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session
+    if (session.metadata?.type === 'vendor_payment') {
+      const vendorId = session.metadata.vendorId
+      if (vendorId && session.payment_status === 'paid' && session.payment_intent) {
+        try {
+          await recordVendorPayment(
+            vendorId,
+            session.payment_intent as string,
+            (session.amount_total || 0) / 100
+          )
+          console.log('✅ Vendor payment recorded:', vendorId)
+        } catch (error) {
+          console.error('❌ Error recording vendor payment:', error)
+          return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
+        }
+      }
+      return NextResponse.json({ received: true })
+    }
+  }
+  if (event.type === 'payment_intent.succeeded' &&
+      (event.data.object as Stripe.PaymentIntent).metadata?.type === 'vendor_payment') {
+    // Recorded via checkout.session.completed above
+    return NextResponse.json({ received: true })
+  }
 
   // Handle Platform Invoice Payments (checkout.session.completed with platform_invoice type)
   if (event.type === 'checkout.session.completed') {
