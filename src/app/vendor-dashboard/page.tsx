@@ -82,6 +82,8 @@ function VendorPortalContent() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [deletingLogo, setDeletingLogo] = useState(false)
   const [hasFetched, setHasFetched] = useState(false)
+  const [paying, setPaying] = useState(false)
+  const [paymentMessage, setPaymentMessage] = useState<string | null>(null)
 
   useEffect(() => {
     // Prevent double-fetching
@@ -96,6 +98,25 @@ function VendorPortalContent() {
 
       try {
         setHasFetched(true)
+
+        // Returning from Stripe Checkout — record the payment before loading
+        const paymentResult = searchParams.get('payment')
+        const sessionId = searchParams.get('session_id')
+        if (paymentResult === 'success' && sessionId) {
+          const confirmResponse = await fetch('/api/vendor/payment', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessCode, sessionId }),
+          })
+          setPaymentMessage(
+            confirmResponse.ok
+              ? 'Payment received — thank you!'
+              : 'Your payment is processing. Refresh in a moment to see your updated balance.'
+          )
+        } else if (paymentResult === 'cancelled') {
+          setPaymentMessage('Payment was cancelled. You have not been charged.')
+        }
+
         const response = await fetch(`/api/vendor/portal?code=${accessCode}`)
         if (!response.ok) {
           const data = await response.json()
@@ -114,7 +135,28 @@ function VendorPortalContent() {
     }
 
     fetchVendorData()
-  }, [accessCode, hasFetched])
+  }, [accessCode, hasFetched, searchParams])
+
+  const handlePayNow = async () => {
+    if (!accessCode) return
+    setPaying(true)
+    setPaymentMessage(null)
+    try {
+      const response = await fetch('/api/vendor/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessCode }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || 'Failed to start payment')
+      }
+      window.location.href = data.url
+    } catch (err) {
+      setPaymentMessage(err instanceof Error ? err.message : 'Failed to start payment')
+      setPaying(false)
+    }
+  }
 
   const copyVendorCode = () => {
     if (vendor) {
@@ -560,9 +602,21 @@ function VendorPortalContent() {
                       </span>
                     </div>
 
-                    {vendor.paymentStatus !== 'paid' && (
-                      <Button className="w-full bg-[#9C8466] hover:bg-[#8B7355] text-white">
-                        <CreditCard className="h-4 w-4 mr-2" />
+                    {paymentMessage && (
+                      <p className="text-sm text-center text-[#1E3A5F]">{paymentMessage}</p>
+                    )}
+
+                    {vendor.paymentStatus !== 'paid' && vendor.balance > 0 && (
+                      <Button
+                        className="w-full bg-[#9C8466] hover:bg-[#8B7355] text-white"
+                        onClick={handlePayNow}
+                        disabled={paying}
+                      >
+                        {paying ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <CreditCard className="h-4 w-4 mr-2" />
+                        )}
                         Pay Now
                       </Button>
                     )}
