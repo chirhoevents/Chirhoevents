@@ -300,6 +300,7 @@ export default function LandingPage() {
                   <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Tickets, limits and a few custom questions</li>
                   <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Pay online, pay at the office, or free</li>
                   <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Optional waiver and allergy questions</li>
+                  <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> Volunteer sign-ups by shift, with a roster for each shift</li>
                   <li className="flex gap-2"><Check className="h-5 w-5 text-gold shrink-0" /> 5 events a year on Chapel, 10 on Parish</li>
                 </ul>
               </CardContent>
@@ -724,6 +725,15 @@ export default function LandingPage() {
                 </AccordionTrigger>
                 <AccordionContent className="text-gray-600">
                   Yes. Parents register every child on one form, even in different programs. You set the tuition, extra fees like books, a sibling discount (an amount or a percent) and a family maximum, and Lux works out each family&apos;s total. Families can pay online, pay at the office, or quietly ask for fee assistance.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="lux-volunteers">
+                <AccordionTrigger className="text-left text-lg font-semibold text-navy">
+                  Can Lux handle volunteer sign-ups?
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600">
+                  Yes. Choose <strong>A volunteer sign-up</strong>, list the shifts or jobs you need help with (setup, kitchen, clean-up) and how many people each one needs. Volunteers check the shifts they can do, full shifts close on their own, and you see who&apos;s in every shift with their phone number. It&apos;s always free for volunteers. <a href="/docs?section=lux-volunteers" className="text-navy underline">Read the volunteer guide</a>.
                 </AccordionContent>
               </AccordionItem>
 

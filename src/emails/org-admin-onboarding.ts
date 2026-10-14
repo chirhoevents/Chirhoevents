@@ -325,6 +325,7 @@ export function generateOrgAdminOnboardingEmail({
         ['lux-programs', 'Faith Formation &amp; Sacrament Programs'],
         ['lux-fees', 'Tuition, Sibling Discounts &amp; Family Maximum'],
         ['lux-simple-events', 'Simple Events &amp; Sign-Ups'],
+        ['lux-volunteers', 'Volunteer Sign-Ups'],
       ])}
       ${docGroup('Running registration', [
         ['lux-documents', 'Baptismal Certificates &amp; Documents'],

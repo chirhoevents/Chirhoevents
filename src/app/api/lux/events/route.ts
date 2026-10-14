@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireLuxStaff } from '@/lib/lux/access'
 import { createSimpleEvent, validateSimpleEventInput } from '@/lib/lux/simple-event-server'
-import { getSimpleEventStatus } from '@/lib/lux/simple-event'
+import { getSimpleEventStatus, parseSimpleEventConfig } from '@/lib/lux/simple-event'
 
 /** GET /api/lux/events: the org's simple events with sign-up and payment totals */
 export async function GET(request: NextRequest) {
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       capacityRemaining: true,
       registrationOpenDate: true,
       registrationCloseDate: true,
+      luxConfig: true,
     },
   })
   const eventIds = events.map(e => e.id)
@@ -49,8 +50,9 @@ export async function GET(request: NextRequest) {
   const balByEvent = new Map(balances.map(b => [b.eventId, b]))
 
   return NextResponse.json({
-    events: events.map(e => ({
+    events: events.map(({ luxConfig, ...e }) => ({
       ...e,
+      volunteer: parseSimpleEventConfig(luxConfig).volunteer,
       liveStatus: getSimpleEventStatus(e),
       registrations: regByEvent.get(e.id)?._count._all ?? 0,
       ticketsSold: regByEvent.get(e.id)?._sum.ticketQuantity ?? 0,

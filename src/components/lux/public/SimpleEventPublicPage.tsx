@@ -46,10 +46,11 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
   const previousRegistrationId = cancelled && searchParams.r && UUID_RE.test(searchParams.r) ? searchParams.r : null
   const contactEmail = event.settings?.contactEmail || event.organization.contactEmail
   const contactPhone = event.settings?.contactPhone || event.organization.contactPhone
+  const tv = t.volunteer
 
   const closedMessages: Record<string, string> = {
     not_yet_open: event.registrationOpenDate ? t.event.opens(formatDateTime(event.registrationOpenDate, event.timezone, lang)) : t.event.opensSoon,
-    full: t.event.full,
+    full: config.volunteer ? tv.allFull : t.event.full,
     closed: t.event.closed,
     ended: t.event.ended,
   }
@@ -58,6 +59,9 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
     <LuxPublicShell organizationName={event.organization.name} logoUrl={event.organization.logoUrl} parishSlug={event.organization.publicSlug} accentColor={accentColor}>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         <div className="lg:col-span-2 space-y-5">
+          {config.volunteer && (
+            <p className="inline-flex rounded-full bg-[#F5F1E8] px-3 py-1 text-sm font-medium text-[#6B5B3E]">{tv.volunteerBadge}</p>
+          )}
           <h1 className="text-3xl font-bold text-[#1E3A5F]">{event.name}</h1>
           <div className="space-y-3 text-gray-700">
             <p className="flex items-start gap-3">
@@ -78,7 +82,7 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
             )}
             {event.capacityRemaining !== null && status === 'open' && event.capacityRemaining <= 20 && (
               <p className="flex items-start gap-3"><Users className="h-5 w-5 text-[#C8A24A] mt-0.5 shrink-0" />
-                <span className="font-medium text-amber-700">{t.event.spotsLeft(event.capacityRemaining)}</span></p>
+                <span className="font-medium text-amber-700">{config.volunteer ? tv.spotsLeft(event.capacityRemaining) : t.event.spotsLeft(event.capacityRemaining)}</span></p>
             )}
           </div>
           {config.language && t.event.taughtIn[config.language] && (
@@ -100,7 +104,7 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
 
         <div className="lg:col-span-3">
           <div className="bg-white rounded-2xl border border-[#E8E2D4] shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-[#1E3A5F] mb-4">{t.event.register}</h2>
+            <h2 className="text-xl font-semibold text-[#1E3A5F] mb-4">{config.volunteer ? tv.signUp : t.event.register}</h2>
             {cancelled && status === 'open' && (
               <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 {t.event.cancelled}
@@ -126,6 +130,7 @@ export default async function SimpleEventPublicPage({ eventId, searchParams }: {
                 officePayment={config.officePayment}
                 paymentsReady={!!event.organization.stripeAccountId && event.organization.stripeChargesEnabled}
                 previousRegistrationId={previousRegistrationId}
+                volunteer={config.volunteer}
                 lang={lang}
               />
             ) : (

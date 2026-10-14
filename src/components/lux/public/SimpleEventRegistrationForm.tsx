@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Minus, Plus, Loader2, CreditCard, Building2, ShieldCheck } from 'lucide-react'
+import { Minus, Plus, Loader2, CreditCard, Building2, ShieldCheck, Check } from 'lucide-react'
 import { formatMoney } from '@/lib/lux/format'
 import type { FieldMode } from '@/lib/lux/simple-event'
 import { dict, type LuxLang } from '@/lib/lux/i18n'
@@ -23,6 +23,8 @@ export interface SimpleEventRegistrationProps {
   officePayment: { enabled: boolean; instructions: string }
   paymentsReady: boolean
   previousRegistrationId: string | null
+  // Volunteer sign-up: tickets are shifts, picked with a checkbox (one spot each)
+  volunteer?: boolean
   lang?: LuxLang
 }
 
@@ -32,6 +34,8 @@ export default function SimpleEventRegistrationForm(props: SimpleEventRegistrati
   const lang = props.lang ?? 'en'
   const t = dict(lang)
   const te = t.event
+  const tv = t.volunteer
+  const volunteer = !!props.volunteer
   const [quantities, setQuantities] = useState<Record<string, number>>(
     () => (props.tickets.length === 1 ? { [props.tickets[0].id]: 1 } : {})
   )
@@ -58,6 +62,12 @@ export default function SimpleEventRegistrationForm(props: SimpleEventRegistrati
     setQuantities(q => ({ ...q, [ticket.id]: Math.max(0, Math.min(next, cap)) }))
   }
 
+  const toggleShift = (ticket: Ticket) => {
+    const picked = (quantities[ticket.id] || 0) > 0
+    if (!picked && (ticket.remaining === 0 || totalQuantity >= maxTotal)) return
+    setQuantities(q => ({ ...q, [ticket.id]: picked ? 0 : 1 }))
+  }
+
   const toggleMulti = (questionId: string, option: string) => {
     const current = (answers[questionId] || '').split(', ').filter(Boolean)
     const next = current.includes(option) ? current.filter(o => o !== option) : [...current, option]
@@ -68,7 +78,7 @@ export default function SimpleEventRegistrationForm(props: SimpleEventRegistrati
     e.preventDefault()
     setError(null)
     if (totalQuantity === 0) {
-      setError(te.chooseAtLeastOne)
+      setError(volunteer ? tv.chooseAtLeastOne : te.chooseAtLeastOne)
       return
     }
     setSubmitting(true)
@@ -111,45 +121,75 @@ export default function SimpleEventRegistrationForm(props: SimpleEventRegistrati
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      <section>
-        <h3 className="font-semibold text-[#1E3A5F] mb-3">{te.tickets}</h3>
-        <div className="space-y-2">
-          {props.tickets.map(tk => {
-            const qty = quantities[tk.id] || 0
-            const soldOut = tk.remaining === 0
-            return (
-              <div key={tk.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900">{tk.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {tk.price > 0 ? formatMoney(tk.price) : t.common.free}
-                    {tk.description ? ` · ${tk.description}` : ''}
-                    {soldOut ? ` · ${te.soldOut}` : tk.remaining !== null && tk.remaining <= 10 ? ` · ${te.left(tk.remaining)}` : ''}
-                  </p>
+      {volunteer ? (
+        <section>
+          <h3 className="font-semibold text-[#1E3A5F]">{tv.shifts}</h3>
+          {props.tickets.length > 1 && <p className="text-sm text-gray-500 mb-3">{tv.shiftsHint(Math.min(maxTotal, props.tickets.length))}</p>}
+          <div className={`space-y-2 ${props.tickets.length > 1 ? '' : 'mt-3'}`}>
+            {props.tickets.map(tk => {
+              const picked = (quantities[tk.id] || 0) > 0
+              const full = tk.remaining === 0
+              const disabled = !picked && (full || totalQuantity >= maxTotal)
+              return (
+                <label key={tk.id}
+                  className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${picked ? 'border-[#C8A24A] bg-[#FFFDF8]' : 'border-gray-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <input type="checkbox" className="sr-only peer" checked={picked} disabled={disabled} onChange={() => toggleShift(tk)} />
+                  <span className={`h-5 w-5 shrink-0 rounded border flex items-center justify-center peer-focus-visible:ring-2 peer-focus-visible:ring-[#C8A24A]/50 ${picked ? 'bg-[#1E3A5F] border-[#1E3A5F]' : 'border-gray-400 bg-white'}`}>
+                    {picked && <Check className="h-3.5 w-3.5 text-white" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium text-gray-900">{tk.name}</span>
+                    {tk.description && <span className="block text-sm text-gray-500">{tk.description}</span>}
+                  </span>
+                  <span className={`text-sm shrink-0 ${full ? 'text-gray-500' : 'text-gray-600'}`}>
+                    {full ? tv.full : tk.remaining !== null ? tv.spotsOpen(tk.remaining) : ''}
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+        </section>
+      ) : (
+        <section>
+          <h3 className="font-semibold text-[#1E3A5F] mb-3">{te.tickets}</h3>
+          <div className="space-y-2">
+            {props.tickets.map(tk => {
+              const qty = quantities[tk.id] || 0
+              const soldOut = tk.remaining === 0
+              return (
+                <div key={tk.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900">{tk.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {tk.price > 0 ? formatMoney(tk.price) : t.common.free}
+                      {tk.description ? ` · ${tk.description}` : ''}
+                      {soldOut ? ` · ${te.soldOut}` : tk.remaining !== null && tk.remaining <= 10 ? ` · ${te.left(tk.remaining)}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setQty(tk, qty - 1)} disabled={qty === 0}
+                      className="h-9 w-9 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30" aria-label={te.fewer(tk.name)}>
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <span className="w-6 text-center font-semibold" aria-live="polite">{qty}</span>
+                    <button type="button" onClick={() => setQty(tk, qty + 1)} disabled={soldOut || totalQuantity >= maxTotal}
+                      className="h-9 w-9 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30" aria-label={te.more(tk.name)}>
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setQty(tk, qty - 1)} disabled={qty === 0}
-                    className="h-9 w-9 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30" aria-label={te.fewer(tk.name)}>
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <span className="w-6 text-center font-semibold" aria-live="polite">{qty}</span>
-                  <button type="button" onClick={() => setQty(tk, qty + 1)} disabled={soldOut || totalQuantity >= maxTotal}
-                    className="h-9 w-9 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30" aria-label={te.more(tk.name)}>
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        {totalQuantity >= maxTotal && maxTotal > 0 && (
-          <p className="text-xs text-gray-500 mt-2">
-            {props.spotsLeft !== null && props.spotsLeft <= props.maxPerRegistration
-              ? `${te.spotsLeft(props.spotsLeft)}.`
-              : te.perRegistration(props.maxPerRegistration)}
-          </p>
-        )}
-      </section>
+              )
+            })}
+          </div>
+          {totalQuantity >= maxTotal && maxTotal > 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              {props.spotsLeft !== null && props.spotsLeft <= props.maxPerRegistration
+                ? `${te.spotsLeft(props.spotsLeft)}.`
+                : te.perRegistration(props.maxPerRegistration)}
+            </p>
+          )}
+        </section>
+      )}
 
       <section>
         <h3 className="font-semibold text-[#1E3A5F] mb-3">{te.yourInfo}</h3>
@@ -298,13 +338,19 @@ export default function SimpleEventRegistrationForm(props: SimpleEventRegistrati
 
       <div className="flex items-center justify-between gap-4 border-t border-gray-200 pt-4">
         <div>
-          <p className="text-sm text-gray-500">{te.ticketsCount(totalQuantity)}</p>
-          <p className="text-xl font-semibold text-[#1E3A5F]">{totalQuantity === 0 ? te.chooseTickets : total > 0 ? formatMoney(total) : t.common.free}</p>
+          {volunteer ? (
+            <p className="text-lg font-semibold text-[#1E3A5F]">{totalQuantity === 0 ? tv.chooseShift : tv.shiftsCount(totalQuantity)}</p>
+          ) : (
+            <>
+              <p className="text-sm text-gray-500">{te.ticketsCount(totalQuantity)}</p>
+              <p className="text-xl font-semibold text-[#1E3A5F]">{totalQuantity === 0 ? te.chooseTickets : total > 0 ? formatMoney(total) : t.common.free}</p>
+            </>
+          )}
         </div>
         <button type="submit" disabled={submitting || totalQuantity === 0}
           className="inline-flex items-center gap-2 rounded-lg bg-[#1E3A5F] px-6 py-3 text-white font-medium hover:bg-[#162C48] disabled:bg-gray-300">
           {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {total > 0 && paymentMethod === 'card' && canPayOnline ? te.continueToPayment : te.register}
+          {total > 0 && paymentMethod === 'card' && canPayOnline ? te.continueToPayment : volunteer ? tv.submit : te.register}
         </button>
       </div>
     </form>
