@@ -4,6 +4,20 @@ import { verifyFormsViewAccess } from '@/lib/api-auth'
 import { liabilityFormNeedsApproval } from '@/lib/liability-form-approval'
 import { getEventChaperoneRatio } from '@/lib/chaperone-ratio'
 import { countsAsChaperone, getClergyRoleLabel, getRatioGender } from '@/lib/clergy-roles'
+import { secureFileLink } from '@/lib/r2/private-files'
+
+// Safe Environment certificate fields shown alongside each form so admins can
+// see whether one was submitted before approving.
+const certificateSelect = {
+  id: true,
+  status: true,
+  programName: true,
+  completionDate: true,
+  expirationDate: true,
+  fileUrl: true,
+  originalFilename: true,
+  uploadedAt: true,
+} as const
 
 export async function GET(
   request: NextRequest,
@@ -56,7 +70,15 @@ export async function GET(
                 id: true,
                 firstName: true,
                 lastName: true,
+                safeEnvironmentCertificates: {
+                  select: certificateSelect,
+                  orderBy: { uploadedAt: 'desc' },
+                },
               },
+            },
+            safeEnvironmentCertificates: {
+              select: certificateSelect,
+              orderBy: { uploadedAt: 'desc' },
             },
           },
           orderBy: [{ formStatus: 'asc' }, { participantLastName: 'asc' }],
@@ -159,32 +181,67 @@ export async function GET(
         chaperoneRatio,
         chaperoneCount: group.chaperoneCount,
         chaperoneSubmittedCount,
-        participants: [...allCompletedForms, ...pendingParentForms].map((form: GroupResult['liabilityForms'][number]) => ({
-          id: form.participant?.id || form.id,
-          firstName: form.participantFirstName,
-          lastName: form.participantLastName,
-          age: form.participantAge,
-          gender: getRatioGender(form.participantType, form.clergyTitle, form.participantGender),
-          participantType: form.participantType,
-          clergyRoleLabel: getClergyRoleLabel(form.participantType, form.clergyTitle),
-          formStatus: form.completed ? form.formStatus : 'pending_parent',
-          formId: form.id,
-          parentEmail: form.parentEmail,
-          pdfUrl: form.pdfUrl,
-          allergies: form.allergies,
-          medications: form.medications,
-          medicalConditions: form.medicalConditions,
-          dietaryRestrictions: form.dietaryRestrictions,
-          tShirtSize: form.tShirtSize,
-          emergencyContact1Name: form.emergencyContact1Name,
-          emergencyContact1Phone: form.emergencyContact1Phone,
-          completedAt: form.completedAt?.toISOString() || null,
-          approvedAt: form.approvedAt?.toISOString() || null,
-          approvedByName: form.approvedBy
-            ? `${form.approvedBy.firstName} ${form.approvedBy.lastName}`
-            : null,
-          deniedReason: form.deniedReason,
-        })),
+        participants: [...allCompletedForms, ...pendingParentForms].map((form: GroupResult['liabilityForms'][number]) => {
+          // Certificates may be linked to the participant, the form, or both —
+          // merge and de-dupe, newest first.
+          const certMap = new Map<string, typeof form.safeEnvironmentCertificates[number]>()
+          for (const c of [...(form.participant?.safeEnvironmentCertificates || []), ...form.safeEnvironmentCertificates]) {
+            certMap.set(c.id, c)
+          }
+          const certificates = [...certMap.values()]
+            .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())
+            .map((c) => ({
+              id: c.id,
+              status: c.status,
+              programName: c.programName,
+              completionDate: c.completionDate?.toISOString() || null,
+              expirationDate: c.expirationDate?.toISOString() || null,
+              fileUrl: secureFileLink('safe-env-cert', c.id, c.fileUrl),
+              originalFilename: c.originalFilename,
+              uploadedAt: c.uploadedAt.toISOString(),
+            }))
+          return {
+            id: form.participant?.id || form.id,
+            firstName: form.participantFirstName,
+            lastName: form.participantLastName,
+            age: form.participantAge,
+            gender: getRatioGender(form.participantType, form.clergyTitle, form.participantGender),
+            participantType: form.participantType,
+            clergyRoleLabel: getClergyRoleLabel(form.participantType, form.clergyTitle),
+            formStatus: form.completed ? form.formStatus : 'pending_parent',
+            formId: form.id,
+            parentEmail: form.parentEmail,
+            pdfUrl: form.pdfUrl,
+            allergies: form.allergies,
+            medications: form.medications,
+            medicalConditions: form.medicalConditions,
+            dietaryRestrictions: form.dietaryRestrictions,
+            tShirtSize: form.tShirtSize,
+            emergencyContact1Name: form.emergencyContact1Name,
+            emergencyContact1Phone: form.emergencyContact1Phone,
+            emergencyContact1Relation: form.emergencyContact1Relation,
+            emergencyContact2Name: form.emergencyContact2Name,
+            emergencyContact2Phone: form.emergencyContact2Phone,
+            emergencyContact2Relation: form.emergencyContact2Relation,
+            participantEmail: form.participantEmail,
+            participantPhone: form.participantPhone,
+            dateOfBirth: form.dateOfBirth?.toISOString() || null,
+            adaAccommodations: form.adaAccommodations,
+            insuranceProvider: form.insuranceProvider,
+            insurancePolicyNumber: form.insurancePolicyNumber,
+            insuranceGroupNumber: form.insuranceGroupNumber,
+            dioceseOfIncardination: form.dioceseOfIncardination,
+            currentAssignment: form.currentAssignment,
+            completedByEmail: form.completedByEmail,
+            certificates,
+            completedAt: form.completedAt?.toISOString() || null,
+            approvedAt: form.approvedAt?.toISOString() || null,
+            approvedByName: form.approvedBy
+              ? `${form.approvedBy.firstName} ${form.approvedBy.lastName}`
+              : null,
+            deniedReason: form.deniedReason,
+          }
+        }),
       }
     })
 

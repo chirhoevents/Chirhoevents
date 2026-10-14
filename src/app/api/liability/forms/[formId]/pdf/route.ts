@@ -38,12 +38,13 @@ export async function GET(
     // Convert Buffer to Uint8Array for Response
     const uint8Array = new Uint8Array(pdfBuffer)
 
-    // Return PDF as downloadable file
+    // Return PDF as a download, or inline (?inline=1) so it opens in the browser
+    const disposition = new URL(request.url).searchParams.get('inline') === '1' ? 'inline' : 'attachment'
     return new Response(uint8Array, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Disposition': `${disposition}; filename="${filename}"`,
         'Content-Length': pdfBuffer.length.toString(),
       },
     })

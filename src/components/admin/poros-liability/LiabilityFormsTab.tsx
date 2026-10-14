@@ -57,10 +57,43 @@ interface Participant {
   tShirtSize: string | null
   emergencyContact1Name: string | null
   emergencyContact1Phone: string | null
+  emergencyContact1Relation?: string | null
+  emergencyContact2Name?: string | null
+  emergencyContact2Phone?: string | null
+  emergencyContact2Relation?: string | null
+  participantEmail?: string | null
+  participantPhone?: string | null
+  dateOfBirth?: string | null
+  adaAccommodations?: string | null
+  insuranceProvider?: string | null
+  insurancePolicyNumber?: string | null
+  insuranceGroupNumber?: string | null
+  dioceseOfIncardination?: string | null
+  currentAssignment?: string | null
+  completedByEmail?: string | null
+  certificates?: ParticipantCertificate[]
   completedAt: string | null
   approvedAt: string | null
   approvedByName: string | null
   deniedReason: string | null
+}
+
+interface ParticipantCertificate {
+  id: string
+  status: 'pending' | 'verified' | 'rejected' | 'expired'
+  programName: string | null
+  completionDate: string | null
+  expirationDate: string | null
+  fileUrl: string | null
+  originalFilename: string | null
+  uploadedAt: string
+}
+
+const CERT_STATUS_STYLES: Record<ParticipantCertificate['status'], { label: string; className: string }> = {
+  verified: { label: 'Cert Verified', className: 'bg-green-50 border-green-200 text-green-700' },
+  pending: { label: 'Cert Needs Review', className: 'bg-yellow-50 border-yellow-200 text-yellow-700' },
+  rejected: { label: 'Cert Rejected', className: 'bg-red-50 border-red-200 text-red-700' },
+  expired: { label: 'Cert Expired', className: 'bg-red-50 border-red-200 text-red-700' },
 }
 
 interface Group {
@@ -1270,10 +1303,55 @@ function ParticipantRow({
     }
   }
 
+  async function handleCertificateDecision(cert: ParticipantCertificate, action: 'verify' | 'reject') {
+    let body: Record<string, string | null>
+    if (action === 'reject') {
+      const reason = prompt(`Enter reason for rejecting ${participant.firstName} ${participant.lastName}'s certificate:`)
+      if (!reason) return
+      body = { reason }
+    } else {
+      if (!confirm(`Mark ${participant.firstName} ${participant.lastName}'s Safe Environment certificate as verified?`)) return
+      body = { notes: null }
+    }
+
+    setProcessing(true)
+    try {
+      const token = await getToken()
+      const response = await fetch(
+        `/api/admin/events/${eventId}/poros-liability/certificates/${cert.id}/${action}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(body),
+        }
+      )
+
+      if (response.ok) {
+        onUpdate()
+      } else {
+        const error = await response.json().catch(() => ({}))
+        alert(`Failed to ${action} certificate: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error(`Certificate ${action} error:`, error)
+      alert(`Failed to ${action} certificate`)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   const hasMedicalInfo = hasAnyMedicalInfo(participant)
 
   // Youth (under 18) forms don't require admin approval
   const isYouth = !liabilityFormNeedsApproval(participant.participantType, participant.age)
+
+  const certificates = participant.certificates || []
+  const latestCert = certificates[0]
+  const formSubmitted = participant.formStatus !== 'pending_parent' && !!participant.completedAt
+  const showCertInfo = !isYouth && participant.formStatus !== 'pending_parent'
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -1333,6 +1411,27 @@ function ParticipantRow({
               </div>
             )}
 
+            {/* Safe Environment certificate status (adults only) */}
+            {showCertInfo && (
+              latestCert ? (
+                <div
+                  className={`px-2 py-1 border rounded text-xs flex items-center gap-1 ${CERT_STATUS_STYLES[latestCert.status].className}`}
+                  title="Safe Environment certificate status"
+                >
+                  <Shield className="w-3 h-3" />
+                  {CERT_STATUS_STYLES[latestCert.status].label}
+                </div>
+              ) : (
+                <div
+                  className="px-2 py-1 border rounded text-xs flex items-center gap-1 bg-gray-50 border-gray-200 text-gray-500"
+                  title="No Safe Environment certificate has been submitted"
+                >
+                  <Shield className="w-3 h-3" />
+                  No Cert
+                </div>
+              )
+            )}
+
             {/* Shirt Size */}
             {participant.tShirtSize && (
               <div className="text-xs text-gray-500">
@@ -1348,7 +1447,7 @@ function ParticipantRow({
             size="sm"
             variant="ghost"
             onClick={() => setShowDetails(!showDetails)}
-            title="View Details"
+            title="View submitted form & certificate"
           >
             <Eye className="w-4 h-4" />
           </Button>
@@ -1561,6 +1660,118 @@ function ParticipantRow({
       {/* Details Panel */}
       {showDetails && (
         <div className="p-4 bg-gray-50 border-t">
+          {/* Submitted Liability Form */}
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h4 className="font-medium text-blue-900 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Liability Form
+              </h4>
+              <p className="text-sm text-blue-700">
+                {formSubmitted
+                  ? `Submitted ${new Date(participant.completedAt!).toLocaleString()}${participant.completedByEmail ? ` by ${participant.completedByEmail}` : ''}`
+                  : participant.formStatus === 'pending_parent'
+                  ? 'Not submitted yet — waiting on parent to complete it'
+                  : 'Not submitted yet'}
+              </p>
+            </div>
+            {participant.formId && formSubmitted && (
+              <Button
+                size="sm"
+                className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
+                onClick={() => window.open(`/api/liability/forms/${participant.formId}/pdf?inline=1`, '_blank')}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View Submitted Form
+              </Button>
+            )}
+          </div>
+
+          {/* Safe Environment Certificate (adults only) */}
+          {showCertInfo && (
+            <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <h4 className="font-medium text-purple-900 flex items-center gap-2 mb-2">
+                <Shield className="w-4 h-4" />
+                Safe Environment Certificate
+              </h4>
+              {certificates.length === 0 ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-purple-700">No certificate has been submitted yet.</p>
+                  {participant.formId && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs border-purple-300 text-purple-700 hover:bg-purple-100"
+                      onClick={() => setShowCertUpload(true)}
+                      disabled={processing}
+                    >
+                      <Shield className="w-4 h-4 mr-1" />
+                      Upload on their behalf
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {certificates.map((cert) => (
+                    <div
+                      key={cert.id}
+                      className="flex flex-wrap items-center justify-between gap-2 p-2 bg-white border border-purple-100 rounded"
+                    >
+                      <div className="text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 border rounded text-xs font-medium ${CERT_STATUS_STYLES[cert.status].className}`}>
+                            {cert.status.toUpperCase()}
+                          </span>
+                          <span className="font-medium">{cert.programName || cert.originalFilename || 'Certificate'}</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Uploaded {new Date(cert.uploadedAt).toLocaleDateString()}
+                          {cert.completionDate && <> | Completed {new Date(cert.completionDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}</>}
+                          {cert.expirationDate && <> | Expires {new Date(cert.expirationDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}</>}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {cert.fileUrl && (
+                          <Button
+                            size="sm"
+                            className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
+                            onClick={() => window.open(cert.fileUrl!, '_blank')}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View Certificate
+                          </Button>
+                        )}
+                        {cert.status === 'pending' && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => handleCertificateDecision(cert, 'verify')}
+                              disabled={processing}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Verify
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-300 text-red-600 hover:bg-red-50"
+                              onClick={() => handleCertificateDecision(cert, 'reject')}
+                              disabled={processing}
+                            >
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             {/* Medical Information */}
             {hasMedicalInfo && (
@@ -1607,9 +1818,64 @@ function ParticipantRow({
             </div>
             <div>
               <span className="text-gray-600">Emergency Contact:</span>
-              <p className="font-medium">{participant.emergencyContact1Name || 'Not provided'}</p>
+              <p className="font-medium">
+                {participant.emergencyContact1Name || 'Not provided'}
+                {participant.emergencyContact1Relation && (
+                  <span className="text-gray-500 font-normal"> ({participant.emergencyContact1Relation})</span>
+                )}
+              </p>
               <p className="text-xs text-gray-500">{participant.emergencyContact1Phone}</p>
             </div>
+            {participant.emergencyContact2Name && (
+              <div>
+                <span className="text-gray-600">Second Emergency Contact:</span>
+                <p className="font-medium">
+                  {participant.emergencyContact2Name}
+                  {participant.emergencyContact2Relation && (
+                    <span className="text-gray-500 font-normal"> ({participant.emergencyContact2Relation})</span>
+                  )}
+                </p>
+                <p className="text-xs text-gray-500">{participant.emergencyContact2Phone}</p>
+              </div>
+            )}
+            {(participant.participantEmail || participant.participantPhone) && (
+              <div>
+                <span className="text-gray-600">Contact:</span>
+                {participant.participantEmail && <p className="font-medium">{participant.participantEmail}</p>}
+                {participant.participantPhone && <p className="text-xs text-gray-500">{participant.participantPhone}</p>}
+              </div>
+            )}
+            {participant.dateOfBirth && (
+              <div>
+                <span className="text-gray-600">Date of Birth:</span>
+                <p className="font-medium">
+                  {new Date(participant.dateOfBirth).toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                </p>
+              </div>
+            )}
+            {participant.insuranceProvider && (
+              <div>
+                <span className="text-gray-600">Insurance:</span>
+                <p className="font-medium">{participant.insuranceProvider}</p>
+                <p className="text-xs text-gray-500">
+                  {participant.insurancePolicyNumber && <>Policy #{participant.insurancePolicyNumber}</>}
+                  {participant.insuranceGroupNumber && <> | Group #{participant.insuranceGroupNumber}</>}
+                </p>
+              </div>
+            )}
+            {participant.adaAccommodations && (
+              <div>
+                <span className="text-gray-600">ADA Accommodations:</span>
+                <p className="font-medium">{participant.adaAccommodations}</p>
+              </div>
+            )}
+            {(participant.dioceseOfIncardination || participant.currentAssignment) && (
+              <div>
+                <span className="text-gray-600">Diocese / Assignment:</span>
+                {participant.dioceseOfIncardination && <p className="font-medium">{participant.dioceseOfIncardination}</p>}
+                {participant.currentAssignment && <p className="text-xs text-gray-500">{participant.currentAssignment}</p>}
+              </div>
+            )}
             <div>
               <span className="text-gray-600">Submitted:</span>
               <p className="font-medium">
@@ -1645,6 +1911,36 @@ function ParticipantRow({
               </div>
             )}
           </div>
+
+          {/* Review decision, right where the form and certificate were checked */}
+          {!isYouth && participant.formStatus === 'pending' && (
+            <div className="mt-4 pt-3 border-t flex flex-wrap items-center justify-end gap-2">
+              {!latestCert && (
+                <span className="text-xs text-gray-500 mr-auto">
+                  Heads up: no Safe Environment certificate submitted yet.
+                </span>
+              )}
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleApprove}
+                disabled={processing}
+              >
+                <CheckCircle className="w-4 h-4 mr-1" />
+                Approve Form
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50"
+                onClick={handleDeny}
+                disabled={processing}
+              >
+                <XCircle className="w-4 h-4 mr-1" />
+                Deny Form
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
