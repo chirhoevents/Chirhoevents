@@ -212,7 +212,14 @@ export default function LiabilityFormsPage() {
 
   const handleBulkEmailReminders = async () => {
     try {
-      const pendingForms = forms.filter(f => f.formStatus === 'pending_parent' || f.formStatus === 'not_started')
+      // Skip the "pending-N" placeholder rows for empty slots — there's no one to email
+      const pendingForms = forms.filter(f =>
+        (f.formStatus === 'pending_parent' || f.formStatus === 'not_started') && !f.id.startsWith('pending-')
+      )
+      if (pendingForms.length === 0) {
+        alert('No pending forms with a parent to remind yet.')
+        return
+      }
       const response = await fetch('/api/group-leader/forms/bulk-email-reminders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -220,11 +227,15 @@ export default function LiabilityFormsPage() {
           participantIds: pendingForms.map(f => f.id)
         })
       })
+      const data = await response.json().catch(() => ({}))
       if (response.ok) {
-        alert(`Sent reminders to ${pendingForms.length} participants!`)
+        alert(`Sent reminders to ${data.count} parent${data.count === 1 ? '' : 's'}!${data.failed ? ` (${data.failed} failed)` : ''}`)
+      } else {
+        alert(`Failed to send reminders${data.error ? `: ${data.error}` : ''}`)
       }
     } catch (error) {
       console.error('Error sending bulk reminders:', error)
+      alert('Error sending reminders')
     }
   }
 
