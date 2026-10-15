@@ -306,7 +306,8 @@ export async function POST(request: NextRequest) {
                   <p style="margin: 5px 0;"><strong>Amount Paid:</strong> $${paymentAmount.toFixed(2)}</p>
                   <p style="margin: 5px 0;"><strong>Payment Method:</strong> ${paymentMethodLabel}</p>
                   ${referenceInfo ? `<p style="margin: 5px 0;"><strong>Reference:</strong> ${referenceInfo}</p>` : ''}
-                  <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date(paymentDate).toLocaleDateString()}</p>
+                  ${paymentMethod === 'check' && checkDate ? `<p style="margin: 5px 0;"><strong>Check Date:</strong> ${new Date(checkDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}</p>` : ''}
+                  <p style="margin: 5px 0;"><strong>${paymentMethod === 'check' ? 'Date Received' : 'Date'}:</strong> ${new Date(paymentDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}</p>
                 </div>
 
                 <div class="balance-box">

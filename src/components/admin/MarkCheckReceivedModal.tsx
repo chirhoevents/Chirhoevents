@@ -32,7 +32,7 @@ export default function MarkCheckReceivedModal({
   const [formData, setFormData] = useState({
     checkNumber: '',
     actualAmount: '',
-    dateReceived: new Date().toISOString().split('T')[0],
+    dateReceived: new Date().toLocaleDateString('en-CA'),
     depositAccount: '',
     depositDate: '',
     depositSlipNumber: '',
@@ -69,7 +69,7 @@ export default function MarkCheckReceivedModal({
         setFormData({
           checkNumber: '',
           actualAmount: '',
-          dateReceived: new Date().toISOString().split('T')[0],
+          dateReceived: new Date().toLocaleDateString('en-CA'),
           depositAccount: '',
           depositDate: '',
           depositSlipNumber: '',

@@ -32,7 +32,7 @@ export default function RecordCheckPaymentModal({
   const [formData, setFormData] = useState({
     amount: '',
     checkNumber: '',
-    dateReceived: new Date().toISOString().split('T')[0],
+    dateReceived: new Date().toLocaleDateString('en-CA'),
     paymentType: 'partial',
     paymentStatus: 'received',
     payerName: '',
@@ -91,7 +91,7 @@ export default function RecordCheckPaymentModal({
         setFormData({
           amount: '',
           checkNumber: '',
-          dateReceived: new Date().toISOString().split('T')[0],
+          dateReceived: new Date().toLocaleDateString('en-CA'),
           paymentType: 'partial',
           paymentStatus: 'received',
           payerName: '',
