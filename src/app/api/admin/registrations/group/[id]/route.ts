@@ -98,6 +98,7 @@ export async function GET(
           paymentMethod: p.paymentMethod,
           paymentStatus: p.paymentStatus,
           checkNumber: p.checkNumber,
+          checkDate: p.checkDate,
           checkReceivedDate: p.checkReceivedDate,
           notes: p.notes,
           createdAt: p.createdAt,

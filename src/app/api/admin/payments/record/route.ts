@@ -91,6 +91,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // paymentDate is a date-only YYYY-MM-DD. new Date() reads that as UTC
+    // midnight, which every US time zone displays as the day before. Anchor
+    // it at noon UTC so it lands on the chosen day from UTC-11 to UTC+11.
+    const processedAt = /^\d{4}-\d{2}-\d{2}$/.test(paymentDate)
+      ? new Date(`${paymentDate}T12:00:00Z`)
+      : providedDate
+
     // Get registration details for email (outside transaction)
     let registration: any = null
     let recipientEmail = ''
@@ -177,7 +184,7 @@ export async function POST(request: NextRequest) {
           paymentMethodDetails: paymentMethodDetails || null,
           transactionReference: transactionReference || null,
           notes: notes || null,
-          processedAt: new Date(paymentDate),
+          processedAt,
           processedByUserId: user.id,
         },
       })
@@ -306,7 +313,8 @@ export async function POST(request: NextRequest) {
                   <p style="margin: 5px 0;"><strong>Amount Paid:</strong> $${paymentAmount.toFixed(2)}</p>
                   <p style="margin: 5px 0;"><strong>Payment Method:</strong> ${paymentMethodLabel}</p>
                   ${referenceInfo ? `<p style="margin: 5px 0;"><strong>Reference:</strong> ${referenceInfo}</p>` : ''}
-                  <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date(paymentDate).toLocaleDateString()}</p>
+                  ${paymentMethod === 'check' && checkDate ? `<p style="margin: 5px 0;"><strong>Check Date:</strong> ${new Date(checkDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}</p>` : ''}
+                  <p style="margin: 5px 0;"><strong>${paymentMethod === 'check' ? 'Date Received' : 'Date'}:</strong> ${new Date(paymentDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}</p>
                 </div>
 
                 <div class="balance-box">

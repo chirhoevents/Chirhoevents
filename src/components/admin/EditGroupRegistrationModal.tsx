@@ -66,6 +66,7 @@ interface Payment {
   paymentMethod: 'card' | 'check' | 'cash' | 'bank_transfer'
   paymentStatus: string
   checkNumber?: string | null
+  checkDate?: string | null
   checkReceivedDate?: string | null
   notes?: string | null
   createdAt: string
@@ -1493,11 +1494,21 @@ export default function EditGroupRegistrationModal({
                               <span className="font-medium">{payment.checkNumber}</span>
                             </div>
                           )}
+                          {/* Date-only columns come back as UTC midnight; format in UTC so
+                              US time zones don't show the day before */}
+                          {payment.checkDate && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Check Date:</span>
+                              <span className="font-medium">
+                                {new Date(payment.checkDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                              </span>
+                            </div>
+                          )}
                           {payment.checkReceivedDate && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Received Date:</span>
                               <span className="font-medium">
-                                {new Date(payment.checkReceivedDate).toLocaleDateString()}
+                                {new Date(payment.checkReceivedDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}
                               </span>
                             </div>
                           )}

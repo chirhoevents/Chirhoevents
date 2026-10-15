@@ -36,7 +36,8 @@ export default function RecordAdditionalPaymentModal({
   const [paymentMethod, setPaymentMethod] = useState<'check' | 'card' | 'cash' | 'bank_transfer' | 'other'>('check')
   const [formData, setFormData] = useState({
     amount: '',
-    paymentDate: new Date().toISOString().split('T')[0],
+    // en-CA gives YYYY-MM-DD in the admin's own time zone (toISOString is UTC and rolls to tomorrow in US evenings)
+    paymentDate: new Date().toLocaleDateString('en-CA'),
 
     // Check fields
     checkNumber: '',
@@ -128,7 +129,7 @@ export default function RecordAdditionalPaymentModal({
         // Reset form
         setFormData({
           amount: '',
-          paymentDate: new Date().toISOString().split('T')[0],
+          paymentDate: new Date().toLocaleDateString('en-CA'),
           checkNumber: '',
           checkDate: '',
           cardLast4: '',

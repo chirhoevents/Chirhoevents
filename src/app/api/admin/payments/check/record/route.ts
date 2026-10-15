@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
                       ${paymentStatus === 'received' && dateReceived ? `
                         <div class="payment-detail">
                           <span class="label">Date Received:</span>
-                          <span class="value">${new Date(dateReceived).toLocaleDateString()}</span>
+                          <span class="value">${new Date(dateReceived).toLocaleDateString('en-US', { timeZone: 'UTC' })}</span>
                         </div>
                       ` : ''}
                       ${payerName ? `
