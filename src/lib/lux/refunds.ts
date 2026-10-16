@@ -3,6 +3,7 @@ import type { RefundReason } from '@prisma/client'
 import { prisma, prismaIncludingCancelled } from '@/lib/prisma'
 import { recalculateIndividualBalance } from '@/lib/lux/registrations'
 import { OrderActionError } from '@/lib/lux/order-staff-actions'
+import { stripeRefundErrorMessage } from '@/lib/stripe-refund-errors'
 
 /** What a refund needs from Stripe; swapped out in tests */
 export interface RefundStripe {
@@ -211,9 +212,9 @@ export async function refundLuxPayment(params: {
         console.error('[Lux refunds] Stripe refund failed', error)
         if (refunded > 0) {
           await settle(target)
-          throw new OrderActionError(`Stripe refunded ${refunded.toFixed(2)} but stopped there: ${(error as Error).message}`, 502)
+          throw new OrderActionError(`Stripe refunded ${refunded.toFixed(2)} but stopped there. ${stripeRefundErrorMessage(error)}`, 502)
         }
-        throw new OrderActionError(`Stripe couldn’t refund this card: ${(error as Error).message}`, 502)
+        throw new OrderActionError(stripeRefundErrorMessage(error), 502)
       }
       const duplicate = await prisma.refund.findFirst({ where: { stripeRefundId } })
       if (!duplicate) {

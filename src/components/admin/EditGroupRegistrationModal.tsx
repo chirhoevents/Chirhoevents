@@ -16,6 +16,7 @@ import {
   type EventPricing,
 } from '@/lib/registration-price-calculator'
 import RefundModal from './RefundModal'
+import { deriveBalance } from '@/lib/payment-balance-status'
 import MarkCheckReceivedModal from './MarkCheckReceivedModal'
 import RecordCheckPaymentModal from './RecordCheckPaymentModal'
 import RecordAdditionalPaymentModal from './RecordAdditionalPaymentModal'
@@ -540,6 +541,16 @@ export default function EditGroupRegistrationModal({
   const difference = newTotal - originalTotal
 
   if (!registration) return null
+
+  // Derive the badge from the amounts rather than trusting the stored status,
+  // which can go stale (e.g. a $0 total with $750 paid still saved as unpaid).
+  const balanceStatus = registration.paymentBalance
+    ? deriveBalance(
+        Number(registration.paymentBalance.totalAmountDue),
+        Number(registration.paymentBalance.amountPaid),
+        registration.paymentBalance.paymentStatus as Parameters<typeof deriveBalance>[2]
+      ).paymentStatus
+    : ''
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -1371,18 +1382,15 @@ export default function EditGroupRegistrationModal({
 
               <div className="mt-4 pt-4 border-t">
                 <Badge
-                  variant={
-                    registration.paymentBalance?.paymentStatus === 'paid_full'
-                      ? 'default'
-                      : 'destructive'
-                  }
+                  variant={balanceStatus === 'paid_full' ? 'default' : 'destructive'}
                 >
                   {({
                     paid_full: 'Paid in Full',
                     partial: 'Partially Paid',
                     overpaid: 'Overpaid',
                     refunded: 'Refunded',
-                  } as Record<string, string>)[registration.paymentBalance?.paymentStatus || ''] ||
+                    pending_check_payment: 'Awaiting Check',
+                  } as Record<string, string>)[balanceStatus] ||
                     'Balance Due'}
                 </Badge>
               </div>

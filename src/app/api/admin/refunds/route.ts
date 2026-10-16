@@ -8,6 +8,7 @@ import { canAccessOrganization } from '@/lib/auth-utils'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import { deriveBalance, refundReasonLabel } from '@/lib/payment-balance-status'
+import { stripeRefundErrorMessage } from '@/lib/stripe-refund-errors'
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -202,12 +203,15 @@ export async function POST(request: NextRequest) {
       } catch (stripeError) {
         console.error('Stripe refund error:', stripeError)
         refundStatus = 'failed'
+        // Stripe rejecting the request (e.g. not enough available balance on
+        // the connected account) is a 4xx the admin can act on, not a 500.
+        const statusCode = (stripeError as { statusCode?: number })?.statusCode
         return NextResponse.json(
           {
-            error: 'Failed to process Stripe refund',
+            error: stripeRefundErrorMessage(stripeError),
             details: stripeError instanceof Error ? stripeError.message : 'Unknown error',
           },
-          { status: 500 }
+          { status: statusCode && statusCode >= 400 && statusCode < 500 ? 400 : 502 }
         )
       }
     } else {
