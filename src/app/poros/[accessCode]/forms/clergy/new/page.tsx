@@ -480,14 +480,20 @@ export default function ClergyForm() {
               ))}
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Preferred Name</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Name for Name Tag / Religious Name
+                </label>
                 <input
                   type="text"
                   value={basicData.preferredName}
                   onChange={(e) => setBasicData((p) => ({ ...p, preferredName: e.target.value }))}
-                  placeholder="e.g., Father John"
+                  placeholder="e.g., Sister Mary Agnes or Father John"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Printed on your name tag exactly as entered, in place of your legal name. Your legal
+                  name above is only used for this form and medical records.
+                </p>
               </div>
 
               <div>

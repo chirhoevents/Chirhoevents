@@ -415,8 +415,8 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string, show
       <div style="flex:1;display:flex;flex-direction:column;padding:16px 20px;text-align:center;">
         <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;">
           ${t.showName ? `
-            <div style="font-size:${fitFontSize(tag.firstName, 48, 22, 8)};font-weight:bold;line-height:1.1;margin-bottom:4px;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)}</div>
-            <div style="font-size:${fitFontSize(tag.lastName, 40, 20, 9)};font-weight:bold;line-height:1.1;margin-bottom:12px;word-break:break-word;max-width:100%;">${escapeHtml(tag.lastName)}</div>
+            <div style="font-size:${fitFontSize(tag.firstName, 48, 22, 8)};font-weight:bold;line-height:1.1;margin-bottom:${tag.lastName ? 4 : 12}px;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)}</div>
+            ${tag.lastName ? `<div style="font-size:${fitFontSize(tag.lastName, 40, 20, 9)};font-weight:bold;line-height:1.1;margin-bottom:12px;word-break:break-word;max-width:100%;">${escapeHtml(tag.lastName)}</div>` : ''}
           ` : ''}
           ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 20, 12, 22)};color:#555;margin-bottom:4px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
           ${t.showDiocese && tag.diocese ? `<div style="font-size:${fitFontSize(tag.diocese, 16, 10, 24)};color:#777;margin-bottom:8px;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}

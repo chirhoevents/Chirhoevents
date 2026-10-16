@@ -551,8 +551,12 @@ export default function IndividualRegistrationPage() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gold focus:border-gold"
                         value={formData.preferredName}
                         onChange={(e) => setFormData({ ...formData, preferredName: e.target.value })}
-                        placeholder="Johnny"
+                        placeholder="e.g., Johnny, or Sister Mary Agnes"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Shown on your name tag. Religious sisters and brothers: enter your religious name
+                        with your title and it will replace your legal name on your name tag.
+                      </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

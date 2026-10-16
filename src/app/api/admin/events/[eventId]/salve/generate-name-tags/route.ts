@@ -5,6 +5,7 @@ import { generateParticipantQRCode, generateIndividualRegistrationQRCode } from 
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { hasPermission } from '@/lib/permissions'
 import { isClergyOrReligiousType, resolveParticipantType } from '@/lib/clergy-roles'
+import { nameTagName } from '@/lib/name-tag-name'
 
 async function requireSalveAccess(request: NextRequest, eventId: string) {
   const overrideUserId = await getClerkUserIdFromHeader(request)
@@ -246,18 +247,19 @@ async function generateGroupNameTags(
         } catch {}
       }
 
+      const isClergy = isClergyOrReligiousType(p.participantType)
+
       return {
         participantId: p.id,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        fullName: `${p.firstName} ${p.lastName}`,
+        // Preferred name (e.g. a Sister's religious name) over the legal name.
+        ...nameTagName(p.firstName, p.lastName, p.preferredName, isClergy),
         groupName: p.groupRegistration.groupName,
         diocese: p.groupRegistration.dioceseName,
         // Sisters/brothers/seminarians/deacons are stored as 'priest' + a title;
         // resolve so the badge reads "Sister", not "Priest".
         participantType: resolveParticipantType(p.participantType, p.clergyTitle),
         isChaperone: p.participantType === 'chaperone',
-        isClergy: isClergyOrReligiousType(p.participantType),
+        isClergy,
         housing: assignment
           ? {
               building: assignment.buildingName,
@@ -311,9 +313,7 @@ async function generateIndividualNameTags(
 
       return {
         participantId: reg.id,
-        firstName: reg.firstName,
-        lastName: reg.lastName,
-        fullName: `${reg.firstName} ${reg.lastName}`,
+        ...nameTagName(reg.firstName, reg.lastName, reg.preferredName),
         groupName: 'Individual Registrant',
         diocese: null,
         participantType: 'individual',

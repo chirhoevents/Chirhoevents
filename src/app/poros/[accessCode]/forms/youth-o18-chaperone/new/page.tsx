@@ -478,15 +478,20 @@ export default function YouthO18ChaperoneForm() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Preferred Name
+                  Preferred Name <span className="text-gray-500 font-normal">(for name tag)</span>
                 </label>
                 <input
                   type="text"
                   name="preferredName"
                   value={basicData.preferredName}
                   onChange={handleBasicChange}
+                  placeholder="e.g., Mike, or Sister Mary Agnes"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy focus:border-transparent"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Religious sisters and brothers: enter your religious name with your title and it will
+                  replace your legal name on your name tag.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
