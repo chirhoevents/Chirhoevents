@@ -19,6 +19,9 @@ export async function GET(
         event: true,
         organization: true,
         safeEnvironmentCertificates: true,
+        staffRegistrations: {
+          select: { role: true, safeEnvironmentCertUrl: true, safeEnvironmentCertUploadedAt: true },
+        },
       },
     })
 

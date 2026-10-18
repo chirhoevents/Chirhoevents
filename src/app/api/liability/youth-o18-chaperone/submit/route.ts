@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { generateParticipantQRCode } from '@/lib/qr-code'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
+import { uploadSafeEnvCert } from '@/lib/r2/upload-safe-env-cert'
 import { incrementOrgStorage } from '@/lib/storage/track-storage'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
@@ -166,6 +167,37 @@ export async function POST(request: NextRequest) {
         data: { liabilityFormId: liabilityForm.id },
       })
 
+      // Staff certs live on the staff record (SafeEnvironmentCertificate rows
+      // require a group participant) — the same place admins upload them.
+      let staffCertUploaded = false
+      if (safe_env_cert_file && !safe_env_cert_upload_later) {
+        try {
+          const base64Data = safe_env_cert_file.replace(/^data:[^;]+;base64,/, '')
+          const fileBuffer = Buffer.from(base64Data, 'base64')
+
+          const certUrl = await uploadSafeEnvCert(
+            fileBuffer,
+            safe_env_cert_filename || 'certificate.pdf',
+            'staff',
+            staffRegistration.id,
+            staffRegistration.organizationId
+          )
+
+          await incrementOrgStorage(staffRegistration.organizationId, fileBuffer.length)
+
+          await prisma.staffRegistration.update({
+            where: { id: staffRegistration.id },
+            data: {
+              safeEnvironmentCertUrl: certUrl,
+              safeEnvironmentCertUploadedAt: new Date(),
+            },
+          })
+          staffCertUploaded = true
+        } catch (uploadError) {
+          console.error('[O18/Chaperone Submit] Failed to upload staff Safe Environment cert:', uploadError)
+        }
+      }
+
       const pdfUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/liability/forms/${liabilityForm.id}/pdf`
       await prisma.liabilityForm.update({
         where: { id: liabilityForm.id },
@@ -191,7 +223,10 @@ export async function POST(request: NextRequest) {
                     Download PDF Copy
                   </a>
                 </div>
-                ${participant_type === 'chaperone' && (!safe_env_cert_file || safe_env_cert_upload_later) ? `
+                ${staffCertUploaded ? `
+                <p style="color:#10B981;font-weight:bold;">Your Safe Environment certificate has been uploaded.</p>
+                ` : ''}
+                ${safe_env_cert_upload_later && !staffRegistration.safeEnvironmentCertUrl ? `
                 <div style="background-color:#FEF3C7;border-left:4px solid #F59E0B;padding:16px;border-radius:6px;margin:20px 0;">
                   <p style="margin:0 0 8px 0;color:#92400E;font-weight:bold;">Safe Environment Certificate Still Needed</p>
                   <p style="margin:0;color:#78716C;font-size:14px;">

@@ -322,7 +322,7 @@ export async function POST(request: NextRequest) {
           </tr>
         </table>
         <p style="font-size: 13px; color: #666; text-align: center; margin-top: -8px;">
-          Don't have your Safe Environment certificate handy? You can email a copy to
+          You can upload your Safe Environment certificate on the form. Don't have it handy? Email a copy to
           <a href="mailto:${resolveReplyTo(event.settings, event.organization)}" style="color: #1E3A5F;">${resolveReplyTo(event.settings, event.organization)}</a>
           and we'll upload it for you.
         </p>

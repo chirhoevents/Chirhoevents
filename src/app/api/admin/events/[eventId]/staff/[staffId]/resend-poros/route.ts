@@ -76,7 +76,7 @@ export async function POST(
       </table>
 
       <p style="font-size:13px;color:#666;text-align:center;">
-        Don't have your Safe Environment certificate handy? You can email a copy to
+        You can upload your Safe Environment certificate on the form. Don't have it handy? Email a copy to
         <a href="mailto:${supportEmail}" style="color:#1E3A5F;">${supportEmail}</a>
         and we'll upload it to your record for you.
       </p>

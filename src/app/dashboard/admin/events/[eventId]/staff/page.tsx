@@ -66,8 +66,9 @@ interface StaffRegistration {
     businessName: string
   }
   liabilityForm?: {
-    status: string
-  }
+    completed: boolean
+    formStatus: string
+  } | null
   customAnswers?: CustomAnswer[]
 }
 
@@ -134,7 +135,7 @@ export default function StaffManagementPage() {
     general: staffList.filter((s) => !s.isVendorStaff).length,
     vendor: staffList.filter((s) => s.isVendorStaff).length,
     checkedIn: staffList.filter((s) => s.checkedIn).length,
-    porosComplete: staffList.filter((s) => s.liabilityForm?.status === 'approved').length,
+    porosComplete: staffList.filter((s) => s.liabilityForm?.completed).length,
   }
 
   const handleExportCSV = () => {
@@ -161,7 +162,7 @@ export default function StaffManagementPage() {
         s.dietaryRestrictions || '',
         s.vendorRegistration?.businessName || '',
         s.paymentStatus,
-        s.liabilityForm?.status || 'N/A',
+        !s.porosAccessCode ? 'N/A' : !s.liabilityForm?.completed ? 'Not submitted' : s.liabilityForm.formStatus,
         s.checkedIn ? 'Yes' : 'No',
       ]
       // Add custom answers in order
@@ -541,15 +542,24 @@ export default function StaffManagementPage() {
                     </TableCell>
                     <TableCell>
                       {staff.porosAccessCode ? (
-                        staff.liabilityForm?.status === 'approved' ? (
+                        staff.liabilityForm?.formStatus === 'approved' ? (
                           <Badge className="bg-green-500">
                             <CheckCircle className="h-3 w-3 mr-1" />
-                            Complete
+                            Approved
+                          </Badge>
+                        ) : staff.liabilityForm?.completed ? (
+                          <Badge
+                            variant="outline"
+                            className="text-blue-600 border-blue-300"
+                            title="Submitted — awaiting approval under Poros Liability → Staff, Volunteers & Vendors"
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Submitted
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-amber-600 border-amber-300">
                             <FileText className="h-3 w-3 mr-1" />
-                            Pending
+                            Not Submitted
                           </Badge>
                         )
                       ) : (
@@ -566,7 +576,7 @@ export default function StaffManagementPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {staff.porosAccessCode && staff.liabilityForm?.status !== 'approved' && (
+                        {staff.porosAccessCode && !staff.liabilityForm?.completed && (
                           <Button
                             size="sm"
                             variant="ghost"
