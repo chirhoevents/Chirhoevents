@@ -7,13 +7,34 @@ export const metadata = {
   description: 'Cookie Policy for ChiRho Events - Learn about how we use cookies on our platform.',
 }
 
-export default function CookiePolicyPage() {
-  const lastUpdated = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+// Change this only when the policy text itself changes.
+const LAST_UPDATED = 'October 18, 2026'
 
+const OUR_COOKIES = [
+  {
+    name: 'queue_session_id',
+    purpose: 'Holds your place in the virtual waiting room during high-demand registrations',
+    duration: '24 hours',
+  },
+  {
+    name: 'lux_family',
+    purpose: 'Keeps your family signed in after you open a secure link from your parish',
+    duration: '4 hours',
+  },
+  {
+    name: 'lux_lang',
+    purpose: 'Remembers whether you chose English or Spanish on parish pages',
+    duration: '1 year',
+  },
+  {
+    name: 'impersonating_org, impersonating_user, impersonating_org_name, master_admin_id',
+    purpose:
+      'Used only when ChiRho Events support staff open an Organization’s account to help it. Never set for registrants.',
+    duration: '4 hours',
+  },
+]
+
+export default function CookiePolicyPage() {
   return (
     <div className="min-h-screen bg-white">
       <PublicNav currentPage="/cookies" />
@@ -32,7 +53,7 @@ export default function CookiePolicyPage() {
           {/* Header */}
           <div className="mb-12">
             <h1 className="text-4xl font-bold text-navy mb-4">Cookie Policy</h1>
-            <p className="text-gray-600">Last Updated: {lastUpdated}</p>
+            <p className="text-gray-600">Last Updated: {LAST_UPDATED}</p>
           </div>
 
           {/* Content */}
@@ -42,91 +63,107 @@ export default function CookiePolicyPage() {
               <h2 className="text-2xl font-bold text-navy mb-4">What Are Cookies?</h2>
               <p className="text-gray-700 leading-relaxed">
                 Cookies are small text files that are placed on your computer or mobile device when
-                you visit a website. They are widely used to make websites work more efficiently and
-                to provide information to the website owners.
+                you visit a website. They are widely used to make websites work, for example to keep
+                you signed in.
               </p>
             </section>
 
-            {/* How We Use Cookies */}
+            {/* Our Approach */}
             <section className="mb-10">
-              <h2 className="text-2xl font-bold text-navy mb-4">How We Use Cookies</h2>
-              <p className="text-gray-700 mb-4">ChiRho Events uses cookies for the following purposes:</p>
+              <h2 className="text-2xl font-bold text-navy mb-4">Our Approach</h2>
+              <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
+                <p className="text-green-800 font-semibold">
+                  We do not use advertising cookies or cookies that track you across other websites.
+                </p>
+              </div>
+              <p className="text-gray-700">
+                ChiRho Events only uses cookies needed to run the platform (signing in, registration
+                waiting rooms, and payments) plus one cookie that remembers your language. Our website
+                analytics do not use cookies.
+              </p>
+            </section>
 
-              <div className="space-y-6">
-                {/* Essential Cookies */}
+            {/* Sign-In Cookies */}
+            <section className="mb-10">
+              <h2 className="text-2xl font-bold text-navy mb-4">Cookies We Use</h2>
+
+              <div className="space-y-6 mb-6">
                 <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold text-navy mb-3">Essential Cookies</h3>
+                  <h3 className="text-xl font-semibold text-navy mb-3">Sign-In Cookies (Clerk)</h3>
                   <p className="text-gray-700 mb-2">
-                    <strong>Purpose:</strong> These cookies are necessary for the website to function properly.
+                    <strong>Purpose:</strong> Our sign-in provider, Clerk, sets cookies that keep
+                    administrators, group leaders, staff, and other account holders signed in securely.
                   </p>
-                  <ul className="list-disc pl-6 text-gray-700 space-y-1">
-                    <li>Maintaining your login session</li>
-                    <li>Remembering items in your registration</li>
-                    <li>Security features</li>
-                  </ul>
                   <p className="text-sm text-gray-500 mt-2">
-                    <strong>Duration:</strong> Session or up to 7 days
+                    <strong>Duration:</strong> While you are signed in. Clerk may remember your device
+                    so you stay signed in between visits.
                   </p>
                 </div>
 
-                {/* Authentication Cookies */}
                 <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold text-navy mb-3">Authentication Cookies</h3>
+                  <h3 className="text-xl font-semibold text-navy mb-3">Payment Cookies (Stripe)</h3>
                   <p className="text-gray-700 mb-2">
-                    <strong>Purpose:</strong> These cookies are set by our authentication provider (Clerk)
-                    to keep you logged in securely.
+                    <strong>Purpose:</strong> When you pay online, Stripe sets cookies to process the
+                    payment securely and prevent fraud.
                   </p>
-                  <ul className="list-disc pl-6 text-gray-700 space-y-1">
-                    <li>Identifying you when you return to the site</li>
-                    <li>Maintaining secure access to your account</li>
-                    <li>Remembering your authentication preferences</li>
-                  </ul>
                   <p className="text-sm text-gray-500 mt-2">
-                    <strong>Duration:</strong> Up to 30 days
-                  </p>
-                </div>
-
-                {/* Preference Cookies */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold text-navy mb-3">Preference Cookies</h3>
-                  <p className="text-gray-700 mb-2">
-                    <strong>Purpose:</strong> These cookies remember your choices and preferences.
-                  </p>
-                  <ul className="list-disc pl-6 text-gray-700 space-y-1">
-                    <li>Your selected event or group</li>
-                    <li>Dashboard display preferences</li>
-                    <li>Notification settings</li>
-                  </ul>
-                  <p className="text-sm text-gray-500 mt-2">
-                    <strong>Duration:</strong> Up to 1 year
-                  </p>
-                </div>
-
-                {/* Analytics Cookies */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold text-navy mb-3">Analytics Cookies</h3>
-                  <p className="text-gray-700 mb-2">
-                    <strong>Purpose:</strong> These cookies help us understand how visitors use our website.
-                  </p>
-                  <ul className="list-disc pl-6 text-gray-700 space-y-1">
-                    <li>Pages visited and time spent</li>
-                    <li>Features used</li>
-                    <li>Error tracking</li>
-                  </ul>
-                  <p className="text-sm text-gray-500 mt-2">
-                    <strong>Duration:</strong> Up to 2 years
+                    <strong>Duration:</strong> From 30 minutes up to 1 year
                   </p>
                 </div>
               </div>
+
+              <p className="text-gray-700 mb-4">ChiRho Events also sets these cookies:</p>
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                  <thead className="bg-navy text-white">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Cookie</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Purpose</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold">Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {OUR_COOKIES.map((cookie, i) => (
+                      <tr key={cookie.name} className={i % 2 === 1 ? 'bg-gray-50' : undefined}>
+                        <td className="px-6 py-4 text-gray-700 font-mono text-sm break-words">{cookie.name}</td>
+                        <td className="px-6 py-4 text-gray-700">{cookie.purpose}</td>
+                        <td className="px-6 py-4 text-gray-700 whitespace-nowrap">{cookie.duration}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Browser Storage */}
+            <section className="mb-10">
+              <h2 className="text-2xl font-bold text-navy mb-4">Browser Storage</h2>
+              <p className="text-gray-700 mb-4">
+                Like cookies, your browser&apos;s local storage can hold small pieces of information.
+                We use it only for convenience:
+              </p>
+              <ul className="list-disc pl-6 text-gray-700 space-y-2">
+                <li>
+                  Saving a registration form you are filling out, so you don&apos;t lose your work if
+                  the page reloads. This is cleared when you close the tab.
+                </li>
+                <li>Remembering dashboard choices, such as the event you last selected</li>
+              </ul>
+            </section>
+
+            {/* Analytics */}
+            <section className="mb-10">
+              <h2 className="text-2xl font-bold text-navy mb-4">Analytics</h2>
+              <p className="text-gray-700">
+                We use Vercel Web Analytics to count page visits so we can improve the platform. It
+                does not use cookies, does not follow you to other websites, and reports only
+                aggregated numbers.
+              </p>
             </section>
 
             {/* Third-Party Cookies */}
             <section className="mb-10">
-              <h2 className="text-2xl font-bold text-navy mb-4">Third-Party Cookies</h2>
-              <p className="text-gray-700 mb-4">
-                Some cookies on our site are placed by third-party services:
-              </p>
-
+              <h2 className="text-2xl font-bold text-navy mb-4">Third-Party Providers</h2>
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200 rounded-lg">
                   <thead className="bg-navy text-white">
@@ -139,7 +176,7 @@ export default function CookiePolicyPage() {
                   <tbody className="divide-y divide-gray-200">
                     <tr>
                       <td className="px-6 py-4 text-gray-700">Clerk</td>
-                      <td className="px-6 py-4 text-gray-700">Authentication</td>
+                      <td className="px-6 py-4 text-gray-700">Sign-in</td>
                       <td className="px-6 py-4">
                         <a
                           href="https://clerk.com/privacy"
@@ -165,6 +202,20 @@ export default function CookiePolicyPage() {
                         </a>
                       </td>
                     </tr>
+                    <tr>
+                      <td className="px-6 py-4 text-gray-700">Vercel</td>
+                      <td className="px-6 py-4 text-gray-700">Hosting and cookie-free analytics</td>
+                      <td className="px-6 py-4">
+                        <a
+                          href="https://vercel.com/legal/privacy-policy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gold hover:underline"
+                        >
+                          Privacy Policy
+                        </a>
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -174,11 +225,6 @@ export default function CookiePolicyPage() {
             <section className="mb-10">
               <h2 className="text-2xl font-bold text-navy mb-4">Managing Cookies</h2>
               <p className="text-gray-700 mb-4">
-                You can control and manage cookies in several ways:
-              </p>
-
-              <h3 className="text-xl font-semibold text-navy-600 mb-3 mt-6">Browser Settings</h3>
-              <p className="text-gray-700 mb-4">
                 Most web browsers allow you to control cookies through their settings. Here&apos;s how
                 to access cookie settings in popular browsers:
               </p>
@@ -187,10 +233,10 @@ export default function CookiePolicyPage() {
                   <strong>Chrome:</strong> Settings &gt; Privacy and Security &gt; Cookies
                 </li>
                 <li>
-                  <strong>Firefox:</strong> Options &gt; Privacy & Security &gt; Cookies
+                  <strong>Firefox:</strong> Settings &gt; Privacy &amp; Security &gt; Cookies
                 </li>
                 <li>
-                  <strong>Safari:</strong> Preferences &gt; Privacy &gt; Manage Website Data
+                  <strong>Safari:</strong> Settings &gt; Privacy &gt; Manage Website Data
                 </li>
                 <li>
                   <strong>Edge:</strong> Settings &gt; Cookies and Site Permissions
@@ -199,8 +245,8 @@ export default function CookiePolicyPage() {
 
               <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4">
                 <p className="text-yellow-800">
-                  <strong>Note:</strong> Disabling cookies may affect the functionality of our website.
-                  Some features may not work properly without essential cookies.
+                  <strong>Note:</strong> Because our cookies are needed to sign in, register, and pay,
+                  blocking them will stop those features from working.
                 </p>
               </div>
             </section>
@@ -209,13 +255,12 @@ export default function CookiePolicyPage() {
             <section className="mb-10">
               <h2 className="text-2xl font-bold text-navy mb-4">Do Not Track</h2>
               <p className="text-gray-700">
-                Some browsers have a &quot;Do Not Track&quot; feature. Our website currently does not
-                respond to Do Not Track signals, but we respect your privacy choices as described in
-                our{' '}
+                Some browsers have a &quot;Do Not Track&quot; setting. Because we do not track you
+                across websites, the platform works the same whether or not it is turned on. See our{' '}
                 <Link href="/privacy" className="text-gold hover:underline">
                   Privacy Policy
-                </Link>
-                .
+                </Link>{' '}
+                for more about your privacy choices.
               </p>
             </section>
 
@@ -223,9 +268,8 @@ export default function CookiePolicyPage() {
             <section className="mb-10">
               <h2 className="text-2xl font-bold text-navy mb-4">Updates to This Policy</h2>
               <p className="text-gray-700">
-                We may update this Cookie Policy from time to time. We will notify you of any
-                significant changes by posting the new policy on this page with a new
-                &quot;Last Updated&quot; date.
+                We may update this Cookie Policy from time to time. We will post the new policy on
+                this page with a new &quot;Last Updated&quot; date.
               </p>
             </section>
 
@@ -270,7 +314,7 @@ export default function CookiePolicyPage() {
       {/* Simple Footer */}
       <footer className="bg-navy text-white py-8 mt-12">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-gray-400">&copy; 2025 ChiRho Events. All rights reserved.</p>
+          <p className="text-gray-400">&copy; {new Date().getFullYear()} ChiRho Events. All rights reserved.</p>
           <div className="mt-4 space-x-6">
             <Link href="/privacy" className="text-gold hover:underline">
               Privacy Policy
