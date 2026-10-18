@@ -58,6 +58,12 @@ interface LiabilityFormWithRelations {
     expirationDate?: Date | null
     status?: string
   }>
+  // Present when the form was submitted with a staff Poros code
+  staffRegistrations?: Array<{
+    role: string
+    safeEnvironmentCertUrl?: string | null
+    safeEnvironmentCertUploadedAt?: Date | null
+  }>
 }
 
 function toSafeString(v: unknown, fallback = ''): string {
@@ -160,7 +166,11 @@ export async function generateLiabilityFormPDF(
 
   const isYouthU18 = formData.formType === 'youth_u18'
   const isAdultParticipant = formData.formType === 'youth_o18_chaperone'
-  const isChaperone = isAdultParticipant && formData.participantType === 'chaperone'
+  const staffReg = formData.staffRegistrations?.[0]
+  const isStaff = isAdultParticipant && !!staffReg
+  // Staff follow chaperone rules (Safe Environment section) regardless of the
+  // participantType stored on older staff forms
+  const isChaperone = isAdultParticipant && (formData.participantType === 'chaperone' || isStaff)
   const isClergy = formData.formType === 'clergy' || formData.formType === 'religious'
 
   if (!isYouthU18 && !isAdultParticipant && !isClergy) {
@@ -169,7 +179,9 @@ export async function generateLiabilityFormPDF(
 
   const clergyTitleLabel = getClergyRoleLabel(formData.participantType, formData.clergyTitle) || 'Clergy / Religious'
 
-  const participantTypeLabel = formData.participantType === 'youth_o18' ? 'Youth (18+)' : 'Chaperone'
+  const participantTypeLabel =
+    isStaff ? `Staff / Volunteer${staffReg?.role ? ` (${staffReg.role})` : ''}` :
+    formData.participantType === 'youth_o18' ? 'Youth (18+)' : 'Chaperone'
 
   const genderLabel =
     formData.participantGender === 'male' ? 'Male' :
@@ -177,6 +189,7 @@ export async function generateLiabilityFormPDF(
 
   const formTitle =
     isYouthU18 ? 'LIABILITY FORM — YOUTH (UNDER 18)' :
+    isStaff ? 'LIABILITY FORM — STAFF / VOLUNTEER' :
     isAdultParticipant ? 'LIABILITY FORM — ADULT PARTICIPANT / CHAPERONE' :
     'LIABILITY FORM — CLERGY, SEMINARIANS & RELIGIOUS'
 
@@ -365,7 +378,30 @@ export async function generateLiabilityFormPDF(
       renderField('ADA Accommodations:', commonData.adaAccommodations || 'None')
 
       // Safe Environment Certification (chaperone only)
-      if (isChaperone) {
+      if (isStaff) {
+        // Staff certs are a file on the staff record, without program/date metadata
+        y += 4
+        renderSection('3. SAFE ENVIRONMENT CERTIFICATION')
+        const bH = 26 * 2 + 12
+        checkPage(bH + 4)
+        doc.rect(M, y, W, bH).fillColor('#DBEAFE').fill()
+        const by = y
+        y += 8
+        doc.font('Helvetica-Bold').fontSize(9).fillColor('#333333').text('Status:', M + 8, y, { width: LW - 8, lineBreak: false })
+        if (staffReg?.safeEnvironmentCertUrl) {
+          doc.font('Helvetica').fontSize(9).fillColor(GREEN).text('✓ Uploaded', M + LW + 8, y)
+          y += 18
+          const ud = staffReg.safeEnvironmentCertUploadedAt instanceof Date ? staffReg.safeEnvironmentCertUploadedAt.toLocaleDateString() : 'N/A'
+          doc.font('Helvetica-Bold').fontSize(9).fillColor('#333333').text('Uploaded:', M + 8, y, { width: LW - 8, lineBreak: false })
+          doc.font('Helvetica').fontSize(9).fillColor('#111111').text(ud, M + LW + 8, y)
+        } else {
+          doc.font('Helvetica-Bold').fontSize(9).fillColor(AMBER).text('Pending Upload', M + LW + 8, y)
+          y += 18
+          doc.font('Helvetica').fontSize(8).fillColor(GRAY)
+            .text('Certificate to be emailed to the event organizer', M + 8, y)
+        }
+        y = by + bH + 8
+      } else if (isChaperone) {
         y += 4
         renderSection('3. SAFE ENVIRONMENT CERTIFICATION')
         const certs = formData.safeEnvironmentCertificates

@@ -33,6 +33,7 @@ export async function GET(
         liabilityForm: {
           select: {
             completed: true,
+            formStatus: true,
           },
         },
       },

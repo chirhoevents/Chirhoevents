@@ -19,7 +19,8 @@ export default function YouthO18ChaperoneForm() {
   const isStaff = searchParams.get('staff') === 'true'
 
   // Basic info (section 1) — hardcoded
-  // Staff are always adults; default their participant type so they skip the selector
+  // Staff are adults working alongside youth, so they follow the chaperone
+  // form config (including the Safe Environment section) and skip the selector
   const [basicData, setBasicData] = useState({
     firstName: '',
     lastName: '',
@@ -29,7 +30,7 @@ export default function YouthO18ChaperoneForm() {
     gender: '',
     email: '',
     phone: '',
-    participantType: isStaff ? 'youth_o18' : '',
+    participantType: isStaff ? 'chaperone' : '',
     tShirtSize: '',
   })
 
@@ -176,7 +177,8 @@ export default function YouthO18ChaperoneForm() {
       return
     }
 
-    if (basicData.participantType === 'chaperone' && !dynValues.safeEnvCertOption) {
+    const safeEnvSection = formConfig?.sections.find(s => s.sectionKey === 'safe_environment_cert')
+    if (safeEnvSection?.enabled && !dynValues.safeEnvCertOption) {
       setError('Please select a safe environment certificate option')
       return
     }
@@ -433,7 +435,9 @@ export default function YouthO18ChaperoneForm() {
           {eventName && (
             <p className="text-sm font-semibold text-gold uppercase tracking-wide mb-2">{eventName}</p>
           )}
-          <h1 className="text-3xl font-bold text-navy mb-2">Youth 18+ / Chaperone Liability Form</h1>
+          <h1 className="text-3xl font-bold text-navy mb-2">
+            {isStaff ? 'Staff / Volunteer Liability Form' : 'Youth 18+ / Chaperone Liability Form'}
+          </h1>
           <p className="text-gray-600">Please complete all sections below</p>
         </div>
 

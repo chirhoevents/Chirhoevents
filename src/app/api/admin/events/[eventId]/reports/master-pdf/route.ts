@@ -133,6 +133,9 @@ export async function POST(
           event: true,
           organization: true,
           safeEnvironmentCertificates: true,
+          staffRegistrations: {
+            select: { role: true, safeEnvironmentCertUrl: true, safeEnvironmentCertUploadedAt: true },
+          },
         },
         orderBy: [
           { participantLastName: 'asc' },
