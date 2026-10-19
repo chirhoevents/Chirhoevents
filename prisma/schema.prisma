@@ -1460,6 +1460,18 @@ model Survey {
   // a SurveyRecipient, so they're always anonymous and never remindable.
   publicToken        String?  @unique @map("public_token") @db.VarChar(255)
   closesAt           DateTime? @map("closes_at") @db.Timestamptz(6)
+  // Scheduled send, picked up by /api/cron/send-scheduled-surveys.
+  // 'event_end' = when the event ends (worked out from the event's current
+  // end date/time at send time, so moving the event moves the send);
+  // 'custom' = at scheduledSendAt. Null = nothing scheduled. Cleared once the
+  // send finishes.
+  scheduledSendMode      String?   @map("scheduled_send_mode") @db.VarChar(20)
+  scheduledSendAt        DateTime? @map("scheduled_send_at") @db.Timestamptz(6)
+  scheduledSendMessage   String?   @map("scheduled_send_message") @db.Text
+  // Set while a cron run is sending, so overlapping runs don't double-send.
+  // A run that died (timeout) leaves it set; it's re-claimable after a few
+  // minutes and picks up whoever hasn't been sent yet.
+  scheduledSendClaimedAt DateTime? @map("scheduled_send_claimed_at") @db.Timestamptz(6)
   createdBy          String   @map("created_by") @db.Uuid
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -1472,6 +1484,7 @@ model Survey {
   responses  SurveyResponse[]
 
   @@index([eventId], name: "idx_survey_event")
+  @@index([scheduledSendMode], name: "idx_survey_scheduled_send")
   @@map("surveys")
 }
 
