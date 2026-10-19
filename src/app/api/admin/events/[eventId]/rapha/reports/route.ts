@@ -13,7 +13,7 @@ export async function GET(
     const reportType = searchParams.get('type') || 'daily-summary'
 
     const { error, user, event } = await verifyEventAccess(request, eventId, {
-      requireAdmin: true,
+      requireAdmin: false, // rapha.access is checked below, so Rapha-only staff get in
       logPrefix: '[Rapha Reports]',
     })
     if (error) return error

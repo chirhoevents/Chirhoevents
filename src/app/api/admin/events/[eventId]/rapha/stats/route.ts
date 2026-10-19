@@ -12,7 +12,7 @@ export async function GET(
 
     // Verify user has access to this event (with organization check)
     const { error, user } = await verifyEventAccess(request, eventId, {
-      requireAdmin: true,
+      requireAdmin: false, // rapha.access is checked below, so Rapha-only staff get in
       logPrefix: '[Rapha Stats]',
     })
 

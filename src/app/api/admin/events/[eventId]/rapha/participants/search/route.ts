@@ -13,7 +13,7 @@ export async function GET(
     const query = searchParams.get('q') || ''
 
     const { error, user, event } = await verifyEventAccess(request, eventId, {
-      requireAdmin: true,
+      requireAdmin: false, // rapha.access is checked below, so Rapha-only staff get in
       logPrefix: '[Rapha Search Participants]',
     })
     if (error) return error

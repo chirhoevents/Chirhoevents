@@ -39,6 +39,27 @@ export async function POST(request: NextRequest) {
     })
 
     if (!pendingUser) {
+      // The Clerk webhook links a new sign-up to its invite by email, often
+      // before this request lands. That's a successful accept, not an error.
+      const claimedUser = await prisma.user.findFirst({
+        where: { id: inviteId, clerkUserId },
+        include: { organization: { select: { name: true } } },
+      })
+      if (claimedUser) {
+        return NextResponse.json({
+          success: true,
+          alreadyAccepted: true,
+          message: `Welcome to ${claimedUser.organization?.name || 'the organization'}!`,
+          user: {
+            id: claimedUser.id,
+            email: claimedUser.email,
+            firstName: claimedUser.firstName,
+            lastName: claimedUser.lastName,
+            role: claimedUser.role,
+          },
+        })
+      }
+
       return NextResponse.json(
         { error: 'Invalid or expired invitation' },
         { status: 404 }

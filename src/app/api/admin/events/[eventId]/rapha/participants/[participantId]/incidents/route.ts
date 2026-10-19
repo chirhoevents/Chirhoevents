@@ -14,7 +14,7 @@ export async function GET(
     const incidentId = searchParams.get('incidentId')
 
     const { error, user, event } = await verifyEventAccess(request, eventId, {
-      requireAdmin: true,
+      requireAdmin: false, // rapha.access is checked below, so Rapha-only staff get in
       logPrefix: '[Rapha Participant Incidents]',
     })
     if (error) return error

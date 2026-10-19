@@ -56,7 +56,7 @@ export type Permission =
   | 'forms.view'
   | 'forms.edit'
 
-// Admin roles that have access to the admin dashboard
+// Organization team roles (the roles an org can invite from Settings → Team)
 export const ADMIN_ROLES: UserRole[] = [
   'master_admin',
   'org_admin',
@@ -67,6 +67,16 @@ export const ADMIN_ROLES: UserRole[] = [
   'rapha_coordinator',
   'staff'
 ]
+
+// Team roles that only get their own portal, never the admin dashboard or
+// the general admin APIs. Their portal routes check the portal permission.
+export const PORTAL_ONLY_ROLES: UserRole[] = ['salve_coordinator', 'rapha_coordinator']
+
+// Where each portal-only role lands instead of the admin dashboard
+export const PORTAL_ONLY_HOME: Partial<Record<UserRole, string>> = {
+  salve_coordinator: '/coordinator/salve',
+  rapha_coordinator: '/coordinator/rapha',
+}
 
 // Define what each role can do
 const rolePermissions: Record<UserRole, Permission[]> = {
@@ -122,22 +132,13 @@ const rolePermissions: Record<UserRole, Permission[]> = {
   ],
 
   salve_coordinator: [
-    'events.view', // can view events
-    'registrations.view', // view names only
     'salve.access', // full SALVE access
-    'portals.salve.view', // can view SALVE portal
-    'reports.view', 'reports.view_basic',
-    'settings.view'
+    'portals.salve.view', // SALVE portal only, nothing else
   ],
 
   rapha_coordinator: [
-    'events.view', // can view events
-    'registrations.view', // view names only
-    'rapha.access', // full Rapha access
-    'portals.rapha.view', // can view Rapha portal
-    'reports.view', 'reports.view_basic', // medical reports
-    'forms.view', // need to see medical info from forms
-    'settings.view'
+    'rapha.access', // full Rapha access (medical info, incidents, medical reports)
+    'portals.rapha.view', // Rapha portal only, nothing else
   ],
 
   staff: [
@@ -202,7 +203,7 @@ export function canViewFinancial(userRole: UserRole): boolean {
  * Check if user is an admin (has access to admin dashboard)
  */
 export function isAdminRole(userRole: UserRole): boolean {
-  return ADMIN_ROLES.includes(userRole)
+  return ADMIN_ROLES.includes(userRole) && !PORTAL_ONLY_ROLES.includes(userRole)
 }
 
 /**
@@ -251,8 +252,8 @@ export function getRoleDescription(role: UserRole): string {
     event_manager: 'Create and manage events, assign housing, check-in',
     finance_manager: 'Handle payments, refunds, and financial reports',
     poros_coordinator: 'Manage housing assignments only',
-    salve_coordinator: 'Manage event check-in only',
-    rapha_coordinator: 'Access medical information and incident reports',
+    salve_coordinator: 'SALVE check-in portal only',
+    rapha_coordinator: 'Rapha medical portal only',
     staff: 'View-only access to basic information',
     group_leader: 'Manage their group registration',
     individual: 'View their own registration',

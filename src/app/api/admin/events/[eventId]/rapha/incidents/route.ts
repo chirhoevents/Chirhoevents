@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
@@ -9,7 +9,7 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 async function getAdminUser(request: NextRequest) {
   const overrideUserId = await getClerkUserIdFromHeader(request)
   const user = await getCurrentUser(overrideUserId)
-  if (!user || !isAdmin(user)) return null
+  if (!user) return null // rapha.access and the event's org are checked by each handler
   return user
 }
 

@@ -42,11 +42,13 @@ export default async function StaffPortalPage() {
 
   // If user only has access to one portal, redirect directly
   if (hasRaphaAccess && !hasSalveAccess) {
-    redirect('/dashboard/admin/rapha')
+    // Rapha-only roles can't open the admin dashboard, so they get the standalone Rapha page
+    redirect(['rapha_coordinator', 'rapha_user'].includes(user.role) ? '/coordinator/rapha' : '/dashboard/admin/rapha')
   }
 
   if (hasSalveAccess && !hasRaphaAccess) {
-    redirect('/dashboard/admin/salve')
+    // SALVE-only roles can't open the admin dashboard, so they get the standalone SALVE page
+    redirect(['salve_coordinator', 'salve_user'].includes(user.role) ? '/coordinator/salve' : '/dashboard/admin/salve')
   }
 
   // If no access to either, show access denied
