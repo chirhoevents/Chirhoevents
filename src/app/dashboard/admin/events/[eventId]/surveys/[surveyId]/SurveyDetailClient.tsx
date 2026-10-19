@@ -390,7 +390,9 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
     }
   }
 
-  const openSendModal = () => {
+  // `schedule` = opened from the Schedule Send button: start on a scheduling
+  // option instead of "Send now".
+  const openSendModal = (opts: { schedule?: boolean } = {}) => {
     setSendResult(null)
     if (survey?.scheduledSendMode) {
       setSendWhen(survey.scheduledSendMode)
@@ -401,7 +403,8 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
         setScheduleTime(time)
       }
     } else {
-      setSendWhen('now')
+      const eventEndInFuture = !!schedule?.eventEndAt && new Date(schedule.eventEndAt) > new Date()
+      setSendWhen(opts.schedule ? (eventEndInFuture ? 'event_end' : 'custom') : 'now')
       setCustomMessage('')
     }
     setSendModalOpen(true)
@@ -744,10 +747,21 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
               Send Reminders
             </Button>
           )}
+          {!survey.scheduledSendMode && survey.status !== 'closed' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openSendModal({ schedule: true })}
+              disabled={survey.questions.length === 0}
+            >
+              <CalendarClock className="h-4 w-4 mr-2" />
+              Schedule Send
+            </Button>
+          )}
           <Button
             size="sm"
             className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
-            onClick={openSendModal}
+            onClick={() => openSendModal()}
             disabled={survey.questions.length === 0}
           >
             <Send className="h-4 w-4 mr-2" />
@@ -778,7 +792,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
             </div>
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <Button variant="outline" size="sm" onClick={openSendModal}>
+            <Button variant="outline" size="sm" onClick={() => openSendModal()}>
               <Pencil className="h-4 w-4 mr-2" />
               Change
             </Button>
@@ -1217,7 +1231,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
       <Dialog open={sendModalOpen} onOpenChange={setSendModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Send Survey</DialogTitle>
+            <DialogTitle>{sendWhen === 'now' ? 'Send Survey' : 'Schedule Survey'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-[#6B7280]">

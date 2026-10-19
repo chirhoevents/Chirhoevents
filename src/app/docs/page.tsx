@@ -3342,8 +3342,9 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
 
         <h3 className="text-xl font-semibold text-navy mt-6">Scheduling the Send</h3>
         <p>
-          You don&apos;t have to be at a computer when the event wraps up. In the Send Survey window,
-          pick when it goes out:
+          You don&apos;t have to be at a computer when the event wraps up. Click{' '}
+          <strong>Schedule Send</strong> at the top of the survey&apos;s page (next to Send Survey),
+          then pick when it goes out:
         </p>
         <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
           <li><strong>Send now</strong> — goes out right away</li>
@@ -3355,6 +3356,17 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           you can change or cancel it. It goes to everyone in the audience who is registered at
           send time, and goes out within about 5 minutes of the time you set. Clicking Send now
           instead cancels the schedule.
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Add your questions and turn on the audiences you want (participants, group leaders, staff)</li>
+          <li>Click <strong>Schedule Send</strong></li>
+          <li>Choose <strong>When the event ends</strong> or <strong>At a specific date and time</strong> — the window shows the exact time it will send</li>
+          <li>Optionally add a custom note for the email, then click <strong>Schedule</strong></li>
+          <li>To move or stop it, use <strong>Change</strong> or <strong>Cancel</strong> on the blue banner at the top of the survey&apos;s page</li>
+        </ol>
+        <p className="mt-2">
+          Want to see it before it goes out? Use <strong>Send Yourself a Test</strong> further down
+          the page — tests never count toward your results and don&apos;t affect the schedule.
         </p>
 
         <h3 className="text-xl font-semibold text-navy mt-6">Reaching People Outside Registration</h3>
