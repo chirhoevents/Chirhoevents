@@ -3340,6 +3340,23 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <li>Click <strong>Send Reminders</strong> to email only the people who haven&apos;t responded yet</li>
         </ol>
 
+        <h3 className="text-xl font-semibold text-navy mt-6">Scheduling the Send</h3>
+        <p>
+          You don&apos;t have to be at a computer when the event wraps up. In the Send Survey window,
+          pick when it goes out:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li><strong>Send now</strong> — goes out right away</li>
+          <li><strong>When the event ends</strong> — goes out at the event&apos;s end date and time (5:00 PM on the last day if no end time is set). If you change the event&apos;s dates later, the send moves with them</li>
+          <li><strong>At a specific date and time</strong> — any time you choose, in the event&apos;s timezone</li>
+        </ul>
+        <p className="mt-2">
+          A scheduled survey shows a <strong>Scheduled</strong> badge and a banner on its page where
+          you can change or cancel it. It goes to everyone in the audience who is registered at
+          send time, and goes out within about 5 minutes of the time you set. Clicking Send now
+          instead cancels the schedule.
+        </p>
+
         <h3 className="text-xl font-semibold text-navy mt-6">Reaching People Outside Registration</h3>
         <p>
           Not every recipient has to come from a registration record. Each survey&apos;s page has a

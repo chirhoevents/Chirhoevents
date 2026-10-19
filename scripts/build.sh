@@ -68,6 +68,13 @@ ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_info_enabled" BOOLE
 ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "poros_adoration_enabled" BOOLEAN NOT NULL DEFAULT false;
 COMMIT;
 
+BEGIN;
+ALTER TABLE "surveys" ADD COLUMN IF NOT EXISTS "scheduled_send_mode" VARCHAR(20);
+ALTER TABLE "surveys" ADD COLUMN IF NOT EXISTS "scheduled_send_at" TIMESTAMPTZ(6);
+ALTER TABLE "surveys" ADD COLUMN IF NOT EXISTS "scheduled_send_message" TEXT;
+ALTER TABLE "surveys" ADD COLUMN IF NOT EXISTS "scheduled_send_claimed_at" TIMESTAMPTZ(6);
+COMMIT;
+
 -- Drop the old poros_confession_times table if it exists (we use poros_confessions now)
 BEGIN;
 DROP TABLE IF EXISTS "poros_confession_times" CASCADE;
@@ -182,6 +189,13 @@ BEGIN
   -- Get Started form answers (every onboarding request insert writes it)
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='organization_onboarding_requests' AND column_name='needs') THEN
     RAISE EXCEPTION 'Schema drift after db push: organization_onboarding_requests.needs is missing';
+  END IF;
+  -- Scheduled survey sends: every surveys query selects these
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys' AND column_name='scheduled_send_mode') THEN
+    RAISE EXCEPTION 'Schema drift after db push: surveys.scheduled_send_mode is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys' AND column_name='scheduled_send_claimed_at') THEN
+    RAISE EXCEPTION 'Schema drift after db push: surveys.scheduled_send_claimed_at is missing';
   END IF;
 END $$;
 SQLEOF

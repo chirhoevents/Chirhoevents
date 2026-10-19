@@ -36,6 +36,7 @@ import {
   Check,
   X,
   Upload,
+  CalendarClock,
 } from 'lucide-react'
 
 type QuestionType = 'text' | 'yes_no' | 'multiple_choice' | 'multi_select' | 'scale'
@@ -64,8 +65,54 @@ interface Survey {
   isAnonymous: boolean
   closesAt: string | null
   publicToken: string | null
+  scheduledSendMode: 'event_end' | 'custom' | null
+  scheduledSendAt: string | null
+  scheduledSendMessage: string | null
   questions: SurveyQuestion[]
   _count: { recipients: number; responses: number }
+}
+
+interface ScheduleInfo {
+  timezone: string
+  eventEndAt: string | null
+  eventHasEndTime: boolean
+  dueAt: string | null
+}
+
+type SendWhen = 'now' | 'event_end' | 'custom'
+
+// Shows an instant as wall-clock time in the event's timezone, e.g.
+// "Sun, Mar 8, 3:00 PM EDT".
+function formatInZone(iso: string, timeZone: string) {
+  return new Date(iso).toLocaleString('en-US', {
+    timeZone,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  })
+}
+
+// Splits an instant into the event timezone's 'YYYY-MM-DD' and 'HH:MM' for
+// the date/time inputs.
+function toZonedInputs(iso: string, timeZone: string) {
+  const d = new Date(iso)
+  const date = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d)
+  const time = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(d)
+  return { date, time }
 }
 
 interface SurveyDetailClientProps {
@@ -93,6 +140,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
   const { getToken } = useAuth()
 
   const [survey, setSurvey] = useState<Survey | null>(null)
+  const [schedule, setSchedule] = useState<ScheduleInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
@@ -129,6 +177,10 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
   const [reminding, setReminding] = useState(false)
   const [customMessage, setCustomMessage] = useState('')
   const [sendResult, setSendResult] = useState<string | null>(null)
+  const [sendWhen, setSendWhen] = useState<SendWhen>('now')
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [scheduleTime, setScheduleTime] = useState('09:00')
+  const [cancellingSchedule, setCancellingSchedule] = useState(false)
 
   // Reach people outside registration: manual recipient, test send, public link
   const [addName, setAddName] = useState('')
@@ -168,6 +220,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
       if (!res.ok) throw new Error('Failed to load survey')
       const data = await res.json()
       setSurvey(data.survey)
+      setSchedule(data.schedule || null)
       setTitle(data.survey.title)
       setDescription(data.survey.description || '')
       setSendToParticipants(data.survey.sendToParticipants)
@@ -337,7 +390,70 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
     }
   }
 
+  const openSendModal = () => {
+    setSendResult(null)
+    if (survey?.scheduledSendMode) {
+      setSendWhen(survey.scheduledSendMode)
+      setCustomMessage(survey.scheduledSendMessage || '')
+      if (survey.scheduledSendMode === 'custom' && survey.scheduledSendAt && schedule) {
+        const { date, time } = toZonedInputs(survey.scheduledSendAt, schedule.timezone)
+        setScheduleDate(date)
+        setScheduleTime(time)
+      }
+    } else {
+      setSendWhen('now')
+      setCustomMessage('')
+    }
+    setSendModalOpen(true)
+  }
+
+  const handleSchedule = async () => {
+    if (!schedule) return
+    setSending(true)
+    setSendResult(null)
+    try {
+      const headers = await authHeaders({ 'Content-Type': 'application/json' })
+      const res = await fetch(`/api/admin/events/${eventId}/surveys/${surveyId}/schedule`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          mode: sendWhen,
+          date: sendWhen === 'custom' ? scheduleDate : undefined,
+          time: sendWhen === 'custom' ? scheduleTime : undefined,
+          customMessage: customMessage || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to schedule survey')
+      await loadSurvey()
+      setSendModalOpen(false)
+    } catch (err) {
+      setSendResult(err instanceof Error ? err.message : 'Failed to schedule survey')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleCancelSchedule = async () => {
+    if (!confirm('Cancel the scheduled send? Nothing will go out unless you send or schedule it again.')) return
+    setCancellingSchedule(true)
+    try {
+      const headers = await authHeaders()
+      const res = await fetch(`/api/admin/events/${eventId}/surveys/${surveyId}/schedule`, {
+        method: 'DELETE',
+        headers,
+      })
+      if (!res.ok) throw new Error('Failed to cancel scheduled send')
+      await loadSurvey()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to cancel scheduled send')
+    } finally {
+      setCancellingSchedule(false)
+    }
+  }
+
   const handleSend = async () => {
+    if (sendWhen !== 'now') return handleSchedule()
     setSending(true)
     setSendResult(null)
     try {
@@ -631,11 +747,7 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
           <Button
             size="sm"
             className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
-            onClick={() => {
-              setCustomMessage('')
-              setSendResult(null)
-              setSendModalOpen(true)
-            }}
+            onClick={openSendModal}
             disabled={survey.questions.length === 0}
           >
             <Send className="h-4 w-4 mr-2" />
@@ -643,6 +755,46 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
           </Button>
         </div>
       </div>
+
+      {/* Pending scheduled send */}
+      {survey.scheduledSendMode && schedule && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <CalendarClock className="h-5 w-5 text-[#1E3A5F] mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-[#1E3A5F]">
+                {survey.scheduledSendMode === 'event_end'
+                  ? 'Scheduled to send when the event ends'
+                  : 'Scheduled to send'}
+                {schedule.dueAt &&
+                  (survey.scheduledSendMode === 'event_end'
+                    ? ` (${formatInZone(schedule.dueAt, schedule.timezone)})`
+                    : ` on ${formatInZone(schedule.dueAt, schedule.timezone)}`)}
+              </p>
+              <p className="text-xs text-[#6B7280]">
+                It goes to everyone in the audience below who hasn&apos;t gotten a link yet, as
+                registered at that time. Sending now cancels the schedule.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button variant="outline" size="sm" onClick={openSendModal}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Change
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-600 hover:text-red-700"
+              onClick={handleCancelSchedule}
+              disabled={cancellingSchedule}
+            >
+              {cancellingSchedule ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <X className="h-4 w-4 mr-2" />}
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Settings */}
       <Card className="bg-white border-[#D1D5DB]">
@@ -1081,6 +1233,75 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
               Reminders&quot; for that instead.
             </p>
             <div>
+              <Label>When</Label>
+              <div className="space-y-2 mt-1">
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="sendWhen"
+                    checked={sendWhen === 'now'}
+                    onChange={() => setSendWhen('now')}
+                    className="mt-1"
+                  />
+                  <span>Send now</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="sendWhen"
+                    checked={sendWhen === 'event_end'}
+                    onChange={() => setSendWhen('event_end')}
+                    className="mt-1"
+                  />
+                  <span>
+                    When the event ends
+                    {schedule?.eventEndAt && (
+                      <span className="block text-xs text-[#6B7280]">
+                        {formatInZone(schedule.eventEndAt, schedule.timezone)}
+                        {!schedule.eventHasEndTime &&
+                          ' (no end time is set on the event, so this uses 5:00 PM on the last day)'}
+                        . If the event&apos;s dates change, the send moves with them.
+                      </span>
+                    )}
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="sendWhen"
+                    checked={sendWhen === 'custom'}
+                    onChange={() => setSendWhen('custom')}
+                    className="mt-1"
+                  />
+                  <span>At a specific date and time</span>
+                </label>
+                {sendWhen === 'custom' && (
+                  <div className="pl-6">
+                    <div className="flex gap-2">
+                      <Input
+                        type="date"
+                        value={scheduleDate}
+                        onChange={e => setScheduleDate(e.target.value)}
+                        aria-label="Send date"
+                      />
+                      <Input
+                        type="time"
+                        value={scheduleTime}
+                        onChange={e => setScheduleTime(e.target.value)}
+                        aria-label="Send time"
+                        className="max-w-[140px]"
+                      />
+                    </div>
+                    {schedule && (
+                      <p className="text-xs text-[#6B7280] mt-1">
+                        In the event&apos;s timezone ({schedule.timezone.replace(/_/g, ' ')})
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div>
               <Label htmlFor="customMessage">Custom Message (optional)</Label>
               <Textarea
                 id="customMessage"
@@ -1096,9 +1317,19 @@ export default function SurveyDetailClient({ eventId, eventName, surveyId }: Sur
             <Button variant="outline" onClick={() => setSendModalOpen(false)}>
               Close
             </Button>
-            <Button onClick={handleSend} disabled={sending} className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white">
-              {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-              Send
+            <Button
+              onClick={handleSend}
+              disabled={sending || (sendWhen === 'custom' && (!scheduleDate || !scheduleTime))}
+              className="bg-[#1E3A5F] hover:bg-[#2d4a6f] text-white"
+            >
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : sendWhen === 'now' ? (
+                <Send className="h-4 w-4 mr-2" />
+              ) : (
+                <CalendarClock className="h-4 w-4 mr-2" />
+              )}
+              {sendWhen === 'now' ? 'Send' : 'Schedule'}
             </Button>
           </DialogFooter>
         </DialogContent>

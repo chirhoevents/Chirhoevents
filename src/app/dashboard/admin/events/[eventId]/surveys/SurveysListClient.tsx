@@ -26,6 +26,7 @@ import {
   BarChart3,
   Eye,
   EyeOff,
+  CalendarClock,
 } from 'lucide-react'
 
 interface Survey {
@@ -36,6 +37,7 @@ interface Survey {
   sendToParticipants: boolean
   sendToGroupLeaders: boolean
   sendToStaff: boolean
+  scheduledSendMode: 'event_end' | 'custom' | null
   createdAt: string
   _count: { questions: number; recipients: number; responses: number }
 }
@@ -168,6 +170,11 @@ export default function SurveysListClient({ eventId, eventName }: SurveysListCli
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-[#1E3A5F]">{survey.title}</p>
                       <Badge className={STATUS_BADGE[survey.status]}>{survey.status}</Badge>
+                      {survey.scheduledSendMode && (
+                        <Badge className="bg-blue-50 text-[#1E3A5F] text-xs gap-1">
+                          <CalendarClock className="h-3 w-3" /> Scheduled
+                        </Badge>
+                      )}
                       {survey.isAnonymous ? (
                         <Badge variant="outline" className="text-xs gap-1">
                           <EyeOff className="h-3 w-3" /> Anonymous

@@ -26,6 +26,10 @@
     {
       "path": "/api/cron/lux-retention",
       "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/send-scheduled-surveys",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
