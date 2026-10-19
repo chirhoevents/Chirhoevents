@@ -41,13 +41,13 @@ export default function InvitePage() {
           return
         }
 
-        // If the invite was already accepted by the current user, redirect to homepage
+        // If the invite was already accepted by the current user, take them in
         if (data.alreadyAccepted) {
           setAccepted(true)
           setInviteDetails(data.invite)
-          // Redirect to homepage - user can sign in from there
+          // /dashboard sends each role to its own place (coordinators to their portal)
           setTimeout(() => {
-            router.push('/')
+            router.push('/dashboard')
           }, 1500)
           return
         }
@@ -87,9 +87,10 @@ export default function InvitePage() {
         }
 
         setAccepted(true)
-        // Redirect to homepage after a short delay - user can sign in from there
+        // They're signed in already, so go straight in. /dashboard sends each
+        // role to its own place (coordinators to their portal)
         setTimeout(() => {
-          router.push('/')
+          router.push('/dashboard')
         }, 2000)
       } catch (err) {
         console.error('Error accepting invite:', err)
@@ -125,7 +126,15 @@ export default function InvitePage() {
             <CardTitle className="text-red-600">Invalid Invitation</CardTitle>
             <CardDescription>{error}</CardDescription>
           </CardHeader>
-          <CardContent className="text-center">
+          <CardContent className="text-center space-x-2">
+            {isSignedIn && (
+              <Button
+                onClick={() => router.push('/dashboard')}
+                className="bg-[#9C8466] hover:bg-[#8B7355] text-white"
+              >
+                Go to My Dashboard
+              </Button>
+            )}
             <Button
               onClick={() => router.push('/')}
               className="bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white"
@@ -149,7 +158,7 @@ export default function InvitePage() {
             <CardTitle className="text-green-600">Welcome!</CardTitle>
             <CardDescription>
               Your account has been linked to {inviteDetails?.organizationName}.
-              Redirecting to homepage where you can sign in...
+              Taking you to your dashboard...
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">

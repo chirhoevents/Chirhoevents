@@ -7,7 +7,8 @@ import {
   hasPermission,
   hasAnyPermission,
   isAdminRole,
-  ADMIN_ROLES
+  ADMIN_ROLES,
+  PORTAL_ONLY_HOME
 } from '@/lib/permissions'
 
 // Re-export UserRole from permissions
@@ -120,6 +121,11 @@ export async function requireAdmin(): Promise<AuthUser> {
     // If they're a group leader, redirect to group leader portal
     if (user.role === 'group_leader') {
       redirect('/dashboard/group-leader')
+    }
+    // Portal-only coordinators go to their own portal
+    const portalHome = PORTAL_ONLY_HOME[user.role]
+    if (portalHome) {
+      redirect(portalHome)
     }
     // Otherwise, redirect to home
     redirect('/')

@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { PORTAL_ONLY_HOME } from '@/lib/permissions'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { resolveModuleAccess } from '@/lib/subscription-tiers'
@@ -38,7 +39,11 @@ export async function GET(request: NextRequest) {
     if (!isAdmin(user)) {
       console.log('❌ [API check-access] User is not admin - returning 403')
       return NextResponse.json(
-        { error: 'Access denied - Admin role required' },
+        {
+          error: 'Access denied - Admin role required',
+          // Portal-only coordinators go to their own portal
+          redirectTo: PORTAL_ONLY_HOME[user.role],
+        },
         { status: 403 }
       )
     }

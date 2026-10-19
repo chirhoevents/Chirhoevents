@@ -107,10 +107,10 @@ export default function SalveAllParticipants() {
       setAuthChecking(false)
 
       // Fetch event info
-      const eventResponse = await fetch(`/api/admin/events/${eventId}`, { headers })
+      const eventResponse = await fetch(`/api/admin/events/${eventId}/salve/settings`, { headers })
       if (eventResponse.ok) {
         const data = await eventResponse.json()
-        setEventName((data.event ?? data).name || 'Event')
+        setEventName(data.eventName || 'Event')
       }
 
       await fetchParticipants()
@@ -199,7 +199,7 @@ export default function SalveAllParticipants() {
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-bold mb-2">Access Denied</h2>
             <p className="text-gray-600 mb-4">{error || 'You do not have permission to access this page.'}</p>
-            <Link href="/dashboard/admin">
+            <Link href="/dashboard">
               <Button>Return to Dashboard</Button>
             </Link>
           </CardContent>

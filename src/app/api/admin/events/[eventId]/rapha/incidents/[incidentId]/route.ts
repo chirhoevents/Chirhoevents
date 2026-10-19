@@ -11,7 +11,7 @@ export async function GET(
   try {
     const { eventId, incidentId } = await params
     const { error, user, event } = await verifyEventAccess(request, eventId, {
-      requireAdmin: true,
+      requireAdmin: false, // rapha.access is checked below, so Rapha-only staff get in
       logPrefix: '[Rapha Get Incident]',
     })
     if (error) return error
@@ -156,7 +156,7 @@ export async function PUT(
   try {
     const { eventId, incidentId } = await params
     const { error, user, event } = await verifyEventAccess(request, eventId, {
-      requireAdmin: true,
+      requireAdmin: false, // rapha.access is checked below, so Rapha-only staff get in
       logPrefix: '[Rapha Update Incident]',
     })
     if (error) return error

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { hasPermission } from '@/lib/permissions'
 
 export async function GET(
   request: NextRequest,
@@ -10,10 +11,25 @@ export async function GET(
   try {
     const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
-    if (!user || !isAdmin(user)) {
+    // Admins plus SALVE-only staff (the SALVE name tag and packet editors use this list)
+    const hasSalveAccess = !!user && (hasPermission(user.role, 'salve.access') ||
+      user.permissions?.['salve.access'] === true ||
+      user.permissions?.['portals.salve.view'] === true)
+    if (!user || (!isAdmin(user) && !hasSalveAccess)) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
     const { eventId } = await params
+
+    // The event must belong to the user's organization (unless master_admin)
+    if (user.role !== 'master_admin') {
+      const event = await prisma.event.findFirst({
+        where: { id: eventId, organizationId: user.organizationId },
+        select: { id: true },
+      })
+      if (!event) {
+        return NextResponse.json({ message: 'Event not found' }, { status: 404 })
+      }
+    }
     const { searchParams } = new URL(request.url)
 
     const includeCheckInStats = searchParams.get('includeCheckInStats') === 'true'

@@ -1,11 +1,26 @@
-import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const user = await requireAdmin()
+    const overrideUserId = await getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Admins plus Rapha-only staff (Rapha coordinators, Rapha users)
+    const hasRaphaAccess = hasPermission(user.role, 'rapha.access') ||
+      user.permissions?.['rapha.access'] === true ||
+      user.permissions?.['portals.rapha.view'] === true
+    if (!isAdmin(user) && !hasRaphaAccess) {
+      return NextResponse.json({ error: 'Access denied - Rapha portal access required' }, { status: 403 })
+    }
+
     const organizationId = await getEffectiveOrgId(user)
 
     // Get events with their settings, then filter for Rapha enabled

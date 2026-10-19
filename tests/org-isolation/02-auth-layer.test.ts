@@ -94,16 +94,24 @@ describe('Auth Layer: isAdmin() function', () => {
     expect(isAdmin(user)).toBeTruthy()
   })
 
-  it('salve_coordinator is admin', () => {
+  it('salve_coordinator is NOT admin (SALVE portal only)', () => {
     const org = makeOrg()
     const user = makeAdminUser(org, { role: 'salve_coordinator' }) as MinimalUser
-    expect(isAdmin(user)).toBeTruthy()
+    expect(isAdmin(user)).toBeFalsy()
   })
 
-  it('rapha_coordinator is admin', () => {
+  it('salve_coordinator only has SALVE permissions', () => {
+    expect(getPermissionsForRole('salve_coordinator').sort()).toEqual(['portals.salve.view', 'salve.access'])
+  })
+
+  it('rapha_coordinator is NOT admin (Rapha portal only)', () => {
     const org = makeOrg()
     const user = makeAdminUser(org, { role: 'rapha_coordinator' }) as MinimalUser
-    expect(isAdmin(user)).toBeTruthy()
+    expect(isAdmin(user)).toBeFalsy()
+  })
+
+  it('rapha_coordinator only has Rapha permissions', () => {
+    expect(getPermissionsForRole('rapha_coordinator').sort()).toEqual(['portals.rapha.view', 'rapha.access'])
   })
 
   it('staff is admin', () => {

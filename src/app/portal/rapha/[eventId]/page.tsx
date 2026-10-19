@@ -304,7 +304,7 @@ export default function RaphaDedicatedPortal() {
             <p className="text-gray-600 mb-4">
               {error || 'You do not have permission to access the Rapha Medical Portal.'}
             </p>
-            <Link href="/dashboard/admin">
+            <Link href="/dashboard">
               <Button>Return to Dashboard</Button>
             </Link>
           </CardContent>

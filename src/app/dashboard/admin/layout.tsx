@@ -162,10 +162,11 @@ export default function AdminLayout({
         console.log('🔐 [Admin Layout] API response status:', response.status)
 
         if (response.status === 403) {
-          // Not an admin - redirect appropriately
-          console.log('❌ [Admin Layout] 403 Forbidden - redirecting to group-leader')
+          // Not an admin - redirect appropriately (portal-only roles go to their portal)
+          const forbidden = await response.json().catch(() => ({}))
+          console.log('❌ [Admin Layout] 403 Forbidden - redirecting')
           hasRedirected.current = true
-          router.replace('/dashboard/group-leader')
+          router.replace(forbidden.redirectTo || '/dashboard/group-leader')
           return
         }
 
@@ -179,8 +180,9 @@ export default function AdminLayout({
           })
 
           if (retryResponse.status === 403) {
+            const forbidden = await retryResponse.json().catch(() => ({}))
             hasRedirected.current = true
-            router.replace('/dashboard/group-leader')
+            router.replace(forbidden.redirectTo || '/dashboard/group-leader')
             return
           }
 

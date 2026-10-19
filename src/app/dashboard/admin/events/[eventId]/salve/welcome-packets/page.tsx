@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, usePathname } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import {
@@ -271,6 +271,10 @@ export default function WelcomePacketsPage() {
   const params = useParams()
   const { getToken } = useAuth()
   const eventId = params.eventId as string
+  // Also served inside the SALVE portal (/portal/salve/[eventId]/...), where
+  // SALVE-only staff can't follow links into the admin dashboard
+  const inPortal = usePathname()?.startsWith('/portal/') ?? false
+  const backHref = inPortal ? `/portal/salve/${eventId}` : `/dashboard/admin/events/${eventId}/salve`
 
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -313,7 +317,7 @@ export default function WelcomePacketsPage() {
       const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       const [eventRes, groupsRes, insertsRes, packetRes, settingsRes] = await Promise.all([
-        fetch(`/api/admin/events/${eventId}`, { headers }),
+        fetch(`/api/admin/events/${eventId}/salve/settings`, { headers }),
         fetch(`/api/admin/events/${eventId}/groups`, { headers }),
         fetch(`/api/admin/events/${eventId}/salve/inserts`, { headers }),
         fetch(`/api/admin/events/${eventId}/salve/generate-packet`, { headers }),
@@ -322,7 +326,7 @@ export default function WelcomePacketsPage() {
 
       if (eventRes.ok) {
         const eventData = await eventRes.json()
-        setEventName(eventData.name || 'Event')
+        setEventName(eventData.eventName || 'Event')
       }
 
       if (groupsRes.ok) {
@@ -744,17 +748,19 @@ export default function WelcomePacketsPage() {
     <div className="p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <Link href="/dashboard/admin" className="hover:text-navy">Dashboard</Link>
-          <span>/</span>
-          <Link href="/dashboard/admin/events" className="hover:text-navy">Events</Link>
-          <span>/</span>
-          <Link href={`/dashboard/admin/events/${eventId}`} className="hover:text-navy">{eventName}</Link>
-          <span>/</span>
-          <Link href={`/dashboard/admin/events/${eventId}/salve`} className="hover:text-navy">SALVE</Link>
-          <span>/</span>
-          <span className="text-navy font-medium">Welcome Packets</span>
-        </div>
+        {!inPortal && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <Link href="/dashboard/admin" className="hover:text-navy">Dashboard</Link>
+            <span>/</span>
+            <Link href="/dashboard/admin/events" className="hover:text-navy">Events</Link>
+            <span>/</span>
+            <Link href={`/dashboard/admin/events/${eventId}`} className="hover:text-navy">{eventName}</Link>
+            <span>/</span>
+            <Link href={`/dashboard/admin/events/${eventId}/salve`} className="hover:text-navy">SALVE</Link>
+            <span>/</span>
+            <span className="text-navy font-medium">Welcome Packets</span>
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <div>
@@ -763,10 +769,10 @@ export default function WelcomePacketsPage() {
           </div>
 
           <div className="flex gap-2">
-            <Link href={`/dashboard/admin/events/${eventId}/salve`}>
+            <Link href={backHref}>
               <Button variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to SALVE
+                {inPortal ? 'Back to Check-In' : 'Back to SALVE'}
               </Button>
             </Link>
           </div>
@@ -792,12 +798,16 @@ export default function WelcomePacketsPage() {
                 {missingResources.eventSchedule && <li>Event schedule not added</li>}
               </ul>
               <p className="text-sm text-yellow-700 mt-2">
-                <Link
-                  href={`/dashboard/admin/events/${eventId}/poros`}
-                  className="underline font-medium hover:text-yellow-800"
-                >
-                  Go to Poros Portal to add these resources
-                </Link>
+                {inPortal ? (
+                  'An event admin can add these in the Poros Portal.'
+                ) : (
+                  <Link
+                    href={`/dashboard/admin/events/${eventId}/poros`}
+                    className="underline font-medium hover:text-yellow-800"
+                  >
+                    Go to Poros Portal to add these resources
+                  </Link>
+                )}
               </p>
             </div>
           </div>

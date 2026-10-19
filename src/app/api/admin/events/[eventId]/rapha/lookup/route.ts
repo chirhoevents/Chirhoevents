@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
+import { getCurrentUser } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { hasPermission } from '@/lib/permissions'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
@@ -13,7 +13,8 @@ export async function GET(
   try {
     const overrideUserId = await getClerkUserIdFromHeader(request)
     const user = await getCurrentUser(overrideUserId)
-    if (!user || !isAdmin(user)) {
+    // Admin role not required: rapha.access and the event's org are checked below
+    if (!user) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
     const organizationId = await getEffectiveOrgId(user as any)

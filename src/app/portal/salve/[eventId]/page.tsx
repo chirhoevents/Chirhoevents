@@ -776,7 +776,7 @@ export default function SalveDedicatedPortal() {
             <p className="text-gray-600 mb-4">
               {error || 'You do not have permission to access the SALVE Check-In Portal.'}
             </p>
-            <Link href="/dashboard/admin">
+            <Link href="/dashboard">
               <Button>Return to Dashboard</Button>
             </Link>
           </CardContent>
@@ -808,13 +808,13 @@ export default function SalveDedicatedPortal() {
                 <span className="hidden sm:inline">All Participants</span>
               </Button>
             </Link>
-            <Link href={`/dashboard/admin/events/${eventId}/salve/welcome-packets`}>
+            <Link href={`/portal/salve/${eventId}/welcome-packets`}>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
                 <FileText className="w-4 h-4 mr-1" />
                 <span className="hidden sm:inline">Edit Packets</span>
               </Button>
             </Link>
-            <Link href={`/dashboard/admin/events/${eventId}/salve/name-tags`}>
+            <Link href={`/portal/salve/${eventId}/name-tags`}>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
                 <Tag className="w-4 h-4 mr-1" />
                 <span className="hidden sm:inline">Edit Name Tags</span>

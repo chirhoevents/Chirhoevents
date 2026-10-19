@@ -1,11 +1,26 @@
-import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth-utils'
+import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser, isAdmin } from '@/lib/auth-utils'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const user = await requireAdmin()
+    const overrideUserId = await getClerkUserIdFromHeader(request)
+    const user = await getCurrentUser(overrideUserId)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Admins plus SALVE-only staff (SALVE coordinators, check-in users)
+    const hasSalveAccess = hasPermission(user.role, 'salve.access') ||
+      user.permissions?.['salve.access'] === true ||
+      user.permissions?.['portals.salve.view'] === true
+    if (!isAdmin(user) && !hasSalveAccess) {
+      return NextResponse.json({ error: 'Access denied - SALVE portal access required' }, { status: 403 })
+    }
+
     const organizationId = await getEffectiveOrgId(user)
 
     // Get events with their settings, then filter for Salve enabled

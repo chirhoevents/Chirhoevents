@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, usePathname } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -157,6 +157,10 @@ export default function NameTagDesignerPage() {
   const params = useParams()
   const { getToken } = useAuth()
   const eventId = params.eventId as string
+  // Also served inside the SALVE portal (/portal/salve/[eventId]/...), where
+  // SALVE-only staff can't follow links into the admin dashboard
+  const inPortal = usePathname()?.startsWith('/portal/') ?? false
+  const backHref = inPortal ? `/portal/salve/${eventId}` : `/dashboard/admin/events/${eventId}/salve`
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -187,15 +191,15 @@ export default function NameTagDesignerPage() {
       const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
 
       const [eventRes, groupsRes, templateRes, scheduleRes] = await Promise.all([
-        fetch(`/api/admin/events/${eventId}`, { headers }),
+        fetch(`/api/admin/events/${eventId}/salve/settings`, { headers }),
         fetch(`/api/admin/events/${eventId}/groups`, { headers }),
         fetch(`/api/admin/events/${eventId}/salve/name-tag-template`, { headers }),
-        fetch(`/api/admin/events/${eventId}/poros/schedule`, { headers }),
+        fetch(`/api/admin/events/${eventId}/salve/schedule`, { headers }),
       ])
 
       if (eventRes.ok) {
         const eventData = await eventRes.json()
-        setEventName(eventData.name || 'Event')
+        setEventName(eventData.eventName || 'Event')
       }
 
       if (groupsRes.ok) {
@@ -221,7 +225,7 @@ export default function NameTagDesignerPage() {
         }
       }
 
-      // Load schedule entries (requires poros.access; silently skip if forbidden)
+      // Load schedule entries (silently skip if forbidden)
       if (scheduleRes.ok) {
         const scheduleData = await scheduleRes.json()
         const entries = scheduleData.schedule || []
@@ -547,17 +551,19 @@ export default function NameTagDesignerPage() {
     <div className="p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <Link href="/dashboard/admin" className="hover:text-navy">Dashboard</Link>
-          <span>/</span>
-          <Link href="/dashboard/admin/events" className="hover:text-navy">Events</Link>
-          <span>/</span>
-          <Link href={`/dashboard/admin/events/${eventId}`} className="hover:text-navy">{eventName}</Link>
-          <span>/</span>
-          <Link href={`/dashboard/admin/events/${eventId}/salve`} className="hover:text-navy">SALVE</Link>
-          <span>/</span>
-          <span className="text-navy font-medium">Name Tags</span>
-        </div>
+        {!inPortal && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <Link href="/dashboard/admin" className="hover:text-navy">Dashboard</Link>
+            <span>/</span>
+            <Link href="/dashboard/admin/events" className="hover:text-navy">Events</Link>
+            <span>/</span>
+            <Link href={`/dashboard/admin/events/${eventId}`} className="hover:text-navy">{eventName}</Link>
+            <span>/</span>
+            <Link href={`/dashboard/admin/events/${eventId}/salve`} className="hover:text-navy">SALVE</Link>
+            <span>/</span>
+            <span className="text-navy font-medium">Name Tags</span>
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <div>
@@ -579,10 +585,10 @@ export default function NameTagDesignerPage() {
               )}
               Save Template
             </Button>
-            <Link href={`/dashboard/admin/events/${eventId}/salve`}>
+            <Link href={backHref}>
               <Button variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to SALVE
+                {inPortal ? 'Back to Check-In' : 'Back to SALVE'}
               </Button>
             </Link>
           </div>
@@ -705,9 +711,11 @@ export default function NameTagDesignerPage() {
                   <div className="space-y-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
                     <div className="flex items-center justify-between">
                       <Label className="font-medium text-indigo-800">Back Panel (Schedule)</Label>
-                      <Link href={`/dashboard/admin/events/${eventId}/poros`} className="text-xs text-indigo-600 hover:underline flex items-center gap-1" target="_blank">
-                        Manage schedule <ExternalLink className="w-3 h-3" />
-                      </Link>
+                      {!inPortal && (
+                        <Link href={`/dashboard/admin/events/${eventId}/poros`} className="text-xs text-indigo-600 hover:underline flex items-center gap-1" target="_blank">
+                          Manage schedule <ExternalLink className="w-3 h-3" />
+                        </Link>
+                      )}
                     </div>
                     <div className="text-xs rounded bg-white border border-indigo-100 px-2 py-1.5">
                       {scheduleCount === null ? (
