@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Loader2, User, DollarSign, FileText, AlertCircle } from 'lucide-react'
@@ -135,6 +136,8 @@ export default function EditGroupRegistrationModal({
   const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [isSaving, setSaving] = useState(false)
+  // Update emails are opt-in so routine fixes (e.g. a name typo) don't notify the group
+  const [sendEmail, setSendEmail] = useState(false)
   const [formData, setFormData] = useState({
     groupName: '',
     parishName: '',
@@ -174,6 +177,8 @@ export default function EditGroupRegistrationModal({
     dayPassChaperones: 0,
     priests: 0,
   })
+  // Counts as loaded, so an unchanged headcount keeps the stored total instead of re-pricing
+  const [initialCounts, setInitialCounts] = useState<typeof inventoryCounts | null>(null)
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
   const [showRecordCheckModal, setShowRecordCheckModal] = useState(false)
@@ -312,9 +317,10 @@ export default function EditGroupRegistrationModal({
         youthCount = storedTotal
       }
 
+      let loadedCounts: typeof inventoryCounts
       if (hasInventoryData) {
         // Use new inventory-style fields
-        setInventoryCounts({
+        loadedCounts = {
           onCampusYouth: (regData as any).onCampusYouth || 0,
           onCampusChaperones: (regData as any).onCampusChaperones || 0,
           offCampusYouth: (regData as any).offCampusYouth || 0,
@@ -322,14 +328,14 @@ export default function EditGroupRegistrationModal({
           dayPassYouth: (regData as any).dayPassYouth || 0,
           dayPassChaperones: (regData as any).dayPassChaperones || 0,
           priests: priestCount,
-        })
+        }
       } else {
         // Fall back to legacy youthCount/chaperoneCount. When the event has no
         // housing type, bucket participants under day_pass so admins still see
         // the counts; otherwise place them under the registration's housingType.
         const housingType = regData.housingType
         const bucket = housingType || 'day_pass'
-        setInventoryCounts({
+        loadedCounts = {
           onCampusYouth: bucket === 'on_campus' ? youthCount : 0,
           onCampusChaperones: bucket === 'on_campus' ? chaperoneCount : 0,
           offCampusYouth: bucket === 'off_campus' ? youthCount : 0,
@@ -337,8 +343,11 @@ export default function EditGroupRegistrationModal({
           dayPassYouth: bucket === 'day_pass' ? youthCount : 0,
           dayPassChaperones: bucket === 'day_pass' ? chaperoneCount : 0,
           priests: priestCount,
-        })
+        }
       }
+      setInventoryCounts(loadedCounts)
+      setInitialCounts(loadedCounts)
+      setSendEmail(false)
 
       const total = regData.paymentBalance?.totalAmountDue || 0
       setOriginalTotal(total)
@@ -360,8 +369,16 @@ export default function EditGroupRegistrationModal({
   // Use fetchedEventPricing which is either the prop or fetched from API
   useEffect(() => {
     const pricingToUse = fetchedEventPricing || eventPricing
+    const countsUnchanged =
+      initialCounts !== null &&
+      (Object.keys(initialCounts) as Array<keyof typeof initialCounts>).every(
+        key => initialCounts[key] === inventoryCounts[key]
+      )
 
-    if (pricingToUse && totalParticipantsCalc > 0) {
+    if (countsUnchanged) {
+      setNewTotal(originalTotal)
+      setPriceBreakdown([])
+    } else if (pricingToUse && totalParticipantsCalc > 0) {
       // Create temporary participant objects for price calculation
       const tempParticipants: Participant[] = []
 
@@ -455,7 +472,7 @@ export default function EditGroupRegistrationModal({
       setNewTotal(0)
       setPriceBreakdown([])
     }
-  }, [inventoryCounts, eventPricing, fetchedEventPricing, registration, totalParticipantsCalc])
+  }, [inventoryCounts, initialCounts, originalTotal, eventPricing, fetchedEventPricing, registration, totalParticipantsCalc])
 
   const handleSave = async () => {
     if (!registration) return
@@ -487,6 +504,7 @@ export default function EditGroupRegistrationModal({
             eventId,
             oldTotal: originalTotal,
             newTotal,
+            sendEmail,
           }),
         }
       )
@@ -1016,7 +1034,7 @@ export default function EditGroupRegistrationModal({
                     {difference > 0 ? '+' : ''}${difference.toFixed(2)}
                   </div>
                 </div>
-                {difference > 0 && (
+                {difference > 0 && sendEmail && (
                   <div className="mt-3 text-xs text-gray-600">
                     Group will be notified of additional charges
                   </div>
@@ -1676,7 +1694,17 @@ export default function EditGroupRegistrationModal({
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+        <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t">
+          <div className="flex items-center space-x-2 mr-auto">
+            <Checkbox
+              id="sendUpdateEmail"
+              checked={sendEmail}
+              onCheckedChange={(checked) => setSendEmail(checked === true)}
+            />
+            <Label htmlFor="sendUpdateEmail" className="cursor-pointer text-sm">
+              Email the group leader about these changes
+            </Label>
+          </div>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>

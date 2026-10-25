@@ -208,6 +208,7 @@ export async function PUT(
       offCampusChaperones,
       dayPassYouth,
       dayPassChaperones,
+      sendEmail,
     } = body
 
     // Calculate individual counts
@@ -227,9 +228,26 @@ export async function PUT(
         finalPriestCount * Number(eventPricing.priestPrice)
     }
 
-    // Use server-computed total for payment balance update; fall back to client-supplied newTotal
-    const computedNewTotal = serverNewTotal ?? newTotal
     const currentTotal = paymentBalance ? Number(paymentBalance.totalAmountDue) : (oldTotal ?? 0)
+
+    // Only re-price when the headcount actually changed. The recalculation above
+    // uses regular prices only, so running it on an info-only edit (e.g. a name
+    // fix) would wipe out early-bird / housing-specific / negotiated pricing.
+    // Legacy rows can have all-zero type counts with a positive totalParticipants;
+    // the edit modal loads those as all-youth, so compare against that same view.
+    const legacyAllYouth =
+      existingRegistration.youthCount === 0 &&
+      existingRegistration.chaperoneCount === 0 &&
+      existingRegistration.priestCount === 0 &&
+      (existingRegistration.totalParticipants ?? 0) > 0
+    const baselineYouthCount = legacyAllYouth ? existingRegistration.totalParticipants : existingRegistration.youthCount
+    const headcountChanged =
+      finalYouthCount !== baselineYouthCount ||
+      finalChaperoneCount !== existingRegistration.chaperoneCount ||
+      finalPriestCount !== existingRegistration.priestCount
+
+    // Use server-computed total for payment balance update; fall back to client-supplied newTotal
+    const computedNewTotal = headcountChanged ? (serverNewTotal ?? newTotal) : currentTotal
 
     // When spots are dropped, the deposit already paid toward those spots is
     // non-refundable — it must not silently act as a credit against what the
@@ -451,8 +469,8 @@ export async function PUT(
     const orgCustomFields = (orgSettings?.customFieldsEnabled as Record<string, any>) || {}
     const updateEmailsDisabled = orgCustomFields?.updateEmails?.disabled === true
 
-    // Send email notification to group leader
-    if (!updateEmailsDisabled && groupLeaderEmail && existingRegistration.event) {
+    // Send email notification to group leader only when the admin opted in
+    if (sendEmail === true && !updateEmailsDisabled && groupLeaderEmail && existingRegistration.event) {
       try {
         // Build list of changes for email
         const emailChanges: string[] = []
