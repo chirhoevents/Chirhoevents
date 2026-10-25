@@ -7,8 +7,24 @@ import { canAccessOrganization } from '@/lib/auth-utils'
 import { incrementOptionCapacity, decrementOptionCapacity, getGroupHousingCounts, type HousingType } from '@/lib/option-capacity'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { deriveBalance } from '@/lib/payment-balance-status'
+import {
+  calculateSpotChange,
+  getRegistrationSpotCounts,
+  spotCountsEqual,
+  type SpotCounts,
+} from '@/lib/group-spot-pricing'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
+
+// Percentage coupon the group used at sign-up (0 if none, or a fixed-amount
+// coupon — that discount is already baked into the stored total).
+async function getGroupCouponPercent(registrationId: string): Promise<number> {
+  const redemption = await prisma.couponRedemption.findFirst({
+    where: { registrationId, registrationType: 'group' },
+    include: { coupon: { select: { discountType: true, discountValue: true } } },
+  })
+  return redemption?.coupon.discountType === 'percentage' ? Number(redemption.coupon.discountValue) : 0
+}
 
 export async function GET(
   request: NextRequest,
@@ -82,9 +98,12 @@ export async function GET(
       },
     })
 
+    const couponPercent = await getGroupCouponPercent(registrationId)
+
     return NextResponse.json({
       registration: {
         ...registration,
+        couponPercent,
         paymentBalance: paymentBalance ? {
           totalAmountDue: Number(paymentBalance.totalAmountDue),
           amountPaid: Number(paymentBalance.amountPaid),
@@ -199,7 +218,6 @@ export async function PUT(
       priestCount,
       adminNotes,
       oldTotal,
-      newTotal,
       eventId,
       // Inventory-style housing counts (new)
       onCampusYouth,
@@ -216,76 +234,47 @@ export async function PUT(
     const finalChaperoneCount = chaperoneCount !== undefined ? chaperoneCount : existingRegistration.chaperoneCount
     const finalPriestCount = priestCount !== undefined ? priestCount : existingRegistration.priestCount
 
-    // FIX 2.3: Compute new total server-side from event pricing (ignore client-supplied oldTotal/newTotal)
+    const currentTotal = paymentBalance ? Number(paymentBalance.totalAmountDue) : (oldTotal ?? 0)
+
+    // Adjust the total by just the spots that were added/dropped, priced the
+    // way this group was priced at sign-up (see group-spot-pricing). The rest
+    // of the total is left alone, so discounts and manual adjustments survive,
+    // and an info-only edit (no spot changes) never touches the amount due.
+    const oldSpotCounts = getRegistrationSpotCounts(existingRegistration)
+    const newSpotCounts: SpotCounts = {
+      onCampusYouth: onCampusYouth ?? 0,
+      onCampusChaperones: onCampusChaperones ?? 0,
+      offCampusYouth: offCampusYouth ?? 0,
+      offCampusChaperones: offCampusChaperones ?? 0,
+      dayPassYouth: dayPassYouth ?? 0,
+      dayPassChaperones: dayPassChaperones ?? 0,
+      priests: finalPriestCount,
+    }
+    // Callers that don't send inventory counts can't be changing spots.
+    const sentSpotCounts = onCampusYouth !== undefined || offCampusYouth !== undefined || dayPassYouth !== undefined
+    const spotsChanged = sentSpotCounts && !spotCountsEqual(oldSpotCounts, newSpotCounts)
+
     const eventPricing = await prisma.eventPricing.findUnique({
       where: { eventId: existingRegistration.eventId },
     })
-    let serverNewTotal: number | null = null
-    if (eventPricing) {
-      serverNewTotal =
-        finalYouthCount * Number(eventPricing.youthRegularPrice) +
-        finalChaperoneCount * Number(eventPricing.chaperoneRegularPrice) +
-        finalPriestCount * Number(eventPricing.priestPrice)
-    }
+    const spotChange = spotsChanged && eventPricing
+      ? calculateSpotChange({
+          currentTotal,
+          oldCounts: oldSpotCounts,
+          newCounts: newSpotCounts,
+          pricing: eventPricing,
+          registeredAt: existingRegistration.registeredAt,
+          couponPercent: await getGroupCouponPercent(registrationId),
+          amountPaid: paymentBalance ? Number(paymentBalance.amountPaid) : 0,
+        })
+      : null
+    const forfeitedDeposit = spotChange?.forfeitedDeposit ?? 0
+    const totalDropped = spotChange?.droppedSpots ?? 0
 
-    const currentTotal = paymentBalance ? Number(paymentBalance.totalAmountDue) : (oldTotal ?? 0)
-
-    // Only re-price when the headcount actually changed. The recalculation above
-    // uses regular prices only, so running it on an info-only edit (e.g. a name
-    // fix) would wipe out early-bird / housing-specific / negotiated pricing.
-    // Legacy rows can have all-zero type counts with a positive totalParticipants;
-    // the edit modal loads those as all-youth, so compare against that same view.
-    const legacyAllYouth =
-      existingRegistration.youthCount === 0 &&
-      existingRegistration.chaperoneCount === 0 &&
-      existingRegistration.priestCount === 0 &&
-      (existingRegistration.totalParticipants ?? 0) > 0
-    const baselineYouthCount = legacyAllYouth ? existingRegistration.totalParticipants : existingRegistration.youthCount
-    const headcountChanged =
-      finalYouthCount !== baselineYouthCount ||
-      finalChaperoneCount !== existingRegistration.chaperoneCount ||
-      finalPriestCount !== existingRegistration.priestCount
-
-    // Use server-computed total for payment balance update; fall back to client-supplied newTotal
-    const computedNewTotal = headcountChanged ? (serverNewTotal ?? newTotal) : currentTotal
-
-    // When spots are dropped, the deposit already paid toward those spots is
-    // non-refundable — it must not silently act as a credit against what the
-    // remaining group members still owe. Without this, lowering the headcount
-    // would under-bill the group by exactly the forfeited amount, because the
-    // old amountPaid (which includes the forfeited deposit) would otherwise
-    // get applied in full against the smaller recalculated total.
-    //
-    // Only computed for the two configurations where a deposit is a distinct
-    // concept from the full price (flat per-person, or percentage-of-price) —
-    // a flat total-group deposit or "no deposit" has no clean per-spot slice
-    // to forfeit, so those are left unchanged.
-    const droppedYouth = Math.max(0, existingRegistration.youthCount - finalYouthCount)
-    const droppedChaperones = Math.max(0, existingRegistration.chaperoneCount - finalChaperoneCount)
-    const droppedPriests = Math.max(0, existingRegistration.priestCount - finalPriestCount)
-    const totalDropped = droppedYouth + droppedChaperones + droppedPriests
-
-    let forfeitedDeposit = 0
-    if (totalDropped > 0 && eventPricing && !eventPricing.requireFullPayment) {
-      if (eventPricing.depositPercentage != null) {
-        const droppedValue =
-          droppedYouth * Number(eventPricing.youthRegularPrice) +
-          droppedChaperones * Number(eventPricing.chaperoneRegularPrice) +
-          droppedPriests * Number(eventPricing.priestPrice)
-        forfeitedDeposit = (droppedValue * Number(eventPricing.depositPercentage)) / 100
-      } else if (eventPricing.depositAmount != null && eventPricing.depositPerPerson) {
-        forfeitedDeposit = totalDropped * Number(eventPricing.depositAmount)
-      }
-    }
-    // Never forfeit more than what's actually been paid so far.
-    forfeitedDeposit = Math.min(forfeitedDeposit, paymentBalance ? Number(paymentBalance.amountPaid) : 0)
-
-    // The real new total the remaining headcount owes, plus the forfeited
-    // deposit added back on so it stops counting as a credit. amountPaid
-    // itself is left untouched — the org genuinely received that money, so
-    // revenue reporting should keep reflecting it accurately.
-    const finalNewTotal = computedNewTotal + forfeitedDeposit
-    const difference = finalNewTotal - currentTotal
+    // amountPaid itself is left untouched — the org genuinely received that
+    // money, so revenue reporting keeps reflecting it accurately.
+    const finalNewTotal = spotChange ? spotChange.newTotal : currentTotal
+    const difference = Math.round((finalNewTotal - currentTotal) * 100) / 100
 
     // FIX 2.2: Update event-level capacity when totalParticipants changes
     const oldTotalParticipants = existingRegistration.totalParticipants ?? 0
