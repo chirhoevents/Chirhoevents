@@ -8,13 +8,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Loader2, User, DollarSign, FileText, AlertCircle } from 'lucide-react'
+import { type EventPricing } from '@/lib/registration-price-calculator'
 import {
-  calculateRegistrationPrice,
-  type EventPricing,
-} from '@/lib/registration-price-calculator'
+  calculateSpotChange,
+  getRegistrationSpotCounts,
+  spotCountsEqual,
+  type SpotChangeResult,
+  type SpotCounts,
+} from '@/lib/group-spot-pricing'
 import RefundModal from './RefundModal'
 import MarkCheckReceivedModal from './MarkCheckReceivedModal'
 import RecordCheckPaymentModal from './RecordCheckPaymentModal'
@@ -106,6 +111,8 @@ interface GroupRegistration {
   specialRequests?: string
   registeredAt: string
   participants: Participant[]
+  // Percentage coupon used at sign-up (from the GET endpoint)
+  couponPercent?: number
   paymentBalance?: PaymentBalance
   payments?: Payment[]
   event?: {
@@ -135,6 +142,8 @@ export default function EditGroupRegistrationModal({
   const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [isSaving, setSaving] = useState(false)
+  // Update emails are opt-in so routine fixes (e.g. a name typo) don't notify the group
+  const [sendEmail, setSendEmail] = useState(false)
   const [formData, setFormData] = useState({
     groupName: '',
     parishName: '',
@@ -158,14 +167,9 @@ export default function EditGroupRegistrationModal({
   })
   const [originalTotal, setOriginalTotal] = useState(0)
   const [newTotal, setNewTotal] = useState(0)
-  const [priceBreakdown, setPriceBreakdown] = useState<Array<{
-    participantType: string
-    count: number
-    pricePerPerson: number
-    subtotal: number
-  }>>([])
+  const [spotChange, setSpotChange] = useState<SpotChangeResult | null>(null)
   // Inventory-style housing counts
-  const [inventoryCounts, setInventoryCounts] = useState({
+  const [inventoryCounts, setInventoryCounts] = useState<SpotCounts>({
     onCampusYouth: 0,
     onCampusChaperones: 0,
     offCampusYouth: 0,
@@ -174,6 +178,8 @@ export default function EditGroupRegistrationModal({
     dayPassChaperones: 0,
     priests: 0,
   })
+  // Counts as loaded, so an unchanged headcount keeps the stored total instead of re-pricing
+  const [initialCounts, setInitialCounts] = useState<SpotCounts | null>(null)
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [showCheckModal, setShowCheckModal] = useState(false)
   const [showRecordCheckModal, setShowRecordCheckModal] = useState(false)
@@ -282,63 +288,13 @@ export default function EditGroupRegistrationModal({
         adminNotes: '',
       })
 
-      // Initialize inventory counts from registration data. Only initialize
-      // once per registration load — once the user starts editing counters,
-      // don't clobber their in-progress edits when other state updates trigger
-      // this effect.
-      const priestCount = (regData as any).priestCount || 0
-      let youthCount = (regData as any).youthCount || 0
-      let chaperoneCount = (regData as any).chaperoneCount || 0
-      const storedTotal = (regData as any).totalParticipants || 0
-
-      // Nullable Int fields come back as `null` (not `undefined`), so checking
-      // `!== undefined` would be true even when no inventory was recorded —
-      // forcing all counts to 0. Require at least one positive value.
-      const inventoryValues = [
-        (regData as any).onCampusYouth,
-        (regData as any).onCampusChaperones,
-        (regData as any).offCampusYouth,
-        (regData as any).offCampusChaperones,
-        (regData as any).dayPassYouth,
-        (regData as any).dayPassChaperones,
-      ]
-      const hasInventoryData = inventoryValues.some(v => typeof v === 'number' && v > 0)
-
-      // Safety net for data inconsistency: if the breakdown counters are all
-      // zero but totalParticipants is positive, treat everyone as youth so the
-      // headcount surfaces somewhere. The admin can then reassign within the
-      // inventory editor.
-      if (!hasInventoryData && youthCount === 0 && chaperoneCount === 0 && priestCount === 0 && storedTotal > 0) {
-        youthCount = storedTotal
-      }
-
-      if (hasInventoryData) {
-        // Use new inventory-style fields
-        setInventoryCounts({
-          onCampusYouth: (regData as any).onCampusYouth || 0,
-          onCampusChaperones: (regData as any).onCampusChaperones || 0,
-          offCampusYouth: (regData as any).offCampusYouth || 0,
-          offCampusChaperones: (regData as any).offCampusChaperones || 0,
-          dayPassYouth: (regData as any).dayPassYouth || 0,
-          dayPassChaperones: (regData as any).dayPassChaperones || 0,
-          priests: priestCount,
-        })
-      } else {
-        // Fall back to legacy youthCount/chaperoneCount. When the event has no
-        // housing type, bucket participants under day_pass so admins still see
-        // the counts; otherwise place them under the registration's housingType.
-        const housingType = regData.housingType
-        const bucket = housingType || 'day_pass'
-        setInventoryCounts({
-          onCampusYouth: bucket === 'on_campus' ? youthCount : 0,
-          onCampusChaperones: bucket === 'on_campus' ? chaperoneCount : 0,
-          offCampusYouth: bucket === 'off_campus' ? youthCount : 0,
-          offCampusChaperones: bucket === 'off_campus' ? chaperoneCount : 0,
-          dayPassYouth: bucket === 'day_pass' ? youthCount : 0,
-          dayPassChaperones: bucket === 'day_pass' ? chaperoneCount : 0,
-          priests: priestCount,
-        })
-      }
+      // Initialize inventory counts from registration data (legacy rows without
+      // per-housing counts are bucketed under their housing type, or all-youth
+      // when only totalParticipants was recorded — same view the server uses).
+      const loadedCounts = getRegistrationSpotCounts(regData as any)
+      setInventoryCounts(loadedCounts)
+      setInitialCounts(loadedCounts)
+      setSendEmail(false)
 
       const total = regData.paymentBalance?.totalAmountDue || 0
       setOriginalTotal(total)
@@ -356,106 +312,30 @@ export default function EditGroupRegistrationModal({
   // under-counts groups whose individual Participant records haven't been added.
   const originalParticipantCount = fullRegistration?.totalParticipants ?? registration?.totalParticipants ?? 0
 
-  // Recalculate price when inventory counts change
-  // Use fetchedEventPricing which is either the prop or fetched from API
+  // Preview the new total: only the added/dropped spots are priced (at this
+  // group's sign-up pricing); the rest of the current total stays as is.
+  // Mirrors the server calculation in PUT /api/admin/registrations/group/[id].
   useEffect(() => {
     const pricingToUse = fetchedEventPricing || eventPricing
+    const regData = fullRegistration || registration
 
-    if (pricingToUse && totalParticipantsCalc > 0) {
-      // Create temporary participant objects for price calculation
-      const tempParticipants: Participant[] = []
-
-      // Add on-campus youth
-      for (let i = 0; i < inventoryCounts.onCampusYouth; i++) {
-        tempParticipants.push({
-          firstName: 'Youth',
-          lastName: `OnCampus-${i + 1}`,
-          age: 17,
-          gender: 'male',
-          participantType: 'youth_u18',
-        })
-      }
-
-      // Add on-campus chaperones
-      for (let i = 0; i < inventoryCounts.onCampusChaperones; i++) {
-        tempParticipants.push({
-          firstName: 'Chaperone',
-          lastName: `OnCampus-${i + 1}`,
-          age: 30,
-          gender: 'male',
-          participantType: 'chaperone',
-        })
-      }
-
-      // Add off-campus youth
-      for (let i = 0; i < inventoryCounts.offCampusYouth; i++) {
-        tempParticipants.push({
-          firstName: 'Youth',
-          lastName: `OffCampus-${i + 1}`,
-          age: 17,
-          gender: 'male',
-          participantType: 'youth_u18',
-        })
-      }
-
-      // Add off-campus chaperones
-      for (let i = 0; i < inventoryCounts.offCampusChaperones; i++) {
-        tempParticipants.push({
-          firstName: 'Chaperone',
-          lastName: `OffCampus-${i + 1}`,
-          age: 30,
-          gender: 'male',
-          participantType: 'chaperone',
-        })
-      }
-
-      // Add day pass youth
-      for (let i = 0; i < inventoryCounts.dayPassYouth; i++) {
-        tempParticipants.push({
-          firstName: 'Youth',
-          lastName: `DayPass-${i + 1}`,
-          age: 17,
-          gender: 'male',
-          participantType: 'youth_u18',
-        })
-      }
-
-      // Add day pass chaperones
-      for (let i = 0; i < inventoryCounts.dayPassChaperones; i++) {
-        tempParticipants.push({
-          firstName: 'Chaperone',
-          lastName: `DayPass-${i + 1}`,
-          age: 30,
-          gender: 'male',
-          participantType: 'chaperone',
-        })
-      }
-
-      // Add priests
-      for (let i = 0; i < inventoryCounts.priests; i++) {
-        tempParticipants.push({
-          firstName: 'Priest',
-          lastName: `${i + 1}`,
-          age: 40,
-          gender: 'male',
-          participantType: 'priest',
-        })
-      }
-
-      // For now, use on_campus as default for calculation (pricing should be same regardless)
-      const calculation = calculateRegistrationPrice({
-        participants: tempParticipants,
-        housingType: 'on_campus',
+    if (!initialCounts || !regData || spotCountsEqual(initialCounts, inventoryCounts)) {
+      setNewTotal(originalTotal)
+      setSpotChange(null)
+    } else if (pricingToUse) {
+      const result = calculateSpotChange({
+        currentTotal: originalTotal,
+        oldCounts: initialCounts,
+        newCounts: inventoryCounts,
         pricing: pricingToUse,
-        registrationDate: registration ? new Date(registration.registeredAt) : new Date(),
+        registeredAt: regData.registeredAt,
+        couponPercent: regData.couponPercent,
+        amountPaid: regData.paymentBalance?.amountPaid,
       })
-      setNewTotal(calculation.total)
-      setPriceBreakdown(calculation.breakdown)
-    } else if (totalParticipantsCalc === 0) {
-      setNewTotal(0)
-      setPriceBreakdown([])
+      setNewTotal(result.newTotal)
+      setSpotChange(result)
     }
-  }, [inventoryCounts, eventPricing, fetchedEventPricing, registration, totalParticipantsCalc])
+  }, [inventoryCounts, initialCounts, originalTotal, eventPricing, fetchedEventPricing, fullRegistration, registration])
 
   const handleSave = async () => {
     if (!registration) return
@@ -487,6 +367,7 @@ export default function EditGroupRegistrationModal({
             eventId,
             oldTotal: originalTotal,
             newTotal,
+            sendEmail,
           }),
         }
       )
@@ -537,7 +418,8 @@ export default function EditGroupRegistrationModal({
     }
   }, [activeTab, registration, auditTrail.length, fetchAuditTrail])
 
-  const difference = newTotal - originalTotal
+  const difference = Math.round((newTotal - originalTotal) * 100) / 100
+  const regDataForBalance = (fullRegistration || registration)?.paymentBalance
 
   if (!registration) return null
 
@@ -968,28 +850,59 @@ export default function EditGroupRegistrationModal({
               />
             </div>
 
-            {/* Live Price Breakdown */}
-            {priceBreakdown.length > 0 && (
+            {/* Spot Change Breakdown */}
+            {spotChange && (
               <Card className="p-4 bg-blue-50 border-blue-200">
                 <h4 className="font-semibold text-sm text-[#1E3A5F] mb-3">
-                  Live Price Calculation
+                  Spot Changes
                 </h4>
                 <div className="space-y-2">
-                  {priceBreakdown.map((item, index) => (
-                    <div key={index} className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-700">Current total</span>
+                    <span className="font-medium">${originalTotal.toFixed(2)}</span>
+                  </div>
+                  {spotChange.lines.map((line) => (
+                    <div key={line.key} className="flex justify-between text-sm">
                       <span className="text-gray-700">
-                        {item.count}x {item.participantType.replace('_', ' ')} @ $
-                        {(Number(item.pricePerPerson) || 0).toFixed(2)}
+                        {line.change > 0 ? `Add ${line.change}` : `Drop ${Math.abs(line.change)}`} {line.label}
+                        {Math.abs(line.change) === 1 ? '' : 's'} @ ${line.unitPrice.toFixed(2)}
                       </span>
                       <span className="font-medium">
-                        ${(Number(item.subtotal) || 0).toFixed(2)}
+                        {line.amount < 0 ? '−' : '+'}${Math.abs(line.amount).toFixed(2)}
                       </span>
                     </div>
                   ))}
+                  {spotChange.couponPercent > 0 && spotChange.lines.length > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">Group&apos;s {spotChange.couponPercent}% coupon on these spots</span>
+                      <span className="font-medium">
+                        {spotChange.spotsDelta > 0 ? '−' : '+'}$
+                        {Math.abs(spotChange.lines.reduce((sum, l) => sum + l.amount, 0) - spotChange.spotsDelta).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  {spotChange.forfeitedDeposit > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">
+                        Deposit kept on {spotChange.droppedSpots} dropped spot{spotChange.droppedSpots === 1 ? '' : 's'} (non-refundable)
+                      </span>
+                      <span className="font-medium">+${spotChange.forfeitedDeposit.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t pt-2 font-semibold">
                     <span>New Total:</span>
                     <span className="text-[#1E3A5F]">${(Number(newTotal) || 0).toFixed(2)}</span>
                   </div>
+                  {regDataForBalance && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">
+                        Paid so far ${(regDataForBalance.amountPaid || 0).toFixed(2)} → {newTotal - (regDataForBalance.amountPaid || 0) >= 0 ? 'still owes' : 'overpaid by'}
+                      </span>
+                      <span className="font-semibold">
+                        ${Math.abs(newTotal - (regDataForBalance.amountPaid || 0)).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </Card>
             )}
@@ -1016,7 +929,7 @@ export default function EditGroupRegistrationModal({
                     {difference > 0 ? '+' : ''}${difference.toFixed(2)}
                   </div>
                 </div>
-                {difference > 0 && (
+                {difference > 0 && sendEmail && (
                   <div className="mt-3 text-xs text-gray-600">
                     Group will be notified of additional charges
                   </div>
@@ -1676,7 +1589,17 @@ export default function EditGroupRegistrationModal({
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+        <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t">
+          <div className="flex items-center space-x-2 mr-auto">
+            <Checkbox
+              id="sendUpdateEmail"
+              checked={sendEmail}
+              onCheckedChange={(checked) => setSendEmail(checked === true)}
+            />
+            <Label htmlFor="sendUpdateEmail" className="cursor-pointer text-sm">
+              Email the group leader about these changes
+            </Label>
+          </div>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
