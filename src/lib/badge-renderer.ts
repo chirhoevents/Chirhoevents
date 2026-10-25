@@ -191,12 +191,48 @@ interface ScheduleSizing {
   dayGap: number
 }
 
+const SCHEDULE_MAX_SCALE = 1.8
+
+// Runs in the print window / preview iframe. For every measured-fit schedule
+// (see renderScheduleBody's measuredFit) it binary-searches the largest --s
+// scale at which the real rendered content still fits its box, so the whole
+// schedule always shows — however many entries, however many of them wrap.
+// Re-runs once web fonts finish loading and right before printing, since
+// both can change text metrics. Without JS the server-side estimate stands.
+const SCHEDULE_FIT_SCRIPT = `<script>
+(function () {
+  function fit() {
+    var boxes = document.querySelectorAll('.sched-fit');
+    for (var i = 0; i < boxes.length; i++) {
+      var box = boxes[i];
+      var inner = box.firstElementChild;
+      if (!inner) continue;
+      // A hair of slack so print-vs-screen text metric differences can't tip it over.
+      var avail = box.clientHeight * 0.98;
+      var lo = 0.1;
+      var hi = parseFloat(box.getAttribute('data-max-scale')) || ${SCHEDULE_MAX_SCALE};
+      box.style.setProperty('--s', String(hi));
+      if (inner.offsetHeight <= avail) continue;
+      for (var step = 0; step < 16; step++) {
+        var mid = (lo + hi) / 2;
+        box.style.setProperty('--s', String(mid));
+        if (inner.offsetHeight <= avail) lo = mid; else hi = mid;
+      }
+      box.style.setProperty('--s', String(lo));
+    }
+  }
+  fit();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+  window.addEventListener('beforeprint', fit);
+})();
+</script>`
+
 function fitScheduleToHeight(
   schedule: ScheduleEntry[],
   availableHeightPx: number,
   sizing: ScheduleSizing,
   minScale = 0.1,
-  maxScale = 1.8
+  maxScale = SCHEDULE_MAX_SCALE
 ): { scale: number; days: Map<string, ScheduleEntry[]>; hiddenCount: number } {
   const days = new Map<string, ScheduleEntry[]>()
   for (const entry of schedule) {
@@ -254,7 +290,14 @@ function renderScheduleBody(
   sizing: ScheduleSizing,
   colors: { headerColor: string; timeColor: string; locColor: string },
   empty: { message: string; paddingTop: string },
-  minScale = 0.1
+  minScale = 0.1,
+  // When true, every size is expressed relative to a --s CSS variable and the
+  // body is wrapped in a .sched-fit box that SCHEDULE_FIT_SCRIPT re-scales in
+  // the browser by measuring the real rendered height. The estimate above
+  // can't know which rows will wrap onto two lines, so on its own it can
+  // still overflow (and get clipped) — measuring can't. The container must
+  // have a definite height for this to work.
+  measuredFit = false
 ): string {
   const { scale, days, hiddenCount } = fitScheduleToHeight(schedule, availableHeightPx, sizing, minScale)
 
@@ -265,34 +308,38 @@ function renderScheduleBody(
   // Floors track the same near-zero minScale above (not a higher "still
   // legible" floor) so what's rendered always matches what fitScheduleToHeight
   // budgeted for — a mismatch there is what would actually cause clipping.
-  const headerFont = Math.max(3, Math.round(sizing.headerFont * scale))
-  const timeFont = Math.max(3, Math.round(sizing.timeFont * scale))
-  const titleFont = Math.max(3, Math.round(sizing.titleFont * scale))
-  const timeWidth = Math.max(14, Math.round(sizing.timeWidth * scale))
-  const rowGap = Math.max(0, Math.round(sizing.rowGap * scale))
-  const dayGap = Math.max(1, Math.round(sizing.dayGap * scale))
+  const size = (base: number, floor: number) => measuredFit
+    ? `max(${floor}px, calc(var(--s) * ${base}px))`
+    : `${Math.max(floor, Math.round(base * scale))}px`
+  const headerFont = size(sizing.headerFont, 3)
+  const timeFont = size(sizing.timeFont, 3)
+  const titleFont = size(sizing.titleFont, 3)
+  const timeWidth = size(sizing.timeWidth, 14)
+  const rowGap = size(sizing.rowGap, 0)
+  const dayGap = size(sizing.dayGap, 1)
 
   const dayBlocks = Array.from(days.entries()).map(([day, entries]) => {
     const rows = entries.map((e) => {
       const timeRange = e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime
       const loc = e.location ? `<span style="color:${colors.locColor};"> · ${escapeHtml(e.location)}</span>` : ''
-      return `<div style="display:flex;gap:4px;margin-bottom:${rowGap}px;align-items:baseline;line-height:1.25;">
-        <span style="font-size:${timeFont}px;white-space:nowrap;min-width:${timeWidth}px;color:${colors.timeColor};flex-shrink:0;">${escapeHtml(timeRange)}</span>
-        <span style="font-size:${titleFont}px;flex:1;word-break:break-word;">${escapeHtml(e.title)}${loc}</span>
+      return `<div style="display:flex;gap:4px;margin-bottom:${rowGap};align-items:baseline;line-height:1.25;">
+        <span style="font-size:${timeFont};white-space:nowrap;min-width:${timeWidth};color:${colors.timeColor};flex-shrink:0;">${escapeHtml(timeRange)}</span>
+        <span style="font-size:${titleFont};flex:1;word-break:break-word;">${escapeHtml(e.title)}${loc}</span>
       </div>`
     }).join('')
 
-    return `<div style="margin-bottom:${dayGap}px;">
-      <div style="font-size:${headerFont}px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid ${colors.headerColor};margin-bottom:2px;padding-bottom:1px;color:${colors.headerColor};">${escapeHtml(day)}</div>
+    return `<div style="margin-bottom:${dayGap};">
+      <div style="font-size:${headerFont};font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid ${colors.headerColor};margin-bottom:2px;padding-bottom:1px;color:${colors.headerColor};">${escapeHtml(day)}</div>
       ${rows}
     </div>`
   }).join('')
 
   const hiddenNote = hiddenCount > 0
-    ? `<div style="font-size:${Math.max(6, timeFont)}px;color:#999;font-style:italic;text-align:center;margin-top:2px;">+ ${hiddenCount} more</div>`
+    ? `<div style="font-size:${size(sizing.timeFont, 6)};color:#999;font-style:italic;text-align:center;margin-top:2px;">+ ${hiddenCount} more</div>`
     : ''
 
-  return dayBlocks + hiddenNote
+  if (!measuredFit) return dayBlocks + hiddenNote
+  return `<div class="sched-fit" data-max-scale="${SCHEDULE_MAX_SCALE}" style="height:100%;overflow:hidden;--s:${scale};"><div>${dayBlocks}${hiddenNote}</div></div>`
 }
 
 // Scale the "Meal: {name}" text-label so an unusually long meal color name
@@ -598,44 +645,32 @@ function renderThermal4x12Badge(
 
 // ---------------------------------------------------------------------------
 // Postcard front/back badge — 4.25"×5.5" cards, 2 badges (4 cards) per
-// Letter sheet in a 2×2 grid, matching the standard Avery-style blank
-// postcard template (e.g. Avery 8387 / 5389). Front card sits directly
-// above its matching back/schedule card in the same column; the sheet's
-// built-in perforation separates all four cards, and each front/back pair
-// is then glued or taped together back-to-back into one two-sided badge.
+// Letter sheet in a 2×2 grid. Front card sits directly above its matching
+// back/schedule card in the same column: the sheet is cut in half down the
+// middle into two strips, and each strip is folded at the seam between front
+// and back (or the four cards are cut apart and glued back-to-back).
 // The back is printed rotated 180° — same trick the thermal roll uses —
-// so flipping it up-and-over (top-to-bottom, like turning a page) to place
-// it behind the front card makes the schedule read right-side up.
-// Every edge of every card is a cut line, so content stays well inset
-// from all four edges rather than just the seam between columns.
+// so folding it up-and-over behind the front card makes the schedule read
+// right-side up.
 // ---------------------------------------------------------------------------
 
-// Only the edges between two cards on this sheet are actual cut lines — the
-// outer edges of the whole page aren't cut against anything, so they don't
-// need the same protective buffer. SEAM is the generous inset used on a
-// card's cut-facing sides; EDGE is a light touch used on its page-facing
-// sides, just enough to survive normal printer hardware margin.
-const POSTCARD_SEAM_INSET = '0.35in'
-const POSTCARD_SEAM_INSET_PX = 34 // 0.35in @ 96px/in, rounded
-const POSTCARD_EDGE_INSET = '0.12in'
-const POSTCARD_EDGE_INSET_PX = 12 // 0.12in @ 96px/in, rounded
+// Every card gets the same plain white border on all four sides. Printers
+// can't print to the very edge of the sheet (and how much they skip differs
+// per side), and the cut/fold lines between cards are never perfectly
+// placed, so nothing — not even the banner or meal band — runs to a card's
+// edge. That way the page edges, the cut and the fold all end up looking the
+// same once the badge is cut and folded.
+const POSTCARD_BORDER = '0.25in'
+const POSTCARD_BORDER_PX = 24 // 0.25in @ 96px/in
 
-type PostcardColumn = 'left' | 'right'
-
-function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: string, column: PostcardColumn = 'left'): string {
+function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: string): string {
   const { bg, text, accent } = effectiveColors(t)
   const hasBanner = t.showHeaderBanner && !!t.headerBannerUrl
 
-  // Front cards sit in the top row: top edge is the page's true top edge
-  // (light touch), bottom edge is the seam shared with the back card below
-  // (generous). Left/right depend on which column this card is in.
-  const padLeft = column === 'left' ? POSTCARD_EDGE_INSET : POSTCARD_SEAM_INSET
-  const padRight = column === 'left' ? POSTCARD_SEAM_INSET : POSTCARD_EDGE_INSET
-
   const headerSection = hasBanner
-    ? `<div style="width:4.25in;height:1.5in;flex-shrink:0;"><img src="${t.headerBannerUrl}" style="width:100%;height:100%;object-fit:cover;" alt="" /></div>`
+    ? `<div style="width:100%;height:1.35in;flex-shrink:0;"><img src="${t.headerBannerUrl}" style="display:block;width:100%;height:100%;object-fit:cover;" alt="" /></div>`
     : `<div style="
-         height:1.5in;flex-shrink:0;display:flex;flex-direction:column;
+         height:1.35in;flex-shrink:0;display:flex;flex-direction:column;
          justify-content:center;align-items:center;
          background:${t.thermalMode ? '#eee' : `linear-gradient(135deg,${accent} 0%,${text} 100%)`};
          color:${t.thermalMode ? '#000' : 'white'};
@@ -652,7 +687,7 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
       const mealPx = mealLabelFontPx(tag.mealColor.name, 16, 10, 12)
       return `<div style="
         text-align:center;font-size:${mealPx}px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;
-        border-top:2px solid #000;border-bottom:2px solid #000;padding:8px ${padRight} 8px ${padLeft};
+        border-top:2px solid #000;border-bottom:2px solid #000;padding:8px 14px;
         margin:10px 0 0;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
       ">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
     }
@@ -660,34 +695,42 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
     return `<div style="
       background-color:${tag.mealColor.hex};color:#fff;text-align:center;font-weight:800;
       font-size:${mealPx}px;letter-spacing:0.06em;text-transform:uppercase;
-      padding:12px ${padRight} 12px ${padLeft};margin:12px 0 0;box-sizing:border-box;
+      padding:12px 14px;margin:12px 0 0;box-sizing:border-box;
       text-shadow:0 1px 2px rgba(0,0,0,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     ">${escapeHtml(tag.mealColor.name)}</div>`
   })()
 
+  // Left out entirely when empty so the meal band (or name block) sits right
+  // on the bottom border, mirroring the banner on the top border.
+  const showHousing = t.showHousing && !!tag.housing
+  const showQr = t.showQrCode && !!tag.qrCode
+  const footer = showHousing || showQr
+    ? `<div style="display:flex;justify-content:space-between;align-items:flex-end;padding:12px 14px;flex-shrink:0;gap:12px;">
+          ${showHousing ? `<div style="font-size:13px;text-align:left;flex:1;word-break:break-word;line-height:1.4;"><strong>Housing:</strong> ${escapeHtml(tag.housing!.fullLocation)}</div>` : '<div></div>'}
+          ${showQr ? `<img src="${tag.qrCode}" style="width:60px;height:60px;flex-shrink:0;" alt="" />` : ''}
+        </div>`
+    : (mealBand ? '' : '<div style="height:12px;flex-shrink:0;"></div>')
+
   return `
-    <div style="
-      width:4.25in;height:5.5in;background-color:${bg};color:${text};
-      box-shadow:inset 0 0 0 3px #fff;
-      box-sizing:border-box;display:flex;flex-direction:column;
-      position:relative;overflow:hidden;
-    ">
-      ${headerSection}
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px ${padRight} 0 ${padLeft};min-width:0;overflow:hidden;">
-        ${t.showName ? `<div style="font-size:${fitFontSize(`${tag.firstName} ${tag.lastName}`, 40, 22, 14)};font-weight:bold;line-height:1.15;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)} ${escapeHtml(tag.lastName)}</div>` : ''}
-        ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 20, 13, 20)};color:#666;margin-top:6px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
-        ${t.showDiocese && tag.diocese ? `<div style="font-size:14px;color:#888;margin-top:2px;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
-        ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
-      </div>
-      ${mealBand}
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:14px ${padRight} ${POSTCARD_SEAM_INSET} ${padLeft};flex-shrink:0;gap:12px;">
-        ${t.showHousing && tag.housing ? `<div style="font-size:13px;text-align:left;flex:1;word-break:break-word;line-height:1.4;"><strong>Housing:</strong> ${escapeHtml(tag.housing.fullLocation)}</div>` : '<div></div>'}
-        ${t.showQrCode && tag.qrCode ? `<img src="${tag.qrCode}" style="width:60px;height:60px;flex-shrink:0;" alt="" />` : ''}
+    <div style="width:4.25in;height:5.5in;background:#fff;padding:${POSTCARD_BORDER};box-sizing:border-box;">
+      <div style="
+        width:100%;height:100%;background-color:${bg};color:${text};
+        display:flex;flex-direction:column;position:relative;overflow:hidden;
+      ">
+        ${headerSection}
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px 14px 0;min-width:0;overflow:hidden;">
+          ${t.showName ? `<div style="font-size:${fitFontSize(`${tag.firstName} ${tag.lastName}`, 40, 22, 14)};font-weight:bold;line-height:1.15;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)} ${escapeHtml(tag.lastName)}</div>` : ''}
+          ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 20, 13, 20)};color:#666;margin-top:6px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
+          ${t.showDiocese && tag.diocese ? `<div style="font-size:14px;color:#888;margin-top:2px;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
+          ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
+        </div>
+        ${mealBand}
+        ${footer}
       </div>
     </div>`
 }
 
-function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rotate = false, column: PostcardColumn = 'left'): string {
+function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rotate = false): string {
   const { accent } = effectiveColors(t)
   const useColor = !t.thermalMode && t.backPanelColorMode !== 'bw'
   const colors = {
@@ -696,35 +739,27 @@ function renderPostcardBackCard(schedule: ScheduleEntry[], t: BadgeTemplate, rot
     locColor: useColor ? '#888888' : '#555555',
   }
 
-  // Back cards sit in the bottom row and print rotated 180°. In PHYSICAL
-  // (post-rotation) space their top edge is the seam shared with the front
-  // card above, and their bottom edge is the page's true bottom edge — the
-  // opposite of the front card. Because rotate(180deg) flips both axes,
-  // achieving that physically means swapping top/bottom AND left/right here
-  // in this pre-rotation CSS: local top/bottom are the physical bottom/top,
-  // and local left/right are the physical right/left.
-  const padTop = POSTCARD_EDGE_INSET   // → physical bottom (page edge)
-  const padBottom = POSTCARD_SEAM_INSET // → physical top (seam with front)
-  const padLeft = column === 'left' ? POSTCARD_SEAM_INSET : POSTCARD_EDGE_INSET   // → physical right
-  const padRight = column === 'left' ? POSTCARD_EDGE_INSET : POSTCARD_SEAM_INSET  // → physical left
-
-  // ~5.5in tall card minus its own top/bottom padding (edge + seam insets)
+  // 5.5in tall card minus the border on top and bottom. The whole schedule
+  // is always shown — measuredFit shrinks it (or grows a short one) in the
+  // browser to exactly fill this space.
   const body = renderScheduleBody(
     schedule,
-    528 - POSTCARD_EDGE_INSET_PX - POSTCARD_SEAM_INSET_PX,
+    528 - POSTCARD_BORDER_PX * 2,
     { dayHeaderPx: 27, rowPx: 16, headerFont: 11, timeFont: 10, titleFont: 11, timeWidth: 60, rowGap: 3, dayGap: 9 },
     colors,
-    { message: 'No schedule available', paddingTop: '35%' }
+    { message: 'No schedule available', paddingTop: '35%' },
+    0.1,
+    true
   )
 
   // Rotation is baked directly into this same box (rather than wrapping it
   // in a second overflow:hidden element) since nesting overflow:hidden with
   // a rotate transform is a known source of print-vs-screen rendering
-  // mismatches in Chromium's print pipeline.
+  // mismatches in Chromium's print pipeline. The border is the same on every
+  // side, so the rotation doesn't change where it lands.
   return `<div style="
     width:4.25in;height:5.5in;background:#fff;color:#111;
-    box-shadow:inset 0 0 0 3px #fff;
-    padding:${padTop} ${padRight} ${padBottom} ${padLeft};box-sizing:border-box;overflow:hidden;
+    padding:${POSTCARD_BORDER};box-sizing:border-box;overflow:hidden;
     font-family:Arial,Helvetica,sans-serif;
     ${rotate ? 'transform:rotate(180deg);transform-origin:center center;' : ''}
   ">${body}</div>`
@@ -735,14 +770,13 @@ function renderPostcardPage(tags: NameTagData[], t: BadgeTemplate, header: strin
   const frontCells: string[] = []
   const backCells: string[] = []
 
-  tags.slice(0, 2).forEach((tag, i) => {
-    const column: PostcardColumn = i === 0 ? 'left' : 'right'
+  tags.slice(0, 2).forEach((tag) => {
     const frontTemplate = tag.mealColor ? { ...t, showMealColor: true } : t
-    frontCells.push(renderPostcardFrontCard(tag, frontTemplate, header, column))
+    frontCells.push(renderPostcardFrontCard(tag, frontTemplate, header))
 
     backCells.push(
       t.showBackPanel !== false
-        ? renderPostcardBackCard(schedule, t, true, column)
+        ? renderPostcardBackCard(schedule, t, true)
         : `<div style="width:4.25in;height:5.5in;background:#fff;transform:rotate(180deg);"></div>`
     )
   })
@@ -835,7 +869,7 @@ export function generateBadgesHTML(
     body { margin: 0; padding: 0; font-family: ${ff}; }
   </style>
 </head>
-<body>${badges}</body>
+<body>${badges}${SCHEDULE_FIT_SCRIPT}</body>
 </html>`
   }
 
@@ -963,7 +997,7 @@ export function generatePreviewHTML(
     body > div + div { margin-top: 10px; border-top: 2px dashed #ccc; padding-top: 10px; }
   </style>
 </head>
-<body>${inner}</body>
+<body>${inner}${SCHEDULE_FIT_SCRIPT}</body>
 </html>`
 }
 
