@@ -28,6 +28,8 @@ export interface BadgeTemplate {
   thermalMode?: boolean
   showBackPanel?: boolean
   backPanelColorMode?: 'color' | 'bw'
+  // Flag people whose liability form lists an allergy with a purple bar
+  showAllergyBar?: boolean
 }
 
 export interface NameTagData {
@@ -53,6 +55,9 @@ export interface NameTagData {
   qrCode?: string | null
   walkUp?: boolean
   customNote?: string | null
+  // Prints the purple allergy bar. Set by the server only when the template
+  // has showAllergyBar on, or ticked by hand on a walk-up badge.
+  hasAllergy?: boolean
 }
 
 export interface ScheduleEntry {
@@ -348,6 +353,27 @@ function mealLabelFontPx(name: string, maxPx: number, minPx: number, optimalChar
   return parseInt(fitFontSize(`Meal: ${name}`, maxPx, minPx, optimalChars))
 }
 
+// Allergy flag — a solid bar that sits right on top of the meal color so
+// whoever is serving food sees it at a glance. It only says that there IS an
+// allergy, never what it is. Deep purple with a label (rather than a plain
+// color strip) so it can't be mistaken for the "purple" meal color. In
+// thermal/B&W mode it prints as a solid black bar with white text, which
+// reads differently from the outlined "Meal:" label.
+const ALLERGY_COLOR = '#5b21b6'
+const ALLERGY_LABEL = 'Allergy'
+
+function allergyBarStyle(t: BadgeTemplate): string {
+  return t.thermalMode
+    ? 'background:#000;color:#fff;'
+    : `background-color:${ALLERGY_COLOR};color:#fff;`
+}
+
+// Inline pill version for the small layouts that have no room for a bar.
+function allergyPill(tag: NameTagData, t: BadgeTemplate, fontPx: number): string {
+  if (!tag.hasAllergy) return ''
+  return `<div style="${allergyBarStyle(t)}display:inline-block;padding:1px ${Math.round(fontPx * 0.7)}px;border-radius:3px;font-size:${fontPx}px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;margin-top:3px;">${ALLERGY_LABEL}</div>`
+}
+
 // ---------------------------------------------------------------------------
 // Standard small/medium/large layout  (multiple per US-Letter page)
 // ---------------------------------------------------------------------------
@@ -398,6 +424,7 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
         ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, parseInt(f.details), 8, 20)};color:#666;margin-top:3px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
         ${t.showDiocese && tag.diocese ? `<div style="font-size:9px;color:#888;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
         ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
+        ${allergyPill(tag, t, 8)}
         ${tag.customNote ? `<div style="font-size:8px;font-style:italic;color:#888;margin-top:3px;">${escapeHtml(tag.customNote)}</div>` : ''}
       </div>
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:auto;padding-top:8px;">
@@ -418,6 +445,9 @@ function renderStandardBadge(tag: NameTagData, t: BadgeTemplate, header: string)
 // ---------------------------------------------------------------------------
 // 4×6 badge layout  (one per page)
 // ---------------------------------------------------------------------------
+
+const MEAL_STRIP_4X6_PX = 18
+const ALLERGY_STRIP_4X6_PX = 22
 
 function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string, showBorder = true): string {
   const { bg, text, accent } = effectiveColors(t)
@@ -446,10 +476,23 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string, show
       return `<div style="text-align:center;font-size:${mealPx}px;font-weight:600;padding:4px 8px;border-top:1px solid #ccc;margin-top:4px;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
     }
     const namePx = parseInt(fitFontSize(tag.mealColor.name, 10, 6, 14))
-    return `<div style="position:absolute;bottom:0;left:0;right:0;height:18px;background-color:${tag.mealColor.hex};display:flex;align-items:center;justify-content:center;padding:0 8px;box-sizing:border-box;overflow:hidden;">
+    return `<div style="position:absolute;bottom:0;left:0;right:0;height:${MEAL_STRIP_4X6_PX}px;background-color:${tag.mealColor.hex};display:flex;align-items:center;justify-content:center;padding:0 8px;box-sizing:border-box;overflow:hidden;">
       <span style="font-size:${namePx}px;font-weight:700;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.4);letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(tag.mealColor.name)}</span>
     </div>`
   })()
+
+  // Color mode: an absolute strip stacked right on top of the (absolute)
+  // meal strip, with the footer padded up so the QR code clears both.
+  // Thermal mode: the meal label is in normal flow, so the bar goes just
+  // before it in flow too.
+  const hasColorMealStrip = !t.thermalMode && t.showMealColor && !!tag.mealColor
+  const allergyAbsolute = tag.hasAllergy && !t.thermalMode
+  const allergySection = !tag.hasAllergy ? '' : allergyAbsolute
+    ? `<div style="${allergyBarStyle(t)}position:absolute;left:0;right:0;bottom:${hasColorMealStrip ? MEAL_STRIP_4X6_PX : 0}px;height:${ALLERGY_STRIP_4X6_PX}px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;border-bottom:${hasColorMealStrip ? '2px solid #fff' : '0'};box-sizing:border-box;">${ALLERGY_LABEL}</div>`
+    : `<div style="${allergyBarStyle(t)}text-align:center;font-size:13px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;margin-top:4px;">${ALLERGY_LABEL}</div>`
+  // The bar's height comes back out of the name block's padding below, so a
+  // badge with every field on still fits.
+  const footerBottomPad = 16 + (allergyAbsolute ? ALLERGY_STRIP_4X6_PX : 0)
 
   return `
     <div style="
@@ -459,7 +502,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string, show
       display:flex;flex-direction:column;
     ">
       ${headerSection}
-      <div style="flex:1;display:flex;flex-direction:column;padding:16px 20px;text-align:center;">
+      <div style="flex:1;display:flex;flex-direction:column;padding:${allergyAbsolute ? 4 : 16}px 20px;text-align:center;">
         <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;">
           ${t.showName ? `
             <div style="font-size:${fitFontSize(tag.firstName, 48, 22, 8)};font-weight:bold;line-height:1.1;margin-bottom:${tag.lastName ? 4 : 12}px;word-break:break-word;max-width:100%;">${escapeHtml(tag.firstName)}</div>
@@ -471,7 +514,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string, show
           ${tag.customNote ? `<div style="font-size:12px;font-style:italic;color:#888;margin-top:4px;">${escapeHtml(tag.customNote)}</div>` : ''}
         </div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:12px 20px 16px;flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:12px 20px ${footerBottomPad}px;flex-shrink:0;">
         ${t.showHousing && tag.housing ? `
           <div style="font-size:16px;text-align:left;flex:1;line-height:1.3;">
             <strong style="display:block;margin-bottom:2px;">Housing:</strong>
@@ -483,6 +526,7 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string, show
         ` : ''}
       </div>
       ${tag.walkUp ? `<div style="position:absolute;top:8px;right:8px;font-size:9px;background:#f59e0b;color:white;padding:2px 8px;border-radius:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;opacity:0.9;">Walk-Up</div>` : ''}
+      ${allergySection}
       ${mealSection}
     </div>`
 }
@@ -508,6 +552,7 @@ function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
         <div style="font-size:11px;color:#666;margin-top:4px;">${escapeHtml(tag.groupName)}</div>
       ` : ''}
       ${t.showParticipantType ? `<div style="${labelStyleFor(tag, t, { fontPx: 9, padY: 1, padX: 6, radius: 3, marginTop: 4, borderPx: 1 })}">${participantLabel(tag)}</div>` : ''}
+      ${allergyPill(tag, t, 7)}
       ${tag.customNote ? `<div style="font-size:7px;font-style:italic;color:#888;margin-top:2px;">${escapeHtml(tag.customNote)}</div>` : ''}
       ${t.showQrCode && tag.qrCode ? `
         <img src="${tag.qrCode}" style="width:36px;height:36px;margin-top:6px;" alt="" />
@@ -688,17 +733,26 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
       return `<div style="
         text-align:center;font-size:${mealPx}px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;
         border-top:2px solid #000;border-bottom:2px solid #000;padding:8px 14px;
-        margin:10px 0 0;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        margin:${tag.hasAllergy ? 3 : 10}px 0 0;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
       ">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
     }
     const mealPx = parseInt(fitFontSize(tag.mealColor.name, 24, 14, 10))
     return `<div style="
       background-color:${tag.mealColor.hex};color:#fff;text-align:center;font-weight:800;
       font-size:${mealPx}px;letter-spacing:0.06em;text-transform:uppercase;
-      padding:12px 14px;margin:12px 0 0;box-sizing:border-box;
+      padding:12px 14px;margin:${tag.hasAllergy ? 3 : 12}px 0 0;box-sizing:border-box;
       text-shadow:0 1px 2px rgba(0,0,0,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     ">${escapeHtml(tag.mealColor.name)}</div>`
   })()
+
+  // Sits directly on top of the meal band (3px white gap between the two in
+  // color mode so a purple meal color still reads as two separate bars).
+  const allergyBand = tag.hasAllergy
+    ? `<div style="${allergyBarStyle(t)}
+        text-align:center;font-size:15px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;
+        padding:6px 14px;margin:12px 0 0;box-sizing:border-box;flex-shrink:0;
+      ">${ALLERGY_LABEL}</div>`
+    : ''
 
   // Left out entirely when empty so the meal band (or name block) sits right
   // on the bottom border, mirroring the banner on the top border.
@@ -709,7 +763,7 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
           ${showHousing ? `<div style="font-size:13px;text-align:left;flex:1;word-break:break-word;line-height:1.4;"><strong>Housing:</strong> ${escapeHtml(tag.housing!.fullLocation)}</div>` : '<div></div>'}
           ${showQr ? `<img src="${tag.qrCode}" style="width:60px;height:60px;flex-shrink:0;" alt="" />` : ''}
         </div>`
-    : (mealBand ? '' : '<div style="height:12px;flex-shrink:0;"></div>')
+    : (mealBand || allergyBand ? '' : '<div style="height:12px;flex-shrink:0;"></div>')
 
   return `
     <div style="width:4.25in;height:5.5in;background:#fff;padding:${POSTCARD_BORDER};box-sizing:border-box;">
@@ -723,9 +777,12 @@ function renderPostcardFrontCard(tag: NameTagData, t: BadgeTemplate, header: str
           ${t.showGroup ? `<div style="font-size:${fitFontSize(tag.groupName, 20, 13, 20)};color:#666;margin-top:6px;word-break:break-word;max-width:100%;">${escapeHtml(tag.groupName)}</div>` : ''}
           ${t.showDiocese && tag.diocese ? `<div style="font-size:14px;color:#888;margin-top:2px;word-break:break-word;max-width:100%;">${escapeHtml(tag.diocese)}</div>` : ''}
           ${t.showParticipantType ? `<div style="${labelStyle}">${participantLabel(tag)}</div>` : ''}
+          ${tag.customNote ? `<div style="font-size:13px;font-style:italic;color:#888;margin-top:6px;word-break:break-word;max-width:100%;">${escapeHtml(tag.customNote)}</div>` : ''}
         </div>
+        ${allergyBand}
         ${mealBand}
         ${footer}
+        ${tag.walkUp ? `<div style="position:absolute;top:8px;right:8px;font-size:9px;background:#f59e0b;color:white;padding:2px 8px;border-radius:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;opacity:0.9;">Walk-Up</div>` : ''}
       </div>
     </div>`
 }

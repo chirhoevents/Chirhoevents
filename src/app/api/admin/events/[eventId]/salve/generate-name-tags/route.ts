@@ -6,6 +6,7 @@ import { getClerkUserIdFromHeader } from '@/lib/jwt-auth-helper'
 import { hasPermission } from '@/lib/permissions'
 import { isClergyOrReligiousType, resolveParticipantType } from '@/lib/clergy-roles'
 import { nameTagName } from '@/lib/name-tag-name'
+import { hasRealMedicalText } from '@/lib/medical-info'
 
 async function requireSalveAccess(request: NextRequest, eventId: string) {
   const overrideUserId = await getClerkUserIdFromHeader(request)
@@ -55,6 +56,7 @@ const DEFAULT_TEMPLATE = {
   thermalMode: false,
   showBackPanel: true,
   backPanelColorMode: 'color',
+  showAllergyBar: false,
 }
 
 const MEAL_COLOR_HEX: Record<string, string> = {
@@ -71,6 +73,22 @@ const MEAL_COLOR_HEX: Record<string, string> = {
 
 function mealHex(color: string): string {
   return MEAL_COLOR_HEX[color.toLowerCase()] ?? '#6b7280'
+}
+
+// The purple allergy bar is opt-in per template. Only look up forms (and only
+// ever send a yes/no, never the allergy itself) when it's turned on.
+function allergyBarOn(templateConfig: any): boolean {
+  return templateConfig?.showAllergyBar === true
+}
+
+// Set of owner ids (participant / individual registration) whose liability
+// form lists a real allergy. "None", "N/A" and blanks don't count.
+function allergyOwnerIds(forms: { ownerId: string | null; allergies: string | null }[]): Set<string> {
+  const ids = new Set<string>()
+  for (const f of forms) {
+    if (f.ownerId && hasRealMedicalText(f.allergies)) ids.add(f.ownerId)
+  }
+  return ids
 }
 
 function bedLetter(bedNumber: number | null): string | null {
@@ -211,7 +229,7 @@ async function generateGroupNameTags(
   const idList = participants.map((p: any) => p.id)
   const groupIds = [...new Set(participants.map((p: any) => p.groupRegistrationId))]
 
-  const [roomAssignments, mealColorAssignments] = await Promise.all([
+  const [roomAssignments, mealColorAssignments, allergyForms] = await Promise.all([
     prisma.roomAssignment.findMany({
       where: { participantId: { in: idList } },
       include: { room: { include: { building: { select: { name: true } } } } },
@@ -219,7 +237,16 @@ async function generateGroupNameTags(
     prisma.mealColorAssignment.findMany({
       where: { groupRegistrationId: { in: groupIds } },
     }),
+    allergyBarOn(templateConfig)
+      ? prisma.liabilityForm.findMany({
+          where: { participantId: { in: idList } },
+          select: { participantId: true, allergies: true },
+        })
+      : Promise.resolve([]),
   ])
+  const withAllergy = allergyOwnerIds(
+    allergyForms.map((f: any) => ({ ownerId: f.participantId, allergies: f.allergies }))
+  )
 
   const assignmentMap = new Map(
     roomAssignments.map((ra: any) => [
@@ -270,6 +297,7 @@ async function generateGroupNameTags(
           : null,
         mealColor: mealColor ? { name: mealColor, hex: mealHex(mealColor) } : null,
         qrCode: qrCode || null,
+        hasAllergy: withAllergy.has(p.id),
         template: templateConfig,
       }
     })
@@ -298,6 +326,15 @@ async function generateIndividualNameTags(
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   })
 
+  const withAllergy = allergyBarOn(templateConfig)
+    ? allergyOwnerIds(
+        (await prisma.liabilityForm.findMany({
+          where: { individualRegistrationId: { in: registrations.map((r: any) => r.id) } },
+          select: { individualRegistrationId: true, allergies: true },
+        })).map((f: any) => ({ ownerId: f.individualRegistrationId, allergies: f.allergies }))
+      )
+    : new Set<string>()
+
   return Promise.all(
     registrations.map(async (reg: any) => {
       let qrCode = reg.qrCode
@@ -322,6 +359,7 @@ async function generateIndividualNameTags(
         housing: null,
         mealColor: null,
         qrCode: qrCode || null,
+        hasAllergy: withAllergy.has(reg.id),
         template: templateConfig,
       }
     })
@@ -348,6 +386,7 @@ async function generateStaffNameTags(
   const staffMembers = await prisma.staffRegistration.findMany({
     where: { id: { in: ids }, eventId },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    include: allergyBarOn(templateConfig) ? { liabilityForm: { select: { allergies: true } } } : undefined,
   })
 
   return Promise.all(
@@ -375,6 +414,7 @@ async function generateStaffNameTags(
         housing: null,
         mealColor: null,
         qrCode: qrCode || null,
+        hasAllergy: hasRealMedicalText(staff.liabilityForm?.allergies),
         template: templateConfig,
       }
     })
@@ -399,6 +439,7 @@ async function generateVendorNameTags(
   const vendors = await prisma.vendorRegistration.findMany({
     where: { id: { in: ids }, eventId, status: 'approved' },
     orderBy: [{ businessName: 'asc' }],
+    include: allergyBarOn(templateConfig) ? { liabilityForm: { select: { allergies: true } } } : undefined,
   })
 
   return Promise.all(
@@ -421,6 +462,7 @@ async function generateVendorNameTags(
         housing: null,
         mealColor: null,
         qrCode,
+        hasAllergy: hasRealMedicalText(vendor.liabilityForm?.allergies),
         template: templateConfig,
       }
     })

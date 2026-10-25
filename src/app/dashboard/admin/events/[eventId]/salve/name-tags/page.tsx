@@ -97,6 +97,7 @@ interface NameTagTemplate {
   thermalMode: boolean
   showBackPanel: boolean
   backPanelColorMode: 'color' | 'bw'
+  showAllergyBar: boolean
 }
 
 interface GroupData {
@@ -151,6 +152,7 @@ const DEFAULT_TEMPLATE: NameTagTemplate = {
   thermalMode: false,
   showBackPanel: true,
   backPanelColorMode: 'color',
+  showAllergyBar: false,
 }
 
 export default function NameTagDesignerPage() {
@@ -757,6 +759,7 @@ export default function NameTagDesignerPage() {
                   { id: 'showParticipantType', label: 'Participant type badge (Youth / Chaperone / Priest / Sister ...)' },
                   { id: 'showHousing', label: 'Housing assignment' },
                   { id: 'showMealColor', label: 'Meal color indicator' },
+                  { id: 'showAllergyBar', label: 'Purple "Allergy" bar for anyone whose liability form lists an allergy' },
                   { id: 'showQrCode', label: 'QR code' },
                 ].map(({ id, label }) => (
                   <div key={id} className="flex items-start gap-2">
@@ -769,6 +772,13 @@ export default function NameTagDesignerPage() {
                     <Label htmlFor={id} className="font-normal leading-snug">{label}</Label>
                   </div>
                 ))}
+
+                {template.showAllergyBar && (
+                  <p className="text-xs text-muted-foreground bg-purple-50 rounded p-2 mt-1">
+                    The bar sits on top of the meal color and only says &ldquo;Allergy&rdquo; &mdash; it never prints what the allergy is.
+                    Answers like &ldquo;none&rdquo; or &ldquo;N/A&rdquo; don&rsquo;t count.{template.thermalMode ? ' In thermal mode it prints as a solid black bar.' : ''}
+                  </p>
+                )}
 
                 {template.showMealColor && template.thermalMode && (
                   <p className="text-xs text-muted-foreground bg-gray-50 rounded p-2 mt-1">
@@ -885,6 +895,7 @@ export default function NameTagDesignerPage() {
                 qrCode: MOCK_QR_DATA_URI,
                 walkUp: false,
                 customNote: null,
+                hasAllergy: template.showAllergyBar,
               }
 
               // Renders with the exact same functions used for the real print

@@ -65,6 +65,7 @@ const DEFAULT_TEMPLATE = {
   thermalMode: false,
   showBackPanel: true,
   backPanelColorMode: 'color',
+  showAllergyBar: false,
 }
 
 // GET - Load name tag template settings
