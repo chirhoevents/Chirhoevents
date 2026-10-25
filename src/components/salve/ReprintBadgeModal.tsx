@@ -84,6 +84,7 @@ const DEFAULT_TEMPLATE: BadgeTemplate = {
   thermalMode: false,
   showBackPanel: true,
   backPanelColorMode: 'color',
+  showAllergyBar: false,
 }
 
 export function ReprintBadgeModal({
@@ -108,6 +109,9 @@ export function ReprintBadgeModal({
   const [participantType, setParticipantType] = useState('youth')
   const [customNote, setCustomNote] = useState('')
   const [mealColor, setMealColor] = useState('')
+  const [housing, setHousing] = useState('')
+  const [diocese, setDiocese] = useState('')
+  const [hasAllergy, setHasAllergy] = useState(false)
   const [showWalkUpIndicator, setShowWalkUpIndicator] = useState(false)
   const [walkUpPrinting, setWalkUpPrinting] = useState(false)
 
@@ -238,15 +242,21 @@ export function ReprintBadgeModal({
         lastName: lastName.trim(),
         fullName: `${firstName.trim()} ${lastName.trim()}`,
         groupName: groupName.trim() || 'Walk-Up',
-        diocese: null,
+        diocese: diocese.trim() || null,
         participantType,
         isChaperone: participantType === 'chaperone',
         isClergy: ['priest', 'deacon', 'seminarian', 'religious_sister', 'religious_brother'].includes(participantType),
-        housing: null,
+        // Free text, so it goes in as the full location as typed
+        housing: housing.trim()
+          ? { building: housing.trim(), room: '', bed: null, fullLocation: housing.trim() }
+          : null,
         mealColor: mealColorObj,
         qrCode: null,
         walkUp: showWalkUpIndicator,
         customNote: customNote.trim() || null,
+        // Ticked by hand, so it prints even if the template's automatic
+        // allergy bar is off.
+        hasAllergy,
       }
 
       // For layouts with a back panel, we need the schedule.
@@ -284,9 +294,18 @@ export function ReprintBadgeModal({
       setParticipantType('youth')
       setCustomNote('')
       setMealColor('')
+      setHousing('')
+      setDiocese('')
+      setHasAllergy(false)
       setShowWalkUpIndicator(true)
     }
   }
+
+  // Typed into the walk-up form but switched off in the saved template
+  const hiddenWalkUpFields = [
+    housing.trim() && savedTemplate && !savedTemplate.showHousing ? 'Housing' : null,
+    diocese.trim() && savedTemplate && !savedTemplate.showDiocese ? 'Diocese' : null,
+  ].filter(Boolean) as string[]
 
   const registrationTypeLabel = (type: string) => {
     if (type === 'individual') return 'Individual'
@@ -522,6 +541,41 @@ export function ReprintBadgeModal({
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Housing</Label>
+                <Input
+                  value={housing}
+                  onChange={(e) => setHousing(e.target.value)}
+                  placeholder="e.g. Hall A 101 - Bed B"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Diocese</Label>
+                <Input
+                  value={diocese}
+                  onChange={(e) => setDiocese(e.target.value)}
+                  placeholder="Diocese"
+                />
+              </div>
+            </div>
+            {hiddenWalkUpFields.length > 0 && (
+              <p className="text-xs text-amber-600 -mt-2">
+                {hiddenWalkUpFields.join(' and ')} {hiddenWalkUpFields.length > 1 ? 'are turned off in the name tag template, so they won\u2019t print.' : 'is turned off in the name tag template, so it won\u2019t print.'}
+              </p>
+            )}
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={hasAllergy}
+                onCheckedChange={(c) => setHasAllergy(!!c)}
+              />
+              <span className="text-sm">
+                Has a food allergy{' '}
+                <span className="text-muted-foreground">(prints a purple &ldquo;Allergy&rdquo; bar above the meal color)</span>
+              </span>
+            </label>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox
