@@ -113,6 +113,7 @@ export async function PUT(
       emergencyContact2Phone,
       emergencyContact2Relation,
       adminNotes,
+      sendEmail,
     } = body
 
     // Room type only means something for on-campus housing. The edit form
@@ -371,8 +372,8 @@ export async function PUT(
       })
     }
 
-    // Send email notification
-    if (email && existingRegistration.event) {
+    // Send email notification only when the admin opted in
+    if (sendEmail === true && email && existingRegistration.event) {
       // Build list of changes for email
       const emailChanges: string[] = []
 
