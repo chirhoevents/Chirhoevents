@@ -218,7 +218,10 @@ export async function POST(
         template = await prisma.nameTagTemplate.findUnique({ where: { eventId } })
       }
     }
-    const templateConfig: any = templateOverride || template?.settingsJson || template || DEFAULT_TEMPLATE
+    const templateConfig: any = templateOverride
+      || (template?.settingsJson ? { ...DEFAULT_TEMPLATE, ...(template.settingsJson as any) } : null)
+      || template
+      || DEFAULT_TEMPLATE
 
     // -----------------------------------------------------------------------
     // Dispatch by registration type
