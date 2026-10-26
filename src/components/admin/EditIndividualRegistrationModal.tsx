@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Loader2, DollarSign } from 'lucide-react'
@@ -64,6 +65,8 @@ export default function EditIndividualRegistrationModal({
   const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [saving, setSaving] = useState(false)
+  // Update emails are opt-in so routine fixes (e.g. a name typo) don't notify the registrant
+  const [sendEmail, setSendEmail] = useState(false)
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [showRecordAdditionalPaymentModal, setShowRecordAdditionalPaymentModal] = useState(false)
   const [auditTrail, setAuditTrail] = useState<Array<{
@@ -159,6 +162,7 @@ export default function EditIndividualRegistrationModal({
         adminNotes: '',
       })
     }
+    setSendEmail(false)
   }, [registration])
 
   const handleSave = async () => {
@@ -175,7 +179,7 @@ export default function EditIndividualRegistrationModal({
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ ...formData, sendEmail }),
         }
       )
 
@@ -792,7 +796,17 @@ export default function EditIndividualRegistrationModal({
             </TabsContent>
           </Tabs>
 
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          <div className="flex items-center justify-end gap-2 pt-4 border-t">
+            <div className="flex items-center space-x-2 mr-auto">
+              <Checkbox
+                id="sendIndividualUpdateEmail"
+                checked={sendEmail}
+                onCheckedChange={(checked) => setSendEmail(checked === true)}
+              />
+              <Label htmlFor="sendIndividualUpdateEmail" className="cursor-pointer text-sm">
+                Email the registrant about these changes
+              </Label>
+            </div>
             <Button variant="outline" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
