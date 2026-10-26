@@ -32,9 +32,9 @@ export async function PATCH(
       )
     }
 
-    if (!roomPurpose || !['housing', 'small_group'].includes(roomPurpose)) {
+    if (!roomPurpose || !['housing', 'small_group', 'both'].includes(roomPurpose)) {
       return NextResponse.json(
-        { error: 'Invalid room purpose. Must be "housing" or "small_group"' },
+        { error: 'Invalid room purpose. Must be "housing", "small_group" or "both"' },
         { status: 400 }
       )
     }

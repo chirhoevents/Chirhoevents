@@ -69,7 +69,12 @@ const ROOM_TYPE_OPTIONS = [
 const ROOM_PURPOSE_OPTIONS = [
   { value: 'housing', label: 'Housing', color: 'bg-blue-100 text-blue-800' },
   { value: 'small_group', label: 'Small Group', color: 'bg-purple-100 text-purple-800' },
+  { value: 'both', label: 'Housing + Small Group', color: 'bg-teal-100 text-teal-800' },
 ]
+
+const PURPOSE_LABELS: Record<string, string> = Object.fromEntries(
+  ROOM_PURPOSE_OPTIONS.map((o) => [o.value, o.label])
+)
 
 export function RoomsManager({
   eventId,
@@ -93,7 +98,7 @@ export function RoomsManager({
     roomNumber: '',
     floor: 1,
     roomType: 'double' as 'single' | 'double' | 'triple' | 'quad' | 'custom',
-    roomPurpose: 'housing' as 'housing' | 'small_group',
+    roomPurpose: 'housing' as 'housing' | 'small_group' | 'both',
     capacity: 2,
     isAvailable: true,
     isAdaAccessible: false,
@@ -115,9 +120,10 @@ export function RoomsManager({
   const filteredRooms = rooms.filter(r => {
     if (selectedBuildingId && r.buildingId !== selectedBuildingId) return false
     if (purposeFilter !== 'all') {
-      // Treat null/undefined roomPurpose as 'housing' (the default)
+      // Treat null/undefined roomPurpose as 'housing' (the default). A
+      // 'both' room shows under either filter since it's used for each.
       const roomPurpose = r.roomPurpose || 'housing'
-      if (roomPurpose !== purposeFilter) return false
+      if (roomPurpose !== purposeFilter && roomPurpose !== 'both') return false
     }
     return true
   })
@@ -297,7 +303,7 @@ export function RoomsManager({
   }
 
   // Bulk update room purposes
-  async function handleBulkPurposeUpdate(newPurpose: 'housing' | 'small_group') {
+  async function handleBulkPurposeUpdate(newPurpose: 'housing' | 'small_group' | 'both') {
     if (selectedRoomIds.size === 0) {
       toast.error('No rooms selected')
       return
@@ -320,7 +326,7 @@ export function RoomsManager({
       }
 
       const result = await response.json()
-      toast.success(`Updated ${result.count} rooms to ${newPurpose === 'housing' ? 'Housing' : 'Small Group'}`)
+      toast.success(`Updated ${result.count} rooms to ${PURPOSE_LABELS[newPurpose]}`)
       setSelectedRoomIds(new Set())
       onRefresh()
     } catch (error) {
@@ -466,6 +472,16 @@ export function RoomsManager({
               >
                 {bulkUpdating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
                 Set as Small Group
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkPurposeUpdate('both')}
+                disabled={bulkUpdating}
+                className="bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200"
+              >
+                {bulkUpdating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                Set as Both
               </Button>
               <Button
                 size="sm"
@@ -691,7 +707,7 @@ export function RoomsManager({
                 <Label htmlFor="roomPurpose">Room Purpose</Label>
                 <Select
                   value={formData.roomPurpose}
-                  onValueChange={(value: 'housing' | 'small_group') =>
+                  onValueChange={(value: 'housing' | 'small_group' | 'both') =>
                     setFormData({ ...formData, roomPurpose: value })
                   }
                 >
@@ -707,7 +723,7 @@ export function RoomsManager({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Housing = bed assignments, Small Group = meeting rooms
+                  Housing = where people sleep, Small Group = meeting rooms, Both = sleeping room that also hosts a small group
                 </p>
               </div>
 
