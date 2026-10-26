@@ -538,6 +538,15 @@ function render4x6Badge(tag: NameTagData, t: BadgeTemplate, header: string, show
 function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
   const { bg, text } = effectiveColors(t)
 
+  const mealSection = (() => {
+    if (!t.showMealColor || !tag.mealColor) return ''
+    if (t.thermalMode) {
+      const mealPx = mealLabelFontPx(tag.mealColor.name, 8, 6, 10)
+      return `<div style="position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:${mealPx}px;font-weight:600;padding:1px 4px;border-top:1px solid #ccc;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Meal: ${escapeHtml(tag.mealColor.name)}</div>`
+    }
+    return `<div style="position:absolute;bottom:0;left:0;right:0;height:7px;background-color:${tag.mealColor.hex};"></div>`
+  })()
+
   return `
     <div style="
       width:3.5in;height:2in;background-color:${bg};color:${text};
@@ -551,13 +560,16 @@ function renderBusinessCard(tag: NameTagData, t: BadgeTemplate): string {
       ${t.showGroup ? `
         <div style="font-size:11px;color:#666;margin-top:4px;">${escapeHtml(tag.groupName)}</div>
       ` : ''}
+      ${t.showDiocese && tag.diocese ? `<div style="font-size:8px;color:#888;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(tag.diocese)}</div>` : ''}
       ${t.showParticipantType ? `<div style="${labelStyleFor(tag, t, { fontPx: 9, padY: 1, padX: 6, radius: 3, marginTop: 4, borderPx: 1 })}">${participantLabel(tag)}</div>` : ''}
       ${allergyPill(tag, t, 7)}
       ${tag.customNote ? `<div style="font-size:7px;font-style:italic;color:#888;margin-top:2px;">${escapeHtml(tag.customNote)}</div>` : ''}
+      ${t.showHousing && tag.housing ? `<div style="font-size:8px;margin-top:3px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><strong>Housing:</strong> ${escapeHtml(tag.housing.fullLocation)}</div>` : ''}
       ${t.showQrCode && tag.qrCode ? `
-        <img src="${tag.qrCode}" style="width:36px;height:36px;margin-top:6px;" alt="" />
+        <img src="${tag.qrCode}" style="width:36px;height:36px;margin-top:4px;" alt="" />
       ` : ''}
       ${tag.walkUp ? `<div style="position:absolute;top:3px;right:3px;font-size:5px;background:#f59e0b;color:white;padding:1px 4px;border-radius:6px;font-weight:700;text-transform:uppercase;">Walk-Up</div>` : ''}
+      ${mealSection}
     </div>`
 }
 
