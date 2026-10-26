@@ -77,11 +77,11 @@ export async function GET(
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     })
 
-    // Get available rooms (ONLY small_group purpose - NOT housing rooms)
+    // Get available rooms (small_group or both purpose - NOT housing-only rooms)
     const rooms = await prisma.room.findMany({
       where: {
         building: { eventId },
-        roomPurpose: 'small_group',
+        roomPurpose: { in: ['small_group', 'both'] },
         isAvailable: true,
       },
       select: {

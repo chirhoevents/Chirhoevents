@@ -81,10 +81,13 @@ export async function GET(
       where: { eventId },
     })
 
-    if (template && template.settingsJson) {
+    // Custom badges share settingsJson (see custom-badges route) but aren't
+    // template settings, so they're left out here.
+    const { customBadges: _customBadges, ...settings } = (template?.settingsJson as any) ?? {}
+    if (template && Object.keys(settings).length > 0) {
       // Return saved settings from JSON
       return NextResponse.json({
-        template: template.settingsJson,
+        template: settings,
         savedAt: template.updatedAt,
       })
     }
@@ -136,12 +139,21 @@ export async function PUT(
       )
     }
 
+    // Keep the event's custom badges, which live in the same settingsJson
+    const existing = await prisma.nameTagTemplate.findUnique({
+      where: { eventId },
+      select: { settingsJson: true },
+    })
+    const { customBadges: _ignored, ...templateSettings } = template
+    const customBadges = (existing?.settingsJson as any)?.customBadges
+    const settingsJson = customBadges ? { ...templateSettings, customBadges } : templateSettings
+
     // Upsert the template - create if doesn't exist, update if it does
     const savedTemplate = await prisma.nameTagTemplate.upsert({
       where: { eventId },
       create: {
         eventId,
-        settingsJson: template,
+        settingsJson,
         // Also save some fields to the regular columns for backwards compatibility
         logoUrl: template.logoUrl || null,
         backgroundUrl: template.headerBannerUrl || null, // Use headerBannerUrl for backgroundUrl column
@@ -155,7 +167,7 @@ export async function PUT(
         showQrCode: template.showQrCode ?? true,
       },
       update: {
-        settingsJson: template,
+        settingsJson,
         logoUrl: template.logoUrl || null,
         backgroundUrl: template.headerBannerUrl || null, // Use headerBannerUrl for backgroundUrl column
         primaryColor: template.backgroundColor || '#FFFFFF',

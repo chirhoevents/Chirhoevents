@@ -590,6 +590,9 @@ export async function POST(
                     data: {
                       roomId,
                       groupRegistrationId: dbGroupId,
+                      // Same note the Housing tab writes, so badges and the
+                      // packet know which half of the group this room is for
+                      notes: `${gender} housing assignment`,
                     }
                   })
                   results.housingAssignmentsCreated++

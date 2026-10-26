@@ -18,7 +18,7 @@ interface Room {
   gender: 'male' | 'female' | 'mixed' | null
   notes: string | null
   isAdaAccessible: boolean
-  roomPurpose?: 'housing' | 'small_group' | null
+  roomPurpose?: 'housing' | 'small_group' | 'both' | null
   building?: {
     id: string
     name: string
@@ -109,6 +109,11 @@ export function PrintRoomPosters({ eventId, buildings, rooms, isOpen, onClose }:
     setSelectedBuildings([])
   }
 
+  // A 'both' room gets the small group poster only when printing small group
+  // posters; otherwise it's a sleeping room first.
+  const isSmallGroupPoster = (room: { roomPurpose?: string | null }) =>
+    room.roomPurpose === 'small_group' || (room.roomPurpose === 'both' && roomType === 'smallGroup')
+
   const filteredRooms = roomsWithAssignments.filter(room => {
     if (!selectedBuildings.includes(room.buildingId)) return false
     // Filter by room type
@@ -116,8 +121,8 @@ export function PrintRoomPosters({ eventId, buildings, rooms, isOpen, onClose }:
       // Housing rooms have null or 'housing' purpose
       if (room.roomPurpose === 'small_group') return false
     } else if (roomType === 'smallGroup') {
-      // Small group rooms have 'small_group' purpose
-      if (room.roomPurpose !== 'small_group') return false
+      // Small group rooms have 'small_group' or 'both' purpose
+      if (room.roomPurpose !== 'small_group' && room.roomPurpose !== 'both') return false
     }
     // 'all' shows everything
     return true
@@ -412,7 +417,7 @@ export function PrintRoomPosters({ eventId, buildings, rooms, isOpen, onClose }:
           {/* Preview (hidden, used for printing) */}
           <div id="print-room-posters-content" className="hidden">
             {filteredRooms.map(room => {
-              const isSmallGroupRoom = room.roomPurpose === 'small_group'
+              const isSmallGroupRoom = isSmallGroupPoster(room)
               const hasHousingAssignments = room.assignments && room.assignments.length > 0
               const hasSmallGroupAssignments = room.smallGroupAssignedGroups && room.smallGroupAssignedGroups.length > 0
               const hasAnyAssignments = hasHousingAssignments || hasSmallGroupAssignments
@@ -536,7 +541,7 @@ export function PrintRoomPosters({ eventId, buildings, rooms, isOpen, onClose }:
           {/* Sample Preview */}
           {filteredRooms.length > 0 && (() => {
             const previewRoom = filteredRooms[0]
-            const isSmallGroup = previewRoom.roomPurpose === 'small_group'
+            const isSmallGroup = isSmallGroupPoster(previewRoom)
             const previewAssignments = isSmallGroup
               ? previewRoom.smallGroupAssignedGroups || []
               : previewRoom.assignments || []

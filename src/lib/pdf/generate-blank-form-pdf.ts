@@ -280,7 +280,7 @@ export async function generateBlankFormPDF(
       checkPage(20)
       doc.font('Helvetica-Bold').fontSize(9).fillColor('#333333').text('Gender:', M, y, { lineBreak: false })
       let gx = M + 45
-      for (const g of ['Male', 'Female', 'Prefer not to say']) {
+      for (const g of ['Male', 'Female']) {
         checkbox(gx, y + 9)
         doc.font('Helvetica').fontSize(9).fillColor('#111111').text(g, gx + 12, y, { lineBreak: false })
         gx += g.length * 5.5 + 20

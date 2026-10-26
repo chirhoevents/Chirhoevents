@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, usePathname } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
@@ -45,6 +45,8 @@ import {
 import { toast } from '@/lib/toast'
 import { openBadgePrintWindow, generatePreviewHTML, previewNaturalSize } from '@/lib/badge-renderer'
 import { getClergyRoleLabel } from '@/lib/clergy-roles'
+import { BadgeSourcePicker, type BadgeSelection } from '@/components/salve/BadgeSourcePicker'
+import { customBadgeToNameTag } from '@/lib/custom-badges'
 
 // A small mock QR-code-looking pattern (data URI) used only for the live preview,
 // so the preview never depends on generating a real QR code for placeholder data.
@@ -127,6 +129,16 @@ interface NameTagPreview {
     hex: string
   } | null
   qrCode?: string // Base64 data URL of QR code
+  badgeLabel?: string | null
+}
+
+const EMPTY_SELECTION: BadgeSelection = {
+  groupIds: [],
+  individualIds: [],
+  staffIds: [],
+  vendorIds: [],
+  customBadges: [],
+  badgeCount: 0,
 }
 
 const DEFAULT_TEMPLATE: NameTagTemplate = {
@@ -170,7 +182,7 @@ export default function NameTagDesignerPage() {
   const [eventName, setEventName] = useState('')
   const [template, setTemplate] = useState<NameTagTemplate>(DEFAULT_TEMPLATE)
   const [groups, setGroups] = useState<GroupData[]>([])
-  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set())
+  const [selection, setSelection] = useState<BadgeSelection>(EMPTY_SELECTION)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [previewData, setPreviewData] = useState<NameTagPreview[]>([])
 
@@ -395,56 +407,62 @@ export default function NameTagDesignerPage() {
     }
   }
 
-  function toggleGroup(groupId: string) {
-    setSelectedGroups((prev) => {
-      const next = new Set(prev)
-      if (next.has(groupId)) {
-        next.delete(groupId)
-      } else {
-        next.add(groupId)
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const token = await getToken()
+    return token ? { 'Authorization': `Bearer ${token}` } : {}
+  }, [getToken])
+
+  // Builds badge data for everything picked in the Select Badges panel: one
+  // request per group, one per other registration type, and custom badges
+  // built right here. With `limit`, stops once it has that many (preview).
+  async function collectNameTags(limit?: number): Promise<{ nameTags: any[]; schedule: any[] }> {
+    const headers = { 'Content-Type': 'application/json', ...(await getAuthHeaders()) }
+    const nameTags: any[] = []
+    let schedule: any[] = []
+
+    const requests: Record<string, unknown>[] = [
+      ...selection.groupIds.map((groupId) => ({ groupId })),
+      ...(selection.individualIds.length ? [{ registrationType: 'individual', participantIds: selection.individualIds }] : []),
+      ...(selection.staffIds.length ? [{ registrationType: 'staff', participantIds: selection.staffIds }] : []),
+      ...(selection.vendorIds.length ? [{ registrationType: 'vendor', participantIds: selection.vendorIds }] : []),
+    ]
+
+    for (const body of requests) {
+      if (limit && nameTags.length >= limit) break
+      const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...body, templateOverride: template }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        nameTags.push(...data.nameTags)
+        if (data.schedule?.length) schedule = data.schedule
       }
-      return next
-    })
-  }
+    }
 
-  function selectAllGroups() {
-    setSelectedGroups(new Set(groups.map((g) => g.id)))
-  }
+    nameTags.push(...selection.customBadges.map(customBadgeToNameTag))
 
-  function deselectAllGroups() {
-    setSelectedGroups(new Set())
+    // Use the locally-loaded schedule as fallback (no need for a second API round-trip)
+    if (!schedule.length && scheduleEntries.length) schedule = scheduleEntries
+    return { nameTags: limit ? nameTags.slice(0, limit) : nameTags, schedule }
   }
 
   async function handlePreview() {
-    if (selectedGroups.size === 0) {
-      toast.error('Please select at least one group')
+    if (selection.badgeCount === 0) {
+      toast.error('Please select at least one badge')
       return
     }
 
     setGenerating(true)
     try {
-      const token = await getToken()
-      // Fetch a sample of name tags for preview
-      const firstGroupId = Array.from(selectedGroups)[0]
-      const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          groupId: firstGroupId,
-          templateOverride: template,
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setPreviewData(data.nameTags.slice(0, 6))
-        setIsPreviewModalOpen(true)
-      } else {
+      const { nameTags } = await collectNameTags(6)
+      if (nameTags.length === 0) {
         toast.error('Failed to generate preview')
+        return
       }
+      setPreviewData(nameTags)
+      setIsPreviewModalOpen(true)
     } catch (error) {
       console.error('Preview error:', error)
       toast.error('Failed to generate preview')
@@ -454,39 +472,16 @@ export default function NameTagDesignerPage() {
   }
 
   async function handleGenerateAndPrint() {
-    if (selectedGroups.size === 0) {
-      toast.error('Please select at least one group')
+    if (selection.badgeCount === 0) {
+      toast.error('Please select at least one badge')
       return
     }
 
     setGenerating(true)
     try {
-      const token = await getToken()
-      const allNameTags: any[] = []
-      let lastSchedule: any[] = []
-
-      for (const groupId of Array.from(selectedGroups)) {
-        const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ groupId, templateOverride: template }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          allNameTags.push(...data.nameTags)
-          if (data.schedule?.length) lastSchedule = data.schedule
-        }
-      }
-
-      // Also use the locally-loaded schedule as fallback (no need for a second API round-trip)
-      if (!lastSchedule.length && scheduleEntries.length) lastSchedule = scheduleEntries
-
-      toast.success(`Generated ${allNameTags.length} name tags. Opening print dialog...`)
-      openBadgePrintWindow(allNameTags, template, eventName, lastSchedule)
+      const { nameTags, schedule } = await collectNameTags()
+      toast.success(`Generated ${nameTags.length} name tags. Opening print dialog...`)
+      openBadgePrintWindow(nameTags, template, eventName, schedule)
     } catch (error) {
       console.error('Generate error:', error)
       toast.error('Failed to generate name tags')
@@ -496,38 +491,16 @@ export default function NameTagDesignerPage() {
   }
 
   async function handleExportPrePrintRoll() {
-    if (selectedGroups.size === 0) {
-      toast.error('Please select at least one group')
+    if (selection.badgeCount === 0) {
+      toast.error('Please select at least one badge')
       return
     }
 
     setGenerating(true)
     try {
-      const token = await getToken()
-      const allNameTags: any[] = []
-      let lastSchedule: any[] = []
-
-      for (const groupId of Array.from(selectedGroups)) {
-        const response = await fetch(`/api/admin/events/${eventId}/salve/generate-name-tags`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ groupId, templateOverride: template }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          allNameTags.push(...data.nameTags)
-          if (data.schedule?.length) lastSchedule = data.schedule
-        }
-      }
-
-      if (!lastSchedule.length && scheduleEntries.length) lastSchedule = scheduleEntries
-
-      toast.success(`Exporting ${allNameTags.length} badges for pre-print roll...`)
-      openBadgePrintWindow(allNameTags, template, eventName, lastSchedule, { cropMarks: true })
+      const { nameTags, schedule } = await collectNameTags()
+      toast.success(`Exporting ${nameTags.length} badges for pre-print roll...`)
+      openBadgePrintWindow(nameTags, template, eventName, schedule, { cropMarks: true })
     } catch (error) {
       console.error('Export error:', error)
       toast.error('Failed to export badges')
@@ -536,10 +509,7 @@ export default function NameTagDesignerPage() {
     }
   }
 
-  const selectedCount = selectedGroups.size
-  const totalParticipants = groups
-    .filter((g) => selectedGroups.has(g.id))
-    .reduce((sum, g) => sum + g.participantCount, 0)
+  const totalParticipants = selection.badgeCount
 
   if (loading) {
     return (
@@ -927,63 +897,32 @@ export default function NameTagDesignerPage() {
           </CardContent>
         </Card>
 
-        {/* Group Selection */}
+        {/* Badge Selection */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Select Groups
+              Select Badges
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={selectAllGroups}>
-                Select All
-              </Button>
-              <Button variant="outline" size="sm" onClick={deselectAllGroups}>
-                Deselect All
-              </Button>
-            </div>
-
-            <ScrollArea className="h-[300px]">
-              <div className="space-y-2">
-                {groups.map((group) => (
-                  <label
-                    key={group.id}
-                    className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${
-                      selectedGroups.has(group.id)
-                        ? 'bg-navy/5 border-navy'
-                        : 'bg-white border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Checkbox
-                      checked={selectedGroups.has(group.id)}
-                      onCheckedChange={() => toggleGroup(group.id)}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{group.groupName}</div>
-                      {group.diocese && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {group.diocese}
-                        </div>
-                      )}
-                    </div>
-                    <Badge variant="secondary">{group.participantCount}</Badge>
-                  </label>
-                ))}
-              </div>
-            </ScrollArea>
+            <BadgeSourcePicker
+              eventId={eventId}
+              groups={groups}
+              getAuthHeaders={getAuthHeaders}
+              onChange={setSelection}
+            />
 
             <div className="mt-4 pt-4 border-t">
               <div className="text-sm text-muted-foreground mb-4">
-                <strong>{selectedCount}</strong> groups selected ({totalParticipants} name tags)
+                <strong>{totalParticipants}</strong> name tags selected
               </div>
 
               <div className="space-y-2">
                 <Button
                   className="w-full"
                   onClick={handlePreview}
-                  disabled={generating || selectedCount === 0}
+                  disabled={generating || totalParticipants === 0}
                   variant="outline"
                 >
                   {generating ? (
@@ -997,7 +936,7 @@ export default function NameTagDesignerPage() {
                 <Button
                   className="w-full"
                   onClick={handleGenerateAndPrint}
-                  disabled={generating || selectedCount === 0}
+                  disabled={generating || totalParticipants === 0}
                 >
                   {generating ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1012,7 +951,7 @@ export default function NameTagDesignerPage() {
                     className="w-full"
                     variant="outline"
                     onClick={handleExportPrePrintRoll}
-                    disabled={generating || selectedCount === 0}
+                    disabled={generating || totalParticipants === 0}
                   >
                     {generating ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1086,7 +1025,7 @@ export default function NameTagDesignerPage() {
                       className="text-white text-xs px-2 py-0.5 rounded mt-2"
                       style={{ backgroundColor: template.accentColor }}
                     >
-                      {getClergyRoleLabel(tag.participantType, null) || (tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth')}
+                      {tag.badgeLabel || getClergyRoleLabel(tag.participantType, null) || (tag.isClergy ? 'Clergy' : tag.isChaperone ? 'Chaperone' : 'Youth')}
                     </span>
                   )}
                 </div>

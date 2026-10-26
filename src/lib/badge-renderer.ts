@@ -58,6 +58,8 @@ export interface NameTagData {
   // Prints the purple allergy bar. Set by the server only when the template
   // has showAllergyBar on, or ticked by hand on a walk-up badge.
   hasAllergy?: boolean
+  // Replaces the role pill text, e.g. "Speaker" on a custom badge
+  badgeLabel?: string | null
 }
 
 export interface ScheduleEntry {
@@ -83,6 +85,7 @@ function fontFamilyCSS(fontFamily: string): string {
 }
 
 function participantLabel(tag: NameTagData): string {
+  if (tag.badgeLabel) return escapeHtml(tag.badgeLabel)
   switch (tag.participantType) {
     case 'youth_u18': return 'Youth'
     case 'youth_o18': return 'Youth (18+)'
@@ -129,6 +132,7 @@ function participantColor(tag: NameTagData): string {
     case 'staff': return '#1e3a5f'             // navy — staff
     case 'individual': return '#78716c'        // neutral — individual registrant
     case 'vendor': return '#b45309'            // amber — vendor
+    case 'custom': return '#be185d'            // magenta — speaker / guest
   }
   if (tag.isClergy) return '#7c3aed'
   if (tag.isChaperone) return '#dc2626'

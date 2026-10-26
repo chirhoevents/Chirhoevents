@@ -47,14 +47,15 @@ export async function GET(
           {
             OR: [
               { roomPurpose: 'housing' },
+              { roomPurpose: 'both' },
               { roomPurpose: null }
             ]
           }
         ]
       }
     } else if (purposeFilter === 'small_group') {
-      // For small groups: only rooms explicitly set to 'small_group'
-      whereClause.roomPurpose = 'small_group'
+      // For small groups: rooms set to 'small_group' or 'both'
+      whereClause.roomPurpose = { in: ['small_group', 'both'] }
     }
     // If no purposeFilter, show all rooms
 

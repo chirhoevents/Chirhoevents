@@ -172,6 +172,18 @@ function groupHousingFor(groupAssignments: any[], gender: string | null) {
   }
 }
 
+// Off-campus and day-pass groups get no room, but the badge still says where
+// they stay so the housing slot isn't just blank.
+const NO_ROOM_LABELS: Record<string, string> = {
+  off_campus: 'Off-Campus',
+  day_pass: 'Day Pass',
+}
+
+function noRoomHousing(housingType: string | null | undefined) {
+  const label = housingType ? NO_ROOM_LABELS[housingType] : undefined
+  return label ? { building: label, room: '', bed: null, fullLocation: label } : null
+}
+
 function bedLetter(bedNumber: number | null): string | null {
   return bedNumber ? String.fromCharCode(64 + bedNumber) : null
 }
@@ -206,7 +218,10 @@ export async function POST(
         template = await prisma.nameTagTemplate.findUnique({ where: { eventId } })
       }
     }
-    const templateConfig: any = templateOverride || template?.settingsJson || template || DEFAULT_TEMPLATE
+    const templateConfig: any = templateOverride
+      || (template?.settingsJson ? { ...DEFAULT_TEMPLATE, ...(template.settingsJson as any) } : null)
+      || template
+      || DEFAULT_TEMPLATE
 
     // -----------------------------------------------------------------------
     // Dispatch by registration type
@@ -301,7 +316,7 @@ async function generateGroupNameTags(
 
   const participants = await prisma.participant.findMany({
     where,
-    include: { groupRegistration: { select: { groupName: true, dioceseName: true } } },
+    include: { groupRegistration: { select: { groupName: true, dioceseName: true, housingType: true } } },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   })
 
@@ -401,7 +416,8 @@ async function generateGroupNameTags(
               fullLocation: `${assignment.buildingName} ${assignment.roomNumber}${bed ? ` - Bed ${bed}` : ''}`,
             }
           : groupHousingFor(groupRoomMap.get(p.groupRegistrationId) ?? [], p.gender)
-            ?? groupHousingFor(allocatedRoomMap.get(p.groupRegistrationId) ?? [], p.gender),
+            ?? groupHousingFor(allocatedRoomMap.get(p.groupRegistrationId) ?? [], p.gender)
+            ?? noRoomHousing(p.groupRegistration.housingType),
         mealColor: mealColorMap.get(p.groupRegistrationId) ?? null,
         qrCode: qrCode || null,
         hasAllergy: withAllergy.has(p.id),
@@ -433,7 +449,28 @@ async function generateIndividualNameTags(
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   })
 
-  const mealColorMap = await individualMealColors(eventId, registrations.map((r: any) => r.id))
+  const regIds = registrations.map((r: any) => r.id)
+  const [mealColorMap, roomAssignments] = await Promise.all([
+    individualMealColors(eventId, regIds),
+    prisma.roomAssignment.findMany({
+      where: { individualRegistrationId: { in: regIds } },
+      include: { room: { include: { building: { select: { name: true } } } } },
+    }),
+  ])
+  const housingMap = new Map(
+    roomAssignments.map((ra: any) => {
+      const bed = bedLetter(ra.bedNumber)
+      return [
+        ra.individualRegistrationId,
+        {
+          building: ra.room.building.name,
+          room: ra.room.roomNumber,
+          bed,
+          fullLocation: `${ra.room.building.name} ${ra.room.roomNumber}${bed ? ` - Bed ${bed}` : ''}`,
+        },
+      ]
+    })
+  )
 
   const withAllergy = allergyBarOn(templateConfig)
     ? allergyOwnerIds(
@@ -465,7 +502,7 @@ async function generateIndividualNameTags(
         participantType: 'individual',
         isChaperone: false,
         isClergy: false,
-        housing: null,
+        housing: housingMap.get(reg.id) ?? noRoomHousing(reg.housingType),
         mealColor: mealColorMap.get(reg.id) ?? null,
         qrCode: qrCode || null,
         hasAllergy: withAllergy.has(reg.id),
