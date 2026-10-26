@@ -30,6 +30,43 @@ interface EmailResendModalProps {
   defaultRecipientName?: string
 }
 
+interface TemplateField {
+  key: string
+  label: string
+  placeholder: string
+  multiline?: boolean
+}
+
+// Editable fields per template (Event Name is shown for every template)
+const templateFields: Record<string, TemplateField[]> = {
+  payment_reminder: [
+    { key: 'amountDue', label: 'Amount Due', placeholder: 'e.g., 150.00' },
+    { key: 'dueDate', label: 'Due Date', placeholder: 'e.g., March 15, 2026' },
+  ],
+  payment_received: [
+    { key: 'amount', label: 'Amount Received', placeholder: 'e.g., 150.00' },
+    { key: 'paymentDate', label: 'Payment Date', placeholder: 'e.g., March 15, 2026' },
+    { key: 'paymentMethod', label: 'Payment Method', placeholder: 'e.g., Check' },
+    { key: 'remainingBalance', label: 'Remaining Balance', placeholder: 'e.g., 0.00' },
+  ],
+  forms_reminder: [
+    { key: 'incompleteCount', label: 'Participants Missing Forms', placeholder: 'e.g., 3' },
+    { key: 'accessCode', label: 'Access Code', placeholder: 'e.g., ABC-123-XYZ' },
+  ],
+  welcome_access_code: [
+    { key: 'accessCode', label: 'Access Code', placeholder: 'e.g., ABC-123-XYZ' },
+  ],
+  event_update: [
+    { key: 'updateMessage', label: 'Update Message *', placeholder: 'Enter the update message...', multiline: true },
+  ],
+  check_in_instructions: [
+    { key: 'checkInTime', label: 'Check-In Time', placeholder: 'e.g., March 15, 2026 at 3:00 PM' },
+    { key: 'checkInLocation', label: 'Check-In Location', placeholder: 'e.g., Main Hall' },
+    { key: 'parkingInfo', label: 'Parking', placeholder: 'e.g., Park in Lot B' },
+    { key: 'accessCode', label: 'Access Code', placeholder: 'e.g., ABC-123-XYZ' },
+  ],
+}
+
 export default function EmailResendModal({
   isOpen,
   onClose,
@@ -49,14 +86,70 @@ export default function EmailResendModal({
   const [templateData, setTemplateData] = useState<Record<string, string>>({})
   const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null)
   const [customMessage, setCustomMessage] = useState('')
+  const [registrationContext, setRegistrationContext] = useState<Record<string, string>>({})
+  const [loadingContext, setLoadingContext] = useState(false)
 
   const selectedTemplate = selectedTemplateId ? getTemplateById(selectedTemplateId) : null
+
+  // Exactly what will be sent, so the preview always matches the email
+  const templatePreview = selectedTemplate
+    ? {
+        subject: processSubject(selectedTemplate.subject, templateData),
+        html:
+          selectedTemplate.id === 'custom_message'
+            ? selectedTemplate.generateHtml({ eventName: templateData.eventName, customMessage })
+            : selectedTemplate.generateHtml(templateData),
+      }
+    : null
 
   useEffect(() => {
     if (isOpen && mode === 'history') {
       fetchEmails()
     }
   }, [isOpen, mode])
+
+  // Keep the recipient in sync when the modal is reused for another registration
+  useEffect(() => {
+    if (isOpen) {
+      setRecipientEmail(defaultRecipientEmail)
+      setRecipientName(defaultRecipientName || '')
+      setSelectedTemplateId(null)
+      setTemplateData({})
+      setCustomMessage('')
+      fetchRegistrationContext()
+    }
+  }, [isOpen, registrationId, registrationType])
+
+  // Load event name, balance, due date, access code, etc. so templates come prefilled
+  const fetchRegistrationContext = async () => {
+    setLoadingContext(true)
+    try {
+      const response = await fetch(
+        `/api/admin/registrations/${registrationId}/email-context?type=${registrationType}`
+      )
+      if (!response.ok) {
+        throw new Error(`Failed to load registration details (status ${response.status})`)
+      }
+      const data = await response.json()
+      const context = data.context || {}
+      setRegistrationContext(context)
+      // A template picked before the details arrived still gets them, without
+      // overwriting anything the admin already typed
+      setTemplateData((current) => {
+        if (Object.keys(current).length === 0) return current
+        const merged = { ...current }
+        for (const [key, value] of Object.entries(context as Record<string, string>)) {
+          if (!merged[key]) merged[key] = value
+        }
+        return merged
+      })
+    } catch (error) {
+      console.error('[EmailResendModal] Error fetching registration context:', error)
+      setRegistrationContext({})
+    } finally {
+      setLoadingContext(false)
+    }
+  }
 
   const fetchEmails = async () => {
     setLoading(true)
@@ -103,7 +196,7 @@ export default function EmailResendModal({
     setSelectedEmail(null)
     setSelectedEmailId(null)
 
-    // Reset template data with defaults
+    // Prefill from the registration; admins can still edit any field
     setTemplateData({
       eventName: '',
       registrationDetails: '',
@@ -120,6 +213,7 @@ export default function EmailResendModal({
       checkInTime: '',
       checkInLocation: '',
       parkingInfo: '',
+      ...registrationContext,
     })
     setCustomMessage('')
   }
@@ -132,15 +226,10 @@ export default function EmailResendModal({
       // Resending from history
       subjectToSend = selectedEmail.subject
       htmlToSend = selectedEmail.htmlContent
-    } else if (mode === 'templates' && selectedTemplateId && selectedTemplate) {
+    } else if (mode === 'templates' && templatePreview) {
       // Sending from template
-      subjectToSend = processSubject(selectedTemplate.subject, templateData)
-
-      if (selectedTemplate.id === 'custom_message') {
-        htmlToSend = selectedTemplate.generateHtml({ eventName: templateData.eventName, customMessage })
-      } else {
-        htmlToSend = selectedTemplate.generateHtml(templateData)
-      }
+      subjectToSend = templatePreview.subject
+      htmlToSend = templatePreview.html
     } else {
       alert('Please select an email template or history item')
       return
@@ -299,9 +388,14 @@ export default function EmailResendModal({
               {/* Template Configuration */}
               {selectedTemplate && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-1">
                     Configure Email Content
                   </h3>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {loadingContext
+                      ? 'Loading details from this registration...'
+                      : 'Filled in from this registration. Edit anything before sending.'}
+                  </p>
                   <div className="space-y-3 border border-gray-200 rounded-lg p-4 bg-gray-50">
                     {selectedTemplate.id === 'custom_message' ? (
                       <div className="space-y-3">
@@ -354,76 +448,60 @@ export default function EmailResendModal({
                           />
                         </div>
 
-                        {/* Template-specific fields */}
-                        {selectedTemplate.id === 'payment_reminder' && (
-                          <>
-                            <div>
-                              <Label htmlFor="amount-due" className="text-sm text-gray-600">
-                                Amount Due
-                              </Label>
-                              <Input
-                                id="amount-due"
-                                value={templateData.amountDue || ''}
+                        {/* Template-specific fields, prefilled from the registration */}
+                        {(templateFields[selectedTemplate.id] || []).map((field) => (
+                          <div key={field.key}>
+                            <Label htmlFor={`template-${field.key}`} className="text-sm text-gray-600">
+                              {field.label}
+                            </Label>
+                            {field.multiline ? (
+                              <Textarea
+                                id={`template-${field.key}`}
+                                value={templateData[field.key] || ''}
                                 onChange={(e) =>
-                                  setTemplateData({ ...templateData, amountDue: e.target.value })
+                                  setTemplateData({ ...templateData, [field.key]: e.target.value })
                                 }
-                                placeholder="e.g., 150.00"
+                                placeholder={field.placeholder}
+                                rows={4}
                                 className="mt-1"
                               />
-                            </div>
-                            <div>
-                              <Label htmlFor="due-date" className="text-sm text-gray-600">
-                                Due Date
-                              </Label>
+                            ) : (
                               <Input
-                                id="due-date"
-                                value={templateData.dueDate || ''}
+                                id={`template-${field.key}`}
+                                value={templateData[field.key] || ''}
                                 onChange={(e) =>
-                                  setTemplateData({ ...templateData, dueDate: e.target.value })
+                                  setTemplateData({ ...templateData, [field.key]: e.target.value })
                                 }
-                                placeholder="e.g., March 15, 2026"
+                                placeholder={field.placeholder}
                                 className="mt-1"
                               />
-                            </div>
-                          </>
-                        )}
-
-                        {selectedTemplate.id === 'welcome_access_code' && (
-                          <div>
-                            <Label htmlFor="access-code" className="text-sm text-gray-600">
-                              Access Code
-                            </Label>
-                            <Input
-                              id="access-code"
-                              value={templateData.accessCode || ''}
-                              onChange={(e) =>
-                                setTemplateData({ ...templateData, accessCode: e.target.value })
-                              }
-                              placeholder="e.g., ABC-123-XYZ"
-                              className="mt-1"
-                            />
+                            )}
                           </div>
-                        )}
-
-                        {selectedTemplate.id === 'event_update' && (
-                          <div>
-                            <Label htmlFor="update-message" className="text-sm text-gray-600">
-                              Update Message *
-                            </Label>
-                            <Textarea
-                              id="update-message"
-                              value={templateData.updateMessage || ''}
-                              onChange={(e) =>
-                                setTemplateData({ ...templateData, updateMessage: e.target.value })
-                              }
-                              placeholder="Enter the update message..."
-                              rows={4}
-                              className="mt-1"
-                            />
-                          </div>
-                        )}
+                        ))}
                       </>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Template Preview */}
+              {templatePreview && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                    Email Preview
+                  </h3>
+                  <div className="border border-gray-200 rounded-lg bg-gray-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <p className="text-sm text-gray-600">
+                        <strong>Subject:</strong> {templatePreview.subject}
+                      </p>
+                    </div>
+                    <iframe
+                      title="Email preview"
+                      srcDoc={templatePreview.html}
+                      sandbox=""
+                      className="w-full h-96 bg-white"
+                    />
                   </div>
                 </div>
               )}
