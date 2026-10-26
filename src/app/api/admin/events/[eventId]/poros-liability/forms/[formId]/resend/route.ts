@@ -5,6 +5,7 @@ import { verifyFormsEditAccess } from '@/lib/api-auth'
 import { Resend } from '@/lib/resend'
 import { randomUUID } from 'crypto'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { hasEventEnded, EVENT_ENDED_ADMIN_RESEND_MESSAGE } from '@/lib/event-ended'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -52,6 +53,10 @@ export async function POST(
 
     if (form.eventId !== eventId) {
       return NextResponse.json({ error: 'Form does not belong to this event' }, { status: 400 })
+    }
+
+    if (hasEventEnded(form.event)) {
+      return NextResponse.json({ error: EVENT_ENDED_ADMIN_RESEND_MESSAGE }, { status: 400 })
     }
 
     if (form.completed) {

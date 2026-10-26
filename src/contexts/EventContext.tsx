@@ -10,6 +10,8 @@ interface LinkedEvent {
   eventName: string
   eventDates: string
   groupName: string
+  // Event is over: the portal is read-only for it
+  eventEnded?: boolean
 }
 
 interface EventContextType {

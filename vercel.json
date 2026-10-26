@@ -8,6 +8,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/complete-ended-events",
+      "schedule": "5 * * * *"
+    },
+    {
       "path": "/api/cron/release-abandoned-checkouts",
       "schedule": "0 * * * *"
     },

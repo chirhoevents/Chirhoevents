@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { rejectIfGroupEventEnded } from '@/lib/group-leader-read-only'
 import { deleteParticipantAndForms } from '@/lib/delete-participant'
 
 export async function DELETE(
@@ -43,6 +44,9 @@ export async function DELETE(
         )
       }
 
+      const readOnly = await rejectIfGroupEventEnded(participant.groupRegistrationId)
+      if (readOnly) return readOnly
+
       await deleteParticipantAndForms(id)
 
       return NextResponse.json({
@@ -76,6 +80,9 @@ export async function DELETE(
         { status: 403 }
       )
     }
+
+    const readOnly = await rejectIfGroupEventEnded(form.groupRegistrationId!)
+    if (readOnly) return readOnly
 
     if (form.completed || form.participantId) {
       return NextResponse.json(

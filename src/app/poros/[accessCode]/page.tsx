@@ -221,14 +221,18 @@ export default function PorosRoleSelection() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-navy mb-2">
-            {error?.includes('already been completed') ? 'Form Already Completed' : 'Invalid Access Code'}
+            {error?.includes('already been completed')
+              ? 'Form Already Completed'
+              : error?.includes('event has ended')
+                ? 'Event Has Ended'
+                : 'Invalid Access Code'}
           </h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => router.push('/poros')}
             className="bg-navy text-white px-6 py-3 rounded-lg font-semibold hover:bg-navy/90 transition-colors"
           >
-            {error?.includes('already been completed') ? 'Return Home' : 'Try Again'}
+            {error?.includes('already been completed') || error?.includes('event has ended') ? 'Return Home' : 'Try Again'}
           </button>
         </div>
       </div>

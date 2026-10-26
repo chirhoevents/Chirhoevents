@@ -14,7 +14,7 @@ export async function GET() {
         organizationId,
         archivedAt: null,
         status: {
-          in: ['published', 'registration_open', 'registration_closed', 'in_progress'],
+          in: ['published', 'registration_open', 'registration_closed', 'in_progress', 'completed'],
         },
       },
       include: {

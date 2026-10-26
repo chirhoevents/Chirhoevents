@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { uploadCertificate } from '@/lib/r2/upload-certificate'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { rejectIfGroupEventEnded } from '@/lib/group-leader-read-only'
 import { incrementOrgStorage } from '@/lib/storage/track-storage'
 import { secureFileLink } from '@/lib/r2/private-files'
 
@@ -32,6 +33,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
+
+    const readOnly = await rejectIfGroupEventEnded(groupRegistration.id)
+    if (readOnly) return readOnly
 
     // Parse form data
     const formData = await request.formData()

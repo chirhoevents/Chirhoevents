@@ -5,6 +5,7 @@ import { Resend } from '@/lib/resend'
 import { randomUUID } from 'crypto'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { checkGroupParticipantCapacity, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
+import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -88,6 +89,10 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      if (hasEventEnded(individualRegistration.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
+      }
+
       eventName = individualRegistration.event.name
       eventStartDate = individualRegistration.event.startDate
       replyToAddr = resolveReplyTo(individualRegistration.event.settings, individualRegistration.organization)
@@ -155,6 +160,10 @@ export async function POST(request: NextRequest) {
           { error: 'Invalid access code' },
           { status: 404 }
         )
+      }
+
+      if (hasEventEnded(groupRegistration.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
       }
 
       eventName = groupRegistration.event.name

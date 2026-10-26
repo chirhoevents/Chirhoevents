@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { rejectIfGroupEventEnded } from '@/lib/group-leader-read-only'
 
 // GET /api/group-leader/registration?id=... - Get registration details for editing
 export async function GET(request: NextRequest) {
@@ -110,6 +111,9 @@ export async function PUT(request: NextRequest) {
         { status: 404 }
       )
     }
+
+    const readOnly = await rejectIfGroupEventEnded(existingRegistration.id)
+    if (readOnly) return readOnly
 
     // Update the registration
     // Note: Participant counts (youthCount, chaperoneCount, priestCount, totalParticipants)

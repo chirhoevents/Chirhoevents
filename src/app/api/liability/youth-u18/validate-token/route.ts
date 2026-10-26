@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { CANCELLED_REGISTRATION_FORM_MESSAGE, isLiabilityFormRegistrationCancelled } from '@/lib/liability-form-registration'
+import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     // Find liability form by parent token
     const liabilityForm = await prisma.liabilityForm.findUnique({
       where: { parentToken: parent_token },
-      include: { event: { select: { name: true } } },
+      include: { event: { select: { name: true, endDate: true, timezone: true, status: true, archivedAt: true } } },
     })
 
     if (!liabilityForm) {
@@ -45,6 +46,10 @@ export async function POST(request: NextRequest) {
 
     if (await isLiabilityFormRegistrationCancelled(liabilityForm)) {
       return NextResponse.json({ error: CANCELLED_REGISTRATION_FORM_MESSAGE }, { status: 410 })
+    }
+
+    if (hasEventEnded(liabilityForm.event)) {
+      return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
     }
 
     // Anything already collected (e.g. emergency contacts and dietary needs

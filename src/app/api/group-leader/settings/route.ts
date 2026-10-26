@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { hasEventEnded } from '@/lib/event-ended'
 import { verifyClerkSessionToken } from '@/lib/jwt-auth-helper'
 
 // GET /api/group-leader/settings - Get user preferences and all linked registrations
@@ -123,6 +124,7 @@ export async function GET(request: NextRequest) {
       eventDates: `${new Date(reg.event.startDate).toLocaleDateString()} - ${new Date(reg.event.endDate).toLocaleDateString()}`,
       groupName: reg.groupName,
       linkedAt: reg.createdAt,
+      eventEnded: hasEventEnded(reg.event),
       organization: reg.event.organization ? {
         name: reg.event.organization.name,
         logoUrl: reg.event.organization.logoUrl,

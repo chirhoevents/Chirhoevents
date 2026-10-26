@@ -3,6 +3,7 @@ import { POROS_FROM, buildParentLiabilityFormEmail } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { hasEventEnded, EVENT_ENDED_PORTAL_MESSAGE } from '@/lib/event-ended'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -59,6 +60,8 @@ export async function POST(req: NextRequest) {
     )
 
     const targets: ReminderTarget[] = []
+    // Forms for an event that's over can't be finished online any more
+    let skippedEnded = 0
 
     // Participants in this user's group who haven't finished their form
     const participants = await prisma.participant.findMany({
@@ -86,6 +89,11 @@ export async function POST(req: NextRequest) {
     })
 
     for (const participant of participants) {
+      if (hasEventEnded(participant.groupRegistration.event)) {
+        skippedEnded++
+        continue
+      }
+
       let liabilityForm = participant.liabilityForms[0]
 
       if (!liabilityForm) {
@@ -140,6 +148,11 @@ export async function POST(req: NextRequest) {
     })
 
     for (const form of pendingForms) {
+      if (hasEventEnded(form.event)) {
+        skippedEnded++
+        continue
+      }
+
       targets.push({
         formId: form.id,
         parentToken: form.parentToken,
@@ -149,6 +162,10 @@ export async function POST(req: NextRequest) {
         lastName: form.participantLastName,
         event: form.event,
       })
+    }
+
+    if (targets.length === 0 && skippedEnded > 0) {
+      return NextResponse.json({ error: EVENT_ENDED_PORTAL_MESSAGE, eventEnded: true }, { status: 403 })
     }
 
     if (targets.length === 0) {
