@@ -201,10 +201,14 @@ export default function ParentCompletionForm() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-navy mb-2">
-            {error.includes('cancelled') ? 'Registration Cancelled' : 'Invalid or Expired Link'}
+            {error.includes('cancelled')
+              ? 'Registration Cancelled'
+              : error.includes('event has ended')
+                ? 'Event Has Ended'
+                : 'Invalid or Expired Link'}
           </h2>
           <p className="text-gray-600 mb-6">{error}</p>
-          {!error.includes('cancelled') && (
+          {!error.includes('cancelled') && !error.includes('event has ended') && (
             <p className="text-sm text-gray-500">
               This link may have expired. Please contact your group leader or the event organizer for assistance.
             </p>

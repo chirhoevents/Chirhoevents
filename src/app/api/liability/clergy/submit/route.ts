@@ -9,6 +9,7 @@ import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
 import { getClergyGender } from '@/lib/clergy-roles'
 import { assertParticipantSlotAvailable, GroupCapacityFullError, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
+import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -96,6 +97,10 @@ export async function POST(request: NextRequest) {
 
       if (!staffRegistration) {
         return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
+      }
+
+      if (hasEventEnded(staffRegistration.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
       }
 
       if (staffRegistration.liabilityFormId) {
@@ -200,6 +205,10 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid access code' },
         { status: 404 }
       )
+    }
+
+    if (hasEventEnded(groupRegistration.event)) {
+      return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
     }
 
     // Enforce the group's registered participant cap. Check and create happen

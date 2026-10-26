@@ -9,6 +9,7 @@ import { incrementOrgStorage } from '@/lib/storage/track-storage'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { sanitizeMedicalText } from '@/lib/medical-info'
 import { assertParticipantSlotAvailable, GroupCapacityFullError, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
+import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -115,6 +116,10 @@ export async function POST(request: NextRequest) {
 
       if (!staffRegistration) {
         return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
+      }
+
+      if (hasEventEnded(staffRegistration.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
       }
 
       if (staffRegistration.liabilityFormId) {
@@ -259,6 +264,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
       }
 
+      if (hasEventEnded(vendorRegistration.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
+      }
+
       if (vendorRegistration.liabilityFormId) {
         return NextResponse.json({ error: 'Liability form already completed' }, { status: 400 })
       }
@@ -374,6 +383,10 @@ export async function POST(request: NextRequest) {
           { error: 'Invalid access code' },
           { status: 404 }
         )
+      }
+
+      if (hasEventEnded(individualRegistration.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
       }
 
       eventName = individualRegistration.event.name
@@ -549,6 +562,10 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid access code' },
         { status: 404 }
       )
+    }
+
+    if (hasEventEnded(groupRegistration.event)) {
+      return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
     }
 
     eventName = groupRegistration.event.name

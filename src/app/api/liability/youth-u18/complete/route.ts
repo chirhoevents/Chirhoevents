@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { CANCELLED_REGISTRATION_FORM_MESSAGE, isLiabilityFormRegistrationCancelled } from '@/lib/liability-form-registration'
+import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
 import { Resend } from '@/lib/resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
 import { uploadLiabilityFormPDF } from '@/lib/r2/upload-pdf'
@@ -82,6 +83,10 @@ export async function POST(request: NextRequest) {
 
     if (await isLiabilityFormRegistrationCancelled(liabilityForm)) {
       return NextResponse.json({ error: CANCELLED_REGISTRATION_FORM_MESSAGE }, { status: 410 })
+    }
+
+    if (hasEventEnded(liabilityForm.event)) {
+      return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
     }
 
     // Get group registration for group leader email

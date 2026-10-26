@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { hasEventEnded, EVENT_ENDED_PORTAL_MESSAGE } from '@/lib/event-ended'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -66,6 +67,10 @@ export async function PUT(request: NextRequest) {
         { error: 'Forbidden - You do not have permission to edit this registration' },
         { status: 403 }
       )
+    }
+
+    if (hasEventEnded(existingRegistration.event)) {
+      return NextResponse.json({ error: EVENT_ENDED_PORTAL_MESSAGE, eventEnded: true }, { status: 403 })
     }
 
     // Store old values for change tracking

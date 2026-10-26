@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkGroupParticipantCapacity } from '@/lib/group-participant-capacity'
+import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,6 +64,10 @@ export async function POST(request: NextRequest) {
           { error: 'Liability forms are not required for this event.' },
           { status: 400 }
         )
+      }
+
+      if (hasEventEnded(individualRegistration.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
       }
 
       // Check if form is already completed
@@ -145,6 +150,10 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      if (hasEventEnded(staffRegistration.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
+      }
+
       const startDate = new Date(staffRegistration.event.startDate)
       const endDate = new Date(staffRegistration.event.endDate)
       const eventDates = `${startDate.toLocaleDateString('en-US', {
@@ -191,6 +200,10 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid access code. Please check and try again.' },
         { status: 404 }
       )
+    }
+
+    if (hasEventEnded(groupRegistration.event)) {
+      return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
     }
 
     // Calculate forms completed

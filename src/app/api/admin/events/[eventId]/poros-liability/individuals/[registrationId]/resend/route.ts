@@ -6,6 +6,7 @@ import { Resend } from '@/lib/resend'
 import { randomUUID } from 'crypto'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { individualParentTokenExpiry } from '@/lib/individual-registration'
+import { hasEventEnded, EVENT_ENDED_ADMIN_RESEND_MESSAGE } from '@/lib/event-ended'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -59,6 +60,10 @@ export async function POST(
     // Check if event ID matches
     if (registration.eventId !== eventId) {
       return NextResponse.json({ error: 'Registration does not belong to this event' }, { status: 400 })
+    }
+
+    if (hasEventEnded(registration.event)) {
+      return NextResponse.json({ error: EVENT_ENDED_ADMIN_RESEND_MESSAGE }, { status: 400 })
     }
 
     // Check if liability forms are required

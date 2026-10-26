@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { rejectIfGroupEventEnded } from '@/lib/group-leader-read-only'
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
+
+    const readOnly = await rejectIfGroupEventEnded(groupRegistration.id)
+    if (readOnly) return readOnly
 
     // Check if locked
     if (groupRegistration.housingAssignmentsLocked) {

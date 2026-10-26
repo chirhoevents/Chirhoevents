@@ -520,6 +520,16 @@ function GroupLeaderLayoutContent({
 
         {/* Page content */}
         <main className="p-4 lg:p-8">
+          {currentEvent?.eventEnded && (
+            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">This event has ended</p>
+              <p className="mt-1">
+                Your portal is now read-only for {currentEvent.eventName}. You can still view your registration,
+                liability forms and payment receipts, and pay any remaining balance. Contact the event organizer
+                if anything needs to change.
+              </p>
+            </div>
+          )}
           {children}
         </main>
       </div>

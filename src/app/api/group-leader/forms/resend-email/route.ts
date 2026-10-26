@@ -3,6 +3,7 @@ import { POROS_FROM, buildParentLiabilityFormEmail } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { rejectIfGroupEventEnded } from '@/lib/group-leader-read-only'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -67,6 +68,9 @@ export async function POST(req: NextRequest) {
     let event
 
     if (participant) {
+      const readOnly = await rejectIfGroupEventEnded(participant.groupRegistrationId)
+      if (readOnly) return readOnly
+
       firstName = participant.firstName
       lastName = participant.lastName
       event = participant.groupRegistration.event
@@ -148,6 +152,9 @@ export async function POST(req: NextRequest) {
           { status: 404 }
         )
       }
+
+      const readOnly = await rejectIfGroupEventEnded(pendingForm.groupRegistrationId!)
+      if (readOnly) return readOnly
 
       firstName = pendingForm.participantFirstName
       lastName = pendingForm.participantLastName
