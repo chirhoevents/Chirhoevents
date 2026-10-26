@@ -401,10 +401,6 @@ const BlankFormTemplate: React.FC<BlankFormTemplateProps> = ({ data }) => {
                   <View style={styles.checkbox} />
                   <Text style={{ fontSize: 9 }}>Female</Text>
                 </View>
-                <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
-                  <View style={styles.checkbox} />
-                  <Text style={{ fontSize: 9 }}>Prefer not to say</Text>
-                </View>
               </View>
             </View>
             <View style={styles.halfField}>
