@@ -433,7 +433,28 @@ async function generateIndividualNameTags(
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   })
 
-  const mealColorMap = await individualMealColors(eventId, registrations.map((r: any) => r.id))
+  const regIds = registrations.map((r: any) => r.id)
+  const [mealColorMap, roomAssignments] = await Promise.all([
+    individualMealColors(eventId, regIds),
+    prisma.roomAssignment.findMany({
+      where: { individualRegistrationId: { in: regIds } },
+      include: { room: { include: { building: { select: { name: true } } } } },
+    }),
+  ])
+  const housingMap = new Map(
+    roomAssignments.map((ra: any) => {
+      const bed = bedLetter(ra.bedNumber)
+      return [
+        ra.individualRegistrationId,
+        {
+          building: ra.room.building.name,
+          room: ra.room.roomNumber,
+          bed,
+          fullLocation: `${ra.room.building.name} ${ra.room.roomNumber}${bed ? ` - Bed ${bed}` : ''}`,
+        },
+      ]
+    })
+  )
 
   const withAllergy = allergyBarOn(templateConfig)
     ? allergyOwnerIds(
@@ -465,7 +486,7 @@ async function generateIndividualNameTags(
         participantType: 'individual',
         isChaperone: false,
         isClergy: false,
-        housing: null,
+        housing: housingMap.get(reg.id) ?? null,
         mealColor: mealColorMap.get(reg.id) ?? null,
         qrCode: qrCode || null,
         hasAllergy: withAllergy.has(reg.id),
