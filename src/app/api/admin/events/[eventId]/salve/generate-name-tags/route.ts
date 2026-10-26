@@ -75,6 +75,55 @@ function mealHex(color: string): string {
   return MEAL_COLOR_HEX[color.toLowerCase()] ?? '#6b7280'
 }
 
+type BadgeMealColor = { name: string; hex: string }
+
+// Meal colors are assigned on the Poros "Meal Colors" page, which writes
+// MealGroupAssignment rows (custom name + hex per MealGroup). Older events
+// used the plain-string MealColorAssignment table, so fall back to it for
+// any group without a meal group assignment.
+async function groupMealColors(eventId: string, groupIds: string[]): Promise<Map<string, BadgeMealColor>> {
+  const map = new Map<string, BadgeMealColor>()
+  if (groupIds.length === 0) return map
+
+  const [mealGroupAssignments, legacyAssignments] = await Promise.all([
+    prisma.mealGroupAssignment.findMany({
+      where: { groupRegistrationId: { in: groupIds }, mealGroup: { eventId } },
+      include: { mealGroup: { select: { name: true, colorHex: true } } },
+    }),
+    prisma.mealColorAssignment.findMany({
+      where: { groupRegistrationId: { in: groupIds } },
+    }),
+  ])
+
+  for (const mga of mealGroupAssignments as any[]) {
+    if (mga.groupRegistrationId) {
+      map.set(mga.groupRegistrationId, { name: mga.mealGroup.name, hex: mga.mealGroup.colorHex })
+    }
+  }
+  for (const mca of legacyAssignments as any[]) {
+    if (mca.groupRegistrationId && !map.has(mca.groupRegistrationId)) {
+      map.set(mca.groupRegistrationId, { name: mca.color, hex: mealHex(mca.color) })
+    }
+  }
+  return map
+}
+
+async function individualMealColors(eventId: string, registrationIds: string[]): Promise<Map<string, BadgeMealColor>> {
+  const map = new Map<string, BadgeMealColor>()
+  if (registrationIds.length === 0) return map
+
+  const assignments = await prisma.mealGroupAssignment.findMany({
+    where: { individualRegistrationId: { in: registrationIds }, mealGroup: { eventId } },
+    include: { mealGroup: { select: { name: true, colorHex: true } } },
+  })
+  for (const mga of assignments as any[]) {
+    if (mga.individualRegistrationId) {
+      map.set(mga.individualRegistrationId, { name: mga.mealGroup.name, hex: mga.mealGroup.colorHex })
+    }
+  }
+  return map
+}
+
 // The purple allergy bar is opt-in per template. Only look up forms (and only
 // ever send a yes/no, never the allergy itself) when it's turned on.
 function allergyBarOn(templateConfig: any): boolean {
@@ -89,6 +138,38 @@ function allergyOwnerIds(forms: { ownerId: string | null; allergies: string | nu
     if (f.ownerId && hasRealMedicalText(f.allergies)) ids.add(f.ownerId)
   }
   return ids
+}
+
+// Housing resolves the same way the welcome packet does: a participant's own
+// bed first, then the group-level rooms from the Poros Housing tab
+// (RoomAssignment rows with a groupRegistrationId and no participantId), then
+// rooms handed to the group on the Group Allocations tab
+// (Room.allocatedToGroupId). Group rooms are matched to the participant's
+// gender using the notes the assign route writes ("female housing
+// assignment"), else the room's own gender.
+function groupAssignmentGender(a: any): 'male' | 'female' | null {
+  const fromNotes = /^(male|female)\b/i.exec(a.notes ?? '')?.[1]?.toLowerCase()
+  if (fromNotes === 'male' || fromNotes === 'female') return fromNotes
+  if (a.room.gender === 'male' || a.room.gender === 'female') return a.room.gender
+  return null
+}
+
+// Every room the group was given for this participant's gender (falling back
+// to mixed rooms), as "Building Room" — joined if the block spans rooms.
+function groupHousingFor(groupAssignments: any[], gender: string | null) {
+  const g = gender?.toLowerCase()
+  const forGender = groupAssignments.filter((a) => groupAssignmentGender(a) === g)
+  const rooms = forGender.length
+    ? forGender
+    : groupAssignments.filter((a) => groupAssignmentGender(a) === null)
+  if (rooms.length === 0) return null
+  const first = rooms[0].room
+  return {
+    building: first.building.name,
+    room: first.roomNumber,
+    bed: null,
+    fullLocation: rooms.map((a) => `${a.room.building.name} ${a.room.roomNumber}`).join(' / '),
+  }
 }
 
 function bedLetter(bedNumber: number | null): string | null {
@@ -229,14 +310,30 @@ async function generateGroupNameTags(
   const idList = participants.map((p: any) => p.id)
   const groupIds = [...new Set(participants.map((p: any) => p.groupRegistrationId))]
 
-  const [roomAssignments, mealColorAssignments, allergyForms] = await Promise.all([
+  const [roomAssignments, groupRoomAssignments, allocatedRooms, mealColorMap, allergyForms] = await Promise.all([
     prisma.roomAssignment.findMany({
       where: { participantId: { in: idList } },
       include: { room: { include: { building: { select: { name: true } } } } },
     }),
-    prisma.mealColorAssignment.findMany({
-      where: { groupRegistrationId: { in: groupIds } },
+    prisma.roomAssignment.findMany({
+      where: {
+        groupRegistrationId: { in: groupIds as string[] },
+        participantId: null,
+        room: { roomPurpose: { in: ['housing', 'both'] }, building: { eventId } },
+      },
+      include: { room: { include: { building: { select: { name: true } } } } },
+      orderBy: { assignedAt: 'asc' },
     }),
+    prisma.room.findMany({
+      where: {
+        allocatedToGroupId: { in: groupIds as string[] },
+        roomPurpose: { in: ['housing', 'both'] },
+        building: { eventId },
+      },
+      include: { building: { select: { name: true } } },
+      orderBy: [{ building: { name: 'asc' } }, { roomNumber: 'asc' }],
+    }),
+    groupMealColors(eventId, groupIds as string[]),
     allergyBarOn(templateConfig)
       ? prisma.liabilityForm.findMany({
           where: { participantId: { in: idList } },
@@ -248,21 +345,30 @@ async function generateGroupNameTags(
     allergyForms.map((f: any) => ({ ownerId: f.participantId, allergies: f.allergies }))
   )
 
+  const groupRoomMap = new Map<string, any[]>()
+  for (const a of groupRoomAssignments as any[]) {
+    const list = groupRoomMap.get(a.groupRegistrationId) ?? []
+    list.push(a)
+    groupRoomMap.set(a.groupRegistrationId, list)
+  }
+  const allocatedRoomMap = new Map<string, any[]>()
+  for (const room of allocatedRooms as any[]) {
+    const list = allocatedRoomMap.get(room.allocatedToGroupId) ?? []
+    list.push({ room, notes: null })
+    allocatedRoomMap.set(room.allocatedToGroupId, list)
+  }
+
   const assignmentMap = new Map(
     roomAssignments.map((ra: any) => [
       ra.participantId,
       { buildingName: ra.room.building.name, roomNumber: ra.room.roomNumber, bedNumber: ra.bedNumber },
     ])
   )
-  const mealColorMap = new Map(
-    mealColorAssignments.map((mca: any) => [mca.groupRegistrationId, mca.color])
-  )
 
   return Promise.all(
     participants.map(async (p: any) => {
       const assignment = assignmentMap.get(p.id) as any
       const bed = assignment ? bedLetter(assignment.bedNumber) : null
-      const mealColor = mealColorMap.get(p.groupRegistrationId) as string | undefined
 
       let qrCode = p.qrCode
       if (!qrCode) {
@@ -294,8 +400,9 @@ async function generateGroupNameTags(
               bed,
               fullLocation: `${assignment.buildingName} ${assignment.roomNumber}${bed ? ` - Bed ${bed}` : ''}`,
             }
-          : null,
-        mealColor: mealColor ? { name: mealColor, hex: mealHex(mealColor) } : null,
+          : groupHousingFor(groupRoomMap.get(p.groupRegistrationId) ?? [], p.gender)
+            ?? groupHousingFor(allocatedRoomMap.get(p.groupRegistrationId) ?? [], p.gender),
+        mealColor: mealColorMap.get(p.groupRegistrationId) ?? null,
         qrCode: qrCode || null,
         hasAllergy: withAllergy.has(p.id),
         template: templateConfig,
@@ -325,6 +432,8 @@ async function generateIndividualNameTags(
     where: { id: { in: ids }, eventId },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   })
+
+  const mealColorMap = await individualMealColors(eventId, registrations.map((r: any) => r.id))
 
   const withAllergy = allergyBarOn(templateConfig)
     ? allergyOwnerIds(
@@ -357,7 +466,7 @@ async function generateIndividualNameTags(
         isChaperone: false,
         isClergy: false,
         housing: null,
-        mealColor: null,
+        mealColor: mealColorMap.get(reg.id) ?? null,
         qrCode: qrCode || null,
         hasAllergy: withAllergy.has(reg.id),
         template: templateConfig,
