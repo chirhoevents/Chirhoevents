@@ -109,7 +109,20 @@ export default function RecordAdditionalPaymentModal({
         }),
       })
 
-      const responseData = await res.json()
+      // A timeout or platform error comes back as plain text/HTML, not JSON.
+      // Don't let that read as a generic failure: the payment may have saved.
+      const responseText = await res.text()
+      let responseData: any = {}
+      try {
+        responseData = responseText ? JSON.parse(responseText) : {}
+      } catch {
+        console.error('Non-JSON response from payment API:', res.status, responseText)
+        alert(
+          `The server didn't respond normally (status ${res.status}). ` +
+          'The payment may still have been recorded — close this window and refresh to check the balance before trying again.'
+        )
+        return
+      }
 
       if (res.ok) {
         // Log debug info from API response
@@ -146,7 +159,10 @@ export default function RecordAdditionalPaymentModal({
       }
     } catch (error) {
       console.error('Error recording payment:', error)
-      alert('Failed to record payment')
+      alert(
+        `Failed to record payment: ${error instanceof Error ? error.message : 'network error'}. ` +
+        'Refresh to check whether it was saved before trying again.'
+      )
     } finally {
       isSubmittingRef.current = false
       setSaving(false)

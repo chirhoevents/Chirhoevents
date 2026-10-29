@@ -9,6 +9,9 @@ import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
+// Room for a slow database connection plus the confirmation email.
+export const maxDuration = 60
+
 export async function POST(request: NextRequest) {
   try {
     const userId = await getClerkUserIdFromRequest(request)
