@@ -36,7 +36,6 @@ interface FieldOption {
 interface CustomReportBuilderProps {
   eventId: string
   eventName: string
-  organizationId?: string
   groupRegistrationEnabled?: boolean
   individualRegistrationEnabled?: boolean
   open: boolean
@@ -706,7 +705,6 @@ const GROUPING_OPTIONS: Record<string, { value: string; label: string }[]> = {
 export function CustomReportBuilder({
   eventId,
   eventName,
-  organizationId,
   groupRegistrationEnabled = true,
   individualRegistrationEnabled = true,
   open,
@@ -903,10 +901,10 @@ export function CustomReportBuilder({
   }
 
   const loadTemplates = async () => {
-    if (!organizationId) return
     try {
       const token = await getToken()
-      const response = await fetch(`/api/admin/report-templates?organizationId=${organizationId}`, {
+      // Organization is resolved server-side from the auth context
+      const response = await fetch('/api/admin/report-templates', {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (response.ok) {
@@ -947,10 +945,6 @@ export function CustomReportBuilder({
       alert('Please enter a template name')
       return
     }
-    if (!organizationId) {
-      alert('Organization ID is required to save templates')
-      return
-    }
 
     setLoading(true)
     try {
@@ -976,7 +970,6 @@ export function CustomReportBuilder({
         method: selectedTemplate ? 'PUT' : 'POST',
         headers,
         body: JSON.stringify({
-          organizationId,
           name: templateName,
           description: templateDescription,
           reportType: dataSource,

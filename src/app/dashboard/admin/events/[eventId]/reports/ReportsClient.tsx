@@ -31,7 +31,7 @@ interface ReportsClientProps {
 export default function ReportsClient({
   eventId,
   eventName,
-  organizationId,
+  organizationId: _organizationId,
   startDate,
   endDate,
   groupRegistrationEnabled = true,
@@ -358,7 +358,6 @@ export default function ReportsClient({
         onClose={() => setShowCustomBuilder(false)}
         eventId={eventId}
         eventName={eventName}
-        organizationId={organizationId}
         groupRegistrationEnabled={groupRegistrationEnabled}
         individualRegistrationEnabled={individualRegistrationEnabled}
       />
@@ -369,7 +368,6 @@ export default function ReportsClient({
         onClose={() => setShowGroupDetailBuilder(false)}
         eventId={eventId}
         eventName={eventName}
-        organizationId={organizationId}
         groupRegistrationEnabled={groupRegistrationEnabled}
         individualRegistrationEnabled={individualRegistrationEnabled}
         initialDataSource="group-detail"
