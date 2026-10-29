@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyAdminAccess } from '@/lib/api-auth'
 
 // GET single report template
 export async function GET(
@@ -8,8 +8,12 @@ export async function GET(
   { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Organization comes from auth context (handles master admin impersonation)
+    const { error, user, effectiveOrgId } = await verifyAdminAccess(request, '[Report Template GET]')
+    if (error) return error
+    if (!user || !effectiveOrgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
 
     const { templateId } = await params
 
@@ -31,12 +35,8 @@ export async function GET(
       return NextResponse.json({ error: 'Template not found' }, { status: 404 })
     }
 
-    // Verify user has access to this template
-    const user = await prisma.user.findFirst({
-      where: { clerkUserId: userId, organizationId: template.organizationId },
-    })
-
-    if (!user) {
+    // Verify template belongs to the user's (effective) organization
+    if (template.organizationId !== effectiveOrgId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -58,8 +58,12 @@ export async function PUT(
   { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Organization comes from auth context (handles master admin impersonation)
+    const { error, user, effectiveOrgId } = await verifyAdminAccess(request, '[Report Template PUT]')
+    if (error) return error
+    if (!user || !effectiveOrgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
 
     const { templateId } = await params
     const body = await request.json()
@@ -73,15 +77,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Template not found' }, { status: 404 })
     }
 
-    // Verify user owns this template
-    const user = await prisma.user.findFirst({
-      where: {
-        clerkUserId: userId,
-        organizationId: existingTemplate.organizationId
-      },
-    })
-
-    if (!user || existingTemplate.createdByUserId !== user.id) {
+    // Verify template is in the user's (effective) organization and owned by them
+    if (existingTemplate.organizationId !== effectiveOrgId || existingTemplate.createdByUserId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -119,8 +116,12 @@ export async function DELETE(
   { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Organization comes from auth context (handles master admin impersonation)
+    const { error, user, effectiveOrgId } = await verifyAdminAccess(request, '[Report Template DELETE]')
+    if (error) return error
+    if (!user || !effectiveOrgId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
 
     const { templateId } = await params
 
@@ -132,15 +133,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Template not found' }, { status: 404 })
     }
 
-    // Verify user owns this template
-    const user = await prisma.user.findFirst({
-      where: {
-        clerkUserId: userId,
-        organizationId: existingTemplate.organizationId
-      },
-    })
-
-    if (!user || existingTemplate.createdByUserId !== user.id) {
+    // Verify template is in the user's (effective) organization and owned by them
+    if (existingTemplate.organizationId !== effectiveOrgId || existingTemplate.createdByUserId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

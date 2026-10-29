@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
+import { verifyAdminAccess } from '@/lib/api-auth'
 
 // GET all report templates for an organization
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const organizationId = request.nextUrl.searchParams.get('organizationId')
-    if (!organizationId) {
-      return NextResponse.json({ error: 'Organization ID required' }, { status: 400 })
-    }
-
-    // Get user to verify they belong to this organization
-    const user = await prisma.user.findFirst({
-      where: { clerkUserId: userId, organizationId },
-    })
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Organization comes from auth context (handles master admin impersonation)
+    const { error, user, effectiveOrgId: organizationId } = await verifyAdminAccess(request, '[Report Templates GET]')
+    if (error) return error
+    if (!user || !organizationId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
     }
 
     // Get templates - either public ones or ones created by this user
@@ -57,23 +47,18 @@ export async function GET(request: NextRequest) {
 // POST create new report template
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getClerkUserIdFromRequest(request)
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const body = await request.json()
-    const { organizationId, name, description, reportType, configuration, isPublic } = body
-
-    if (!organizationId || !name || !reportType || !configuration) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    // Organization comes from auth context (handles master admin impersonation)
+    const { error, user, effectiveOrgId: organizationId } = await verifyAdminAccess(request, '[Report Templates POST]')
+    if (error) return error
+    if (!user || !organizationId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
     }
 
-    // Get user to verify they belong to this organization
-    const user = await prisma.user.findFirst({
-      where: { clerkUserId: userId, organizationId },
-    })
+    const body = await request.json()
+    const { name, description, reportType, configuration, isPublic } = body
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!name || !reportType || !configuration) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     // Create the template
