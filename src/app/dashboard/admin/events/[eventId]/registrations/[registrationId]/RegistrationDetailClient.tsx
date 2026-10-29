@@ -95,6 +95,8 @@ interface PaymentBalance {
   amountPaid: number
   amountRemaining: number
   lateFeesApplied: number
+  depositsForfeited?: number
+  depositsForfeitedSpots?: number
   paymentStatus: string
 }
 
@@ -567,6 +569,17 @@ export default function RegistrationDetailClient({
                                 ${paymentBalance.amountPaid.toFixed(2)}
                               </span>
                             </div>
+                            {(paymentBalance.depositsForfeited ?? 0) > 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">
+                                  Non-refundable deposit ({paymentBalance.depositsForfeitedSpots} dropped spot
+                                  {paymentBalance.depositsForfeitedSpots === 1 ? '' : 's'})
+                                </span>
+                                <span className="font-medium text-gray-900">
+                                  ${(paymentBalance.depositsForfeited ?? 0).toFixed(2)}
+                                </span>
+                              </div>
+                            )}
                             {paymentBalance.lateFeesApplied > 0 && (
                               <div className="flex justify-between text-sm">
                                 <span className="text-gray-600">Late Fees</span>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getForfeitedDeposits } from '@/lib/forfeited-deposits'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 
 export async function GET(request: NextRequest) {
@@ -63,6 +64,8 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    const forfeitedDeposits = await getForfeitedDeposits(groupRegistration.id)
+
     // Fetch all payment transactions
     const payments = await prisma.payment.findMany({
       where: {
@@ -92,6 +95,8 @@ export async function GET(request: NextRequest) {
             amountPaid: Number(paymentBalance.amountPaid),
             amountRemaining: Number(paymentBalance.amountRemaining),
             lateFeesApplied: Number(paymentBalance.lateFeesApplied),
+            depositsForfeited: forfeitedDeposits.amount,
+            depositsForfeitedSpots: forfeitedDeposits.spots,
             lastPaymentDate: paymentBalance.lastPaymentDate,
             paymentStatus: paymentBalance.paymentStatus,
             fullPaymentDeadline: groupRegistration.event.pricing?.fullPaymentDeadline ?? null,

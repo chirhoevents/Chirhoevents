@@ -372,7 +372,7 @@ export async function PUT(
     })
 
     // Track changes made
-    const changesMade: Record<string, {old: unknown, new: unknown}> = {}
+    const changesMade: Record<string, { old: unknown; new: unknown; [extra: string]: unknown }> = {}
     if (existingRegistration.groupName !== groupName) {
       changesMade.groupName = { old: existingRegistration.groupName, new: groupName }
     }
@@ -408,6 +408,9 @@ export async function PUT(
       changesMade.depositForfeited = {
         old: null,
         new: `$${forfeitedDeposit.toFixed(2)} (${totalDropped} dropped spot${totalDropped === 1 ? '' : 's'}) — non-refundable, excluded from the remaining balance`,
+        // Read back by getForfeitedDeposits to itemize the kept deposit
+        amount: forfeitedDeposit,
+        spots: totalDropped,
       }
     }
 

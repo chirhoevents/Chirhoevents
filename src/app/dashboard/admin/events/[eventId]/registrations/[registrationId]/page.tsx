@@ -1,6 +1,7 @@
 import { requireAdmin } from '@/lib/auth-utils'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
 import { prisma } from '@/lib/prisma'
+import { getForfeitedDeposits } from '@/lib/forfeited-deposits'
 import { notFound, redirect } from 'next/navigation'
 import RegistrationDetailClient from './RegistrationDetailClient'
 
@@ -179,6 +180,8 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
       },
     })
 
+    const forfeitedDeposits = await getForfeitedDeposits(registrationId)
+
     // Fetch payment history
     const payments = await prisma.payment.findMany({
       where: {
@@ -227,6 +230,8 @@ export default async function RegistrationDetailPage({ params }: PageProps) {
           amountPaid: Number(paymentBalance.amountPaid),
           amountRemaining: Number(paymentBalance.amountRemaining),
           lateFeesApplied: Number(paymentBalance.lateFeesApplied),
+          depositsForfeited: forfeitedDeposits.amount,
+          depositsForfeitedSpots: forfeitedDeposits.spots,
           paymentStatus: paymentBalance.paymentStatus,
         } : null}
         payments={payments.map((p: any) => ({

@@ -50,6 +50,8 @@ interface PaymentBalance {
   amountPaid: number
   amountRemaining: number
   lateFeesApplied: number
+  depositsForfeited?: number
+  depositsForfeitedSpots?: number
   lastPaymentDate: string | null
   paymentStatus: PaymentStatus
   fullPaymentDeadline: string | null
@@ -517,6 +519,26 @@ export default function PaymentsPage() {
                     added to your balance
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {(balance.depositsForfeited ?? 0) > 0 && (
+            <div className="bg-[#F5F1EA] border-l-4 border-[#9C8466] p-4 mb-6 rounded">
+              <div className="flex justify-between items-start gap-4">
+                <div>
+                  <p className="text-sm font-medium text-[#1E3A5F]">
+                    Non-Refundable Deposit (Dropped Spots)
+                  </p>
+                  <p className="text-xs text-[#6B7280] mt-1">
+                    Deposit kept for {balance.depositsForfeitedSpots} dropped spot
+                    {balance.depositsForfeitedSpots === 1 ? '' : 's'}. This is
+                    included in your Total Amount Due.
+                  </p>
+                </div>
+                <p className="text-sm font-semibold text-[#1E3A5F] whitespace-nowrap">
+                  ${(balance.depositsForfeited ?? 0).toFixed(2)}
+                </p>
               </div>
             </div>
           )}

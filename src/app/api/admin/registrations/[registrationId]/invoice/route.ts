@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, isAdmin, canAccessOrganization } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveOrgId } from '@/lib/get-effective-org'
+import { getForfeitedDeposits } from '@/lib/forfeited-deposits'
 // RegistrationType is 'group' | 'individual' string literal
 import { format } from 'date-fns'
 
@@ -162,6 +163,17 @@ export async function GET(
     // fees, and manual price edits aren't captured per line, so show the
     // difference explicitly instead of leaving the invoice inconsistent.
     if (registrationData.lineItems) {
+      if (registrationType === 'group') {
+        const forfeited = await getForfeitedDeposits(registrationId)
+        if (forfeited.amount > 0) {
+          registrationData.lineItems.push({
+            description: `Non-refundable deposit — ${forfeited.spots} dropped spot${forfeited.spots === 1 ? '' : 's'}`,
+            quantity: null,
+            unitPrice: null,
+            amount: forfeited.amount,
+          })
+        }
+      }
       const lateFees = paymentBalance ? Number(paymentBalance.lateFeesApplied) : 0
       if (lateFees > 0) {
         registrationData.lineItems.push({ description: 'Late Fees', quantity: null, unitPrice: null, amount: lateFees })
