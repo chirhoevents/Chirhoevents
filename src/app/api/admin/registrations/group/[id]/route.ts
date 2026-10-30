@@ -5,7 +5,7 @@ import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { canAccessOrganization } from '@/lib/auth-utils'
 import { incrementOptionCapacity, decrementOptionCapacity, getGroupHousingCounts, type HousingType } from '@/lib/option-capacity'
-import { resolveReplyTo } from '@/lib/email-reply-to'
+import { buildGroupUpdateEmailChanges, sendGroupUpdateEmail } from '@/lib/group-update-email'
 import { deriveBalance } from '@/lib/payment-balance-status'
 import {
   calculateSpotChange,
@@ -412,8 +412,9 @@ export async function PUT(
     }
 
     // Create audit trail entry if changes were made
+    let auditEditId: string | null = null
     if (Object.keys(changesMade).length > 0 || difference !== 0) {
-      await prisma.registrationEdit.create({
+      const auditEdit = await prisma.registrationEdit.create({
         data: {
           registrationId,
           registrationType: 'group',
@@ -427,6 +428,7 @@ export async function PUT(
           adminNotes: adminNotes || null,
         },
       })
+      auditEditId = auditEdit.id
     }
 
     // Update payment balance if total changed (FIX 2.3: use server-computed total,
@@ -450,124 +452,54 @@ export async function PUT(
       })
     }
 
-    // Check org-level update email setting
-    const orgSettings = await prisma.organization.findUnique({
-      where: { id: existingRegistration.organizationId },
-      select: { customFieldsEnabled: true },
-    })
-    const orgCustomFields = (orgSettings?.customFieldsEnabled as Record<string, any>) || {}
-    const updateEmailsDisabled = orgCustomFields?.updateEmails?.disabled === true
-
-    // Send email notification to group leader only when the admin opted in
-    if (sendEmail === true && !updateEmailsDisabled && groupLeaderEmail && existingRegistration.event) {
-      try {
-        // Build list of changes for email
-        const emailChanges: string[] = []
-
-        if (existingRegistration.groupName !== groupName) {
-          emailChanges.push(`Group Name: ${existingRegistration.groupName} → ${groupName}`)
-        }
-        if (existingRegistration.parishName !== parishName) {
-          emailChanges.push(`Parish Name: ${existingRegistration.parishName} → ${parishName}`)
-        }
-        if (existingRegistration.housingType !== housingType) {
-          emailChanges.push(`Housing Type: ${existingRegistration.housingType} → ${housingType}`)
-        }
-        if (existingRegistration.totalParticipants !== totalParticipants) {
-          emailChanges.push(`Total Participants: ${existingRegistration.totalParticipants} → ${totalParticipants}`)
-        }
-        // Include housing count changes (inventory-style)
-        if (onCampusDiff !== 0) {
-          emailChanges.push(`On-Campus Total: ${oldHousing.on_campus} → ${newHousing.on_campus}`)
-        }
-        if (offCampusDiff !== 0) {
-          emailChanges.push(`Off-Campus Total: ${oldHousing.off_campus} → ${newHousing.off_campus}`)
-        }
-        if (dayPassDiff !== 0) {
-          emailChanges.push(`Day Pass Total: ${oldHousing.day_pass} → ${newHousing.day_pass}`)
-        }
-        if (difference !== 0) {
-          emailChanges.push(`Total Amount Due: $${currentTotal.toFixed(2)} → $${finalNewTotal.toFixed(2)}`)
-        }
-        if (forfeitedDeposit > 0) {
-          emailChanges.push(
-            `Note: the $${forfeitedDeposit.toFixed(2)} deposit already paid for the ${totalDropped} dropped spot${totalDropped === 1 ? '' : 's'} is non-refundable and does not reduce the amount still owed.`
-          )
-        }
-
-        if (emailChanges.length > 0) {
-          const emailSubject = `Registration Updated - ${existingRegistration.event.name}`
-
-          const emailBody = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background-color: #1E3A5F; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-                .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; border-top: none; }
-                .info-box { background-color: white; border-left: 4px solid #1E3A5F; padding: 15px; margin: 20px 0; }
-                .changes-list { background-color: #FFF4E6; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0; }
-                .changes-list ul { margin: 10px 0; padding-left: 20px; }
-                .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="header">
-                  <img src="${process.env.NEXT_PUBLIC_APP_URL || 'https://chirhoevents.com'}/logo-horizontal.png" alt="ChiRho Events" style="max-width: 180px; height: auto; margin-bottom: 12px;" />
-                  <h1>Registration Updated</h1>
-                </div>
-                <div class="content">
-                  <p>Hello ${groupLeaderName},</p>
-
-                  <p>Your group registration for <strong>${existingRegistration.event.name}</strong> has been updated by event administrators.</p>
-
-                  <div class="changes-list">
-                    <h3 style="margin-top: 0; color: #F59E0B;">Changes Made</h3>
-                    <ul>
-                      ${emailChanges.map(change => `<li>${change}</li>`).join('')}
-                    </ul>
-                  </div>
-
-                  ${adminNotes ? `
-                    <div class="info-box" style="background-color: #E8F4FD;">
-                      <h3 style="margin-top: 0; color: #1E3A5F;">Admin Notes</h3>
-                      <p style="margin: 0;">${adminNotes}</p>
-                    </div>
-                  ` : ''}
-
-                  <p>If you have any questions about these changes, please contact the event organizers.</p>
-
-                  <p>Thank you!</p>
-                </div>
-                <div class="footer">
-                  <p>This is an automated message from ChiRho Events.</p>
-                  <p>${existingRegistration.event.name}</p>
-                </div>
-              </div>
-            </body>
-            </html>
-          `
-
-          await resend.emails.send({
-            from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
-            reply_to: resolveReplyTo(existingRegistration.event.settings, existingRegistration.event.organization),
-            to: groupLeaderEmail,
-            subject: emailSubject,
-            html: emailBody,
+    // Email the group leader only when the admin ticked the box. That box is an
+    // explicit per-save choice, so the org's "Disable participant update emails"
+    // setting (meant for bulk participant edits) does not override it.
+    let emailStatus: 'not_requested' | 'sent' | 'no_changes' | 'failed' = 'not_requested'
+    let emailError: string | null = null
+    if (sendEmail === true) {
+      const emailChanges = buildGroupUpdateEmailChanges({
+        changesMade,
+        oldTotal: difference !== 0 ? currentTotal : null,
+        newTotal: difference !== 0 ? finalNewTotal : null,
+        forfeitedDeposit,
+        droppedSpots: totalDropped,
+      })
+      const recipient = groupLeaderEmail || existingRegistration.groupLeaderEmail
+      if (emailChanges.length === 0) {
+        emailStatus = 'no_changes'
+      } else if (!recipient || !existingRegistration.event) {
+        emailStatus = 'failed'
+        emailError = 'No group leader email on file'
+      } else {
+        try {
+          await sendGroupUpdateEmail(resend, {
+            to: recipient,
+            groupLeaderName: groupLeaderName || existingRegistration.groupLeaderName,
+            event: existingRegistration.event,
+            changes: emailChanges,
+            adminNotes,
           })
+          emailStatus = 'sent'
+          if (auditEditId) {
+            await prisma.registrationEdit.update({
+              where: { id: auditEditId },
+              data: { emailSent: true },
+            })
+          }
+        } catch (err) {
+          console.error('Failed to send group update email:', err)
+          emailStatus = 'failed'
+          emailError = err instanceof Error ? err.message : String(err)
         }
-      } catch (emailError) {
-        console.error('Failed to send email:', emailError)
-        // Don't fail the entire request if email fails
       }
     }
 
     return NextResponse.json({
       success: true,
       registration: updatedRegistration,
+      emailStatus,
+      emailError,
     })
   } catch (error) {
     console.error('Error updating group registration:', error)

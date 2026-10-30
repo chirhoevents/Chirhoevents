@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { Loader2, User, DollarSign, FileText, AlertCircle } from 'lucide-react'
+import { Loader2, User, DollarSign, FileText, AlertCircle, Mail, CheckCircle } from 'lucide-react'
 import { type EventPricing } from '@/lib/registration-price-calculator'
 import {
   calculateSpotChange,
@@ -196,6 +196,7 @@ export default function EditGroupRegistrationModal({
     newTotal: number | null
     difference: number | null
     adminNotes: string | null
+    emailSent: boolean
     editedBy: {
       firstName: string
       lastName: string
@@ -203,6 +204,7 @@ export default function EditGroupRegistrationModal({
     }
   }>>([])
   const [loadingAuditTrail, setLoadingAuditTrail] = useState(false)
+  const [emailingEditId, setEmailingEditId] = useState<string | null>(null)
 
   // Fetch full registration data including participants
   const [fullRegistration, setFullRegistration] = useState<GroupRegistration | null>(null)
@@ -376,6 +378,15 @@ export default function EditGroupRegistrationModal({
         throw new Error('Failed to update registration')
       }
 
+      const result = await response.json()
+      if (result.emailStatus === 'failed') {
+        alert(
+          `Changes were saved, but the email to the group leader could not be sent${result.emailError ? `: ${result.emailError}` : ''}.\n\nYou can resend it from the Updates tab.`
+        )
+      } else if (result.emailStatus === 'no_changes') {
+        alert('Changes were saved. No email was sent because nothing the group leader is notified about changed.')
+      }
+
       onUpdate?.()
       onClose()
     } catch (error) {
@@ -410,6 +421,41 @@ export default function EditGroupRegistrationModal({
       setLoadingAuditTrail(false)
     }
   }, [registration, getToken])
+
+  const handleEmailUpdate = async (editId: string) => {
+    if (!registration) return
+    const leaderEmail = formData.groupLeaderEmail || registration.groupLeaderEmail
+    if (!confirm(`Email ${leaderEmail} about this update?`)) return
+
+    setEmailingEditId(editId)
+    try {
+      const token = await getToken()
+      const response = await fetch(
+        `/api/admin/registrations/group/${registration.id}/notify-update`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ editId }),
+        }
+      )
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send email')
+      }
+      setAuditTrail((prev) =>
+        prev.map((edit) => (edit.id === editId ? { ...edit, emailSent: true } : edit))
+      )
+      alert(`Update emailed to ${data.sentTo || leaderEmail}`)
+    } catch (error) {
+      console.error('Error emailing update:', error)
+      alert(`Failed to email the group leader: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setEmailingEditId(null)
+    }
+  }
 
   // Fetch audit trail when Updates tab is activated
   useEffect(() => {
@@ -1582,6 +1628,32 @@ export default function EditGroupRegistrationModal({
                         <div className="text-blue-800">{edit.adminNotes}</div>
                       </div>
                     )}
+
+                    {/* Email status / send to group leader */}
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      {edit.emailSent ? (
+                        <span className="flex items-center text-xs text-green-700">
+                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                          Group leader emailed
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-500">Group leader not emailed</span>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEmailUpdate(edit.id)}
+                        disabled={emailingEditId !== null}
+                      >
+                        {emailingEditId === edit.id ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                        ) : (
+                          <Mail className="h-3.5 w-3.5 mr-1" />
+                        )}
+                        {edit.emailSent ? 'Resend to group leader' : 'Email group leader'}
+                      </Button>
+                    </div>
                   </Card>
                 ))}
               </div>
