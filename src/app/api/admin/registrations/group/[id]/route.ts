@@ -227,6 +227,7 @@ export async function PUT(
       dayPassYouth,
       dayPassChaperones,
       sendEmail,
+      waiveDepositForfeit,
     } = body
 
     // Calculate individual counts
@@ -266,6 +267,7 @@ export async function PUT(
           registeredAt: existingRegistration.registeredAt,
           couponPercent: await getGroupCouponPercent(registrationId),
           amountPaid: paymentBalance ? Number(paymentBalance.amountPaid) : 0,
+          waiveForfeit: waiveDepositForfeit === true,
         })
       : null
     const forfeitedDeposit = spotChange?.forfeitedDeposit ?? 0
@@ -403,6 +405,12 @@ export async function PUT(
     }
     if (dayPassDiff !== 0) {
       changesMade.dayPassTotal = { old: oldHousing.day_pass, new: newHousing.day_pass }
+    }
+    if (spotChange && waiveDepositForfeit === true && spotChange.forfeitableDeposit > 0) {
+      changesMade.depositForfeitWaived = {
+        old: null,
+        new: `$${spotChange.forfeitableDeposit.toFixed(2)} deposit on ${totalDropped} dropped spot${totalDropped === 1 ? '' : 's'} waived by admin`,
+      }
     }
     if (forfeitedDeposit > 0) {
       changesMade.depositForfeited = {

@@ -144,6 +144,8 @@ export default function EditGroupRegistrationModal({
   const [isSaving, setSaving] = useState(false)
   // Update emails are opt-in so routine fixes (e.g. a name typo) don't notify the group
   const [sendEmail, setSendEmail] = useState(false)
+  // Release the deposit on dropped spots instead of keeping it (grace period)
+  const [waiveDepositForfeit, setWaiveDepositForfeit] = useState(false)
   const [formData, setFormData] = useState({
     groupName: '',
     parishName: '',
@@ -295,6 +297,7 @@ export default function EditGroupRegistrationModal({
       setInventoryCounts(loadedCounts)
       setInitialCounts(loadedCounts)
       setSendEmail(false)
+      setWaiveDepositForfeit(false)
 
       const total = regData.paymentBalance?.totalAmountDue || 0
       setOriginalTotal(total)
@@ -331,11 +334,12 @@ export default function EditGroupRegistrationModal({
         registeredAt: regData.registeredAt,
         couponPercent: regData.couponPercent,
         amountPaid: regData.paymentBalance?.amountPaid,
+        waiveForfeit: waiveDepositForfeit,
       })
       setNewTotal(result.newTotal)
       setSpotChange(result)
     }
-  }, [inventoryCounts, initialCounts, originalTotal, eventPricing, fetchedEventPricing, fullRegistration, registration])
+  }, [inventoryCounts, initialCounts, originalTotal, eventPricing, fetchedEventPricing, fullRegistration, registration, waiveDepositForfeit])
 
   const handleSave = async () => {
     if (!registration) return
@@ -368,6 +372,7 @@ export default function EditGroupRegistrationModal({
             oldTotal: originalTotal,
             newTotal,
             sendEmail,
+            waiveDepositForfeit,
           }),
         }
       )
@@ -881,12 +886,25 @@ export default function EditGroupRegistrationModal({
                       </span>
                     </div>
                   )}
-                  {spotChange.forfeitedDeposit > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">
-                        Deposit kept on {spotChange.droppedSpots} dropped spot{spotChange.droppedSpots === 1 ? '' : 's'} (non-refundable)
-                      </span>
-                      <span className="font-medium">+${spotChange.forfeitedDeposit.toFixed(2)}</span>
+                  {spotChange.forfeitableDeposit > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className={`text-gray-700 ${waiveDepositForfeit ? 'line-through' : ''}`}>
+                          Deposit kept on {spotChange.droppedSpots} dropped spot{spotChange.droppedSpots === 1 ? '' : 's'} (non-refundable)
+                        </span>
+                        <span className={`font-medium ${waiveDepositForfeit ? 'line-through text-gray-400' : ''}`}>
+                          +${spotChange.forfeitableDeposit.toFixed(2)}
+                        </span>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={waiveDepositForfeit}
+                          onChange={(e) => setWaiveDepositForfeit(e.target.checked)}
+                          className="h-3.5 w-3.5"
+                        />
+                        Waive — release this deposit (e.g. still in the grace period)
+                      </label>
                     </div>
                   )}
                   <div className="flex justify-between border-t pt-2 font-semibold">
