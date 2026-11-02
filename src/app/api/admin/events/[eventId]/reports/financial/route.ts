@@ -3,6 +3,7 @@ import { prisma, prismaIncludingCancelled } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { hasPermission } from '@/lib/permissions'
 import { refundReasonLabel } from '@/lib/payment-balance-status'
+import { summarizeEdit } from '@/lib/reports/financial-adjustments'
 
 export async function GET(
   request: NextRequest,
@@ -233,7 +234,8 @@ export async function GET(
 
       if (groupReg && pb.registrationType === 'group') {
         housingType = groupReg.housingType
-        participantCount = groupReg.participants.length
+        // Registered spots, not just the participant records filled in so far.
+        participantCount = groupReg.totalParticipants ?? groupReg.participants.length
       } else if (individualReg && pb.registrationType === 'individual') {
         housingType = individualReg.housingType || 'on_campus'
       }
@@ -329,13 +331,83 @@ export async function GET(
         }
       })
 
+    // ── Adjustments: admin edits that changed what a registration owes ──
+    // Pulled from the audit trail so the report explains every invoiced
+    // amount that no longer matches sign-up (dropped spots, deposits kept or
+    // waived, manual price changes).
+    const priceEdits = registrationIds.length
+      ? await prisma.registrationEdit.findMany({
+          where: {
+            registrationId: { in: registrationIds },
+            editType: 'payment_updated',
+            difference: { not: null },
+          },
+          include: { editedBy: { select: { firstName: true, lastName: true } } },
+          orderBy: { editedAt: 'desc' },
+        })
+      : []
+
+    const notesByRegistration = new Map<string, string[]>()
+    let depositsForfeited = 0
+    let depositsWaived = 0
+    let depositsReversed = 0
+    const adjustments = priceEdits
+      .filter((e: any) => Math.abs(Number(e.difference || 0)) > 0.005)
+      .map((e: any) => {
+        const difference = Number(e.difference || 0)
+        const summary = summarizeEdit(e.changesMade, difference, e.adminNotes)
+        depositsForfeited += summary.depositForfeited
+        depositsWaived += summary.depositWaived
+        depositsReversed += summary.depositReversed
+        const date = new Date(e.editedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        const list = notesByRegistration.get(e.registrationId) || []
+        list.push(`${date}: ${summary.note} (${difference > 0 ? '+' : '-'}$${Math.abs(difference).toFixed(2)})`)
+        notesByRegistration.set(e.registrationId, list)
+        const { payer, type: regType } = labelForRegistration({
+          registrationId: e.registrationId,
+          registrationType: e.registrationType,
+        })
+        return {
+          editedAt: new Date(e.editedAt).toISOString(),
+          payer,
+          registrationType: regType,
+          oldTotal: Number(e.oldTotal || 0),
+          newTotal: Number(e.newTotal || 0),
+          difference,
+          note: summary.note,
+          editedBy: e.editedBy ? `${e.editedBy.firstName} ${e.editedBy.lastName}`.trim() : null,
+        }
+      })
+    // Deposits kept stay in revenue; a later correction takes them back out.
+    const netDepositsForfeited = Math.max(0, depositsForfeited - depositsReversed)
+    const netAdjustments = adjustments.reduce((sum: number, a: any) => sum + a.difference, 0)
+
+    // Money received beyond what a registration now owes (e.g. after spots
+    // were dropped) — owed back to the payer as a refund or credit.
+    const creditsOwed = paymentBalances.reduce((sum: number, pb: any) => {
+      const over = Number(pb.amountPaid || 0) - Number(pb.totalAmountDue || 0)
+      return sum + (over > 0.005 ? over : 0)
+    }, 0)
+
     // Per-registration balance breakdown — gives accounting a row per invoice
     const balancesByRegistration = paymentBalances
       .map((pb: any) => {
         const { payer, type: regType } = labelForRegistration(pb)
+        const groupReg = groupRegMap.get(pb.registrationId)
+        const paid = Number(pb.amountPaid || 0)
+        const due = Number(pb.totalAmountDue || 0)
+        const notes = [...(notesByRegistration.get(pb.registrationId) || [])].reverse()
+        if (paid - due > 0.005) {
+          notes.push(`Overpaid by $${(paid - due).toFixed(2)} — refund or credit owed`)
+        }
+        if (groupReg?.cancelledAt || individualRegMap.get(pb.registrationId)?.cancelledAt) {
+          notes.push('Registration cancelled')
+        }
         return {
           payer,
           registrationType: regType,
+          spots: groupReg ? (groupReg.totalParticipants ?? null) : 1,
+          notes: notes.join(' | '),
           totalAmountDue: Number(pb.totalAmountDue || 0),
           amountPaid: Number(pb.amountPaid || 0),
           amountRemaining: Number(pb.amountRemaining || 0),
@@ -366,7 +438,47 @@ export async function GET(
       })
       .sort((a: any, b: any) => b.refundAmount - a.refundAmount)
 
+    // Plain-English notes printed at the top of the report so readers know
+    // what each number means and why totals may differ from sign-up.
+    const fmt = (n: number) => `$${n.toFixed(2)}`
+    const reportNotes: string[] = [
+      'Total Revenue is what registrations currently owe (invoiced), after any admin changes — not money received. Money received is under Settled Payments.',
+      'Balance Due is invoiced minus paid for each registration. Groups that pay by check or later stay in Balance Due until their payment is recorded.',
+    ]
+    if (adjustments.length > 0) {
+      reportNotes.push(
+        `${adjustments.length} admin price change${adjustments.length === 1 ? '' : 's'} (net ${netAdjustments >= 0 ? '+' : '-'}${fmt(Math.abs(netAdjustments))}) — usually spots added or dropped after sign-up. Each one is listed under Adjustments with the reason.`
+      )
+    }
+    if (netDepositsForfeited > 0) {
+      reportNotes.push(
+        `${fmt(netDepositsForfeited)} is non-refundable deposit already paid on spots that were later dropped. It stays in revenue; it is not an extra charge.`
+      )
+    }
+    if (depositsWaived > 0) {
+      reportNotes.push(
+        `${fmt(depositsWaived)} of deposit on dropped spots was waived by an admin (e.g. grace period) and is not included in revenue.`
+      )
+    }
+    if (creditsOwed > 0) {
+      reportNotes.push(
+        `${fmt(creditsOwed)} has been paid beyond what some registrations now owe — that money is owed back as a refund or credit (see "overpaid" rows).`
+      )
+    }
+    if (totalRefunded > 0) {
+      reportNotes.push(`${fmt(totalRefunded)} has been refunded; Net Revenue subtracts it from Settled Payments.`)
+    }
+
     return NextResponse.json({
+      reportNotes,
+      adjustments,
+      adjustmentSummary: {
+        count: adjustments.length,
+        netChange: netAdjustments,
+        depositsForfeited: netDepositsForfeited,
+        depositsWaived,
+      },
+      creditsOwed,
       totalRevenue,
       amountPaid,
       actualAmountPaid,

@@ -35,6 +35,8 @@ interface Transaction {
 interface BalanceRow {
   payer: string
   registrationType: string
+  spots?: number | null
+  notes?: string
   totalAmountDue: number
   amountPaid: number
   amountRemaining: number
@@ -52,7 +54,27 @@ interface RefundDetail {
   processedAt: string | null
 }
 
+interface Adjustment {
+  editedAt: string
+  payer: string
+  registrationType: string
+  oldTotal: number
+  newTotal: number
+  difference: number
+  note: string
+  editedBy: string | null
+}
+
 interface FinancialData {
+  reportNotes: string[]
+  adjustments: Adjustment[]
+  adjustmentSummary: {
+    count: number
+    netChange: number
+    depositsForfeited: number
+    depositsWaived: number
+  }
+  creditsOwed: number
   totalRevenue: number
   amountPaid: number
   actualAmountPaid: number
@@ -131,6 +153,15 @@ export default function FinancialReportModal({
           other: reportData.paymentMethods?.other ?? 0,
           pending: reportData.paymentMethods?.pending ?? 0,
         },
+        reportNotes: reportData.reportNotes ?? [],
+        adjustments: reportData.adjustments ?? [],
+        adjustmentSummary: reportData.adjustmentSummary ?? {
+          count: 0,
+          netChange: 0,
+          depositsForfeited: 0,
+          depositsWaived: 0,
+        },
+        creditsOwed: reportData.creditsOwed ?? 0,
         transactions: reportData.transactions ?? [],
         balancesByRegistration: reportData.balancesByRegistration ?? [],
         refunds: {
@@ -273,6 +304,20 @@ export default function FinancialReportModal({
               </CardContent>
             </Card>
 
+            {/* How to read this report */}
+            {data.reportNotes.length > 0 && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-sm font-semibold text-[#1E3A5F] mb-2">
+                  Notes — how to read this report
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-xs text-gray-700">
+                  {data.reportNotes.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Reconciliation mismatch warning */}
             {data.paymentMismatch && (
               <div className="p-4 bg-yellow-50 border border-yellow-300 rounded">
@@ -347,7 +392,76 @@ export default function FinancialReportModal({
                   {formatCurrency(data.balanceDue)}
                 </span>
               </div>
+              {data.creditsOwed > 0 && (
+                <div className="flex justify-between items-center p-3 mt-2 bg-purple-50 border border-purple-200 rounded">
+                  <span className="text-sm">
+                    Refunds / credits owed (paid more than they now owe)
+                  </span>
+                  <span className="font-semibold text-purple-700">
+                    {formatCurrency(data.creditsOwed)}
+                  </span>
+                </div>
+              )}
             </div>
+
+            {/* Adjustments */}
+            {data.adjustments.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-[#1E3A5F] mb-3">
+                  ADJUSTMENTS — PRICE CHANGES AFTER SIGN-UP ({data.adjustments.length})
+                </h3>
+                <p className="text-xs text-[#6B7280] mb-2">
+                  Every admin edit that changed what a registration owes, and why.
+                  Net change: {data.adjustmentSummary.netChange >= 0 ? '+' : '−'}
+                  {formatCurrency(Math.abs(data.adjustmentSummary.netChange))}
+                  {data.adjustmentSummary.depositsForfeited > 0 &&
+                    ` · Non-refundable deposit kept on dropped spots: ${formatCurrency(data.adjustmentSummary.depositsForfeited)}`}
+                  {data.adjustmentSummary.depositsWaived > 0 &&
+                    ` · Deposit waived: ${formatCurrency(data.adjustmentSummary.depositsWaived)}`}
+                </p>
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-left text-xs uppercase text-[#6B7280]">
+                      <tr>
+                        <th className="px-3 py-2">Date</th>
+                        <th className="px-3 py-2">Registration</th>
+                        <th className="px-3 py-2">What changed</th>
+                        <th className="px-3 py-2 text-right">Total</th>
+                        <th className="px-3 py-2 text-right">Change</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.adjustments.map((a, i) => (
+                        <tr key={i} className="border-t border-gray-100 align-top">
+                          <td className="px-3 py-2 text-[#6B7280] whitespace-nowrap">
+                            {formatDate(a.editedAt)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-[#1E3A5F]">{a.payer}</div>
+                            <div className="text-xs text-[#6B7280]">
+                              {a.registrationType}
+                              {a.editedBy ? ` · by ${a.editedBy}` : ''}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-700">{a.note}</td>
+                          <td className="px-3 py-2 text-right text-xs whitespace-nowrap">
+                            {formatCurrency(a.oldTotal)} → {formatCurrency(a.newTotal)}
+                          </td>
+                          <td
+                            className={`px-3 py-2 text-right font-semibold whitespace-nowrap ${
+                              a.difference < 0 ? 'text-green-700' : 'text-orange-700'
+                            }`}
+                          >
+                            {a.difference > 0 ? '+' : '−'}
+                            {formatCurrency(Math.abs(a.difference))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Revenue by Participant Type */}
             <div>
@@ -531,7 +645,15 @@ export default function FinancialReportModal({
                             <div className="font-medium text-[#1E3A5F]">{b.payer}</div>
                             <div className="text-xs text-[#6B7280]">
                               {b.registrationType}
+                              {b.registrationType === 'Group' && b.spots != null
+                                ? ` · ${b.spots} spot${b.spots === 1 ? '' : 's'}`
+                                : ''}
                             </div>
+                            {b.notes && (
+                              <div className="text-xs text-gray-600 mt-1 max-w-xs">
+                                {b.notes}
+                              </div>
+                            )}
                           </td>
                           <td className="px-3 py-2 text-xs capitalize">
                             {b.paymentStatus?.replace(/_/g, ' ')}
@@ -548,6 +670,11 @@ export default function FinancialReportModal({
                             }`}
                           >
                             {formatCurrency(b.amountRemaining)}
+                            {b.amountPaid - b.totalAmountDue > 0.005 && (
+                              <div className="text-xs font-normal text-purple-700">
+                                credit {formatCurrency(b.amountPaid - b.totalAmountDue)}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}
