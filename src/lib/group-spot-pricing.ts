@@ -182,6 +182,8 @@ export interface SpotChangeResult {
   couponPercent: number
   /** Deposit already paid on dropped spots; it stays owed (non-refundable). */
   forfeitedDeposit: number
+  /** Forfeit the policy would apply before any admin waiver. */
+  forfeitableDeposit: number
   droppedSpots: number
   newTotal: number
 }
@@ -199,6 +201,8 @@ export function calculateSpotChange(params: {
   registeredAt: DateLike
   couponPercent?: number | null
   amountPaid?: number | null
+  /** Don't keep any deposit on dropped spots (admin override). */
+  waiveForfeit?: boolean | null
 }): SpotChangeResult {
   const { currentTotal, oldCounts, newCounts, pricing, registeredAt } = params
   const couponPercent = Math.min(100, Math.max(0, params.couponPercent || 0))
@@ -260,15 +264,50 @@ export function calculateSpotChange(params: {
       forfeitedDeposit = paidDrops * depositAmount
     }
   }
-  // Never forfeit more than has actually been paid.
-  forfeitedDeposit = round2(Math.min(forfeitedDeposit, Math.max(0, params.amountPaid || 0)))
+  // Money paid is applied to the spots the group keeps first: only what was
+  // paid beyond the deposit those kept spots require can be sitting on the
+  // dropped spots. A group that paid a deposit for 24 spots and then trims a
+  // 34-spot registration down to 24 never paid anything on the 10 dropped
+  // spots, so nothing is forfeited.
+  if (forfeitedDeposit > 0) {
+    const keptDeposit = depositOwedOn(newCounts, pricing, unit, couponPercent)
+    const paidOnDropped = Math.max(0, (params.amountPaid || 0) - keptDeposit)
+    forfeitedDeposit = Math.min(forfeitedDeposit, paidOnDropped)
+  }
+  const forfeitableDeposit = round2(Math.max(0, forfeitedDeposit))
+  // Admin chose to release the dropped spots' deposit (grace period, etc.).
+  forfeitedDeposit = params.waiveForfeit ? 0 : forfeitableDeposit
 
   return {
     lines,
     spotsDelta,
     couponPercent,
     forfeitedDeposit,
+    forfeitableDeposit,
     droppedSpots,
     newTotal: round2(Math.max(0, currentTotal + spotsDelta + forfeitedDeposit)),
   }
+}
+
+/**
+ * Deposit the given spots require under the event's per-spot deposit rules
+ * (percentage-of-price or flat per-person). Free spots require none.
+ */
+function depositOwedOn(
+  counts: SpotCounts,
+  pricing: SpotPricingConfig,
+  unit: Record<keyof SpotCounts, number>,
+  couponPercent: number
+): number {
+  const depositPercentage = num(pricing.depositPercentage)
+  const depositAmount = num(pricing.depositAmount)
+  if (depositPercentage != null) {
+    const value = SPOT_KEYS.reduce((sum, k) => sum + counts[k] * unit[k], 0) * (1 - couponPercent / 100)
+    return (value * depositPercentage) / 100
+  }
+  if (depositAmount != null && pricing.depositPerPerson !== false) {
+    const paidSpots = SPOT_KEYS.reduce((sum, k) => sum + (unit[k] > 0 ? counts[k] : 0), 0)
+    return paidSpots * depositAmount
+  }
+  return 0
 }

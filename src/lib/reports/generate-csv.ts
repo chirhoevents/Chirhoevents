@@ -106,7 +106,48 @@ export function generateFinancialCSV(reportData: any): string {
     { Section: 'By Registration Type', Metric: 'Individual', Value: dollars(br.individual) }
   )
 
+  if (Number(reportData.creditsOwed) > 0) {
+    summaryRows.splice(5, 0, {
+      Section: 'Summary',
+      Metric: 'Refunds / Credits Owed',
+      Value: dollars(reportData.creditsOwed),
+    })
+  }
+  const adj = reportData.adjustmentSummary
+  if (adj && adj.count > 0) {
+    summaryRows.push(
+      { Section: 'Adjustments', Metric: 'Admin Price Changes', Value: dollars(adj.netChange), Count: adj.count },
+      { Section: 'Adjustments', Metric: 'Deposit Kept on Dropped Spots (non-refundable)', Value: dollars(adj.depositsForfeited) },
+      { Section: 'Adjustments', Metric: 'Deposit Waived on Dropped Spots', Value: dollars(adj.depositsWaived) }
+    )
+  }
+
+  const notes: string[] = Array.isArray(reportData.reportNotes) ? reportData.reportNotes : []
+  if (notes.length > 0) {
+    sections.push(
+      'Notes\n' + generateCSV(notes.map((n, i) => ({ '#': i + 1, Note: n })), ['#', 'Note']) + '\n\n'
+    )
+  }
+
   sections.push(generateCSV(summaryRows, ['Section', 'Metric', 'Value', 'Count', 'Average']))
+
+  // ── Adjustments ─────────────────────────────────────────────
+  if (Array.isArray(reportData.adjustments) && reportData.adjustments.length > 0) {
+    const adjRows = reportData.adjustments.map((a: any) => ({
+      Date: a.editedAt ? new Date(a.editedAt).toLocaleDateString() : '',
+      Payer: a.payer,
+      'Registration Type': a.registrationType,
+      'Old Total': dollars(a.oldTotal),
+      'New Total': dollars(a.newTotal),
+      Change: `${a.difference < 0 ? '-' : '+'}${dollars(Math.abs(a.difference))}`,
+      'What Changed': a.note,
+      'Edited By': a.editedBy || '',
+    }))
+    sections.push(
+      '\n\nAdjustments (price changes after sign-up)\n' +
+        generateCSV(adjRows, ['Date', 'Payer', 'Registration Type', 'Old Total', 'New Total', 'Change', 'What Changed', 'Edited By'])
+    )
+  }
 
   // ── Transactions ────────────────────────────────────────────
   if (Array.isArray(reportData.transactions) && reportData.transactions.length > 0) {
@@ -149,6 +190,7 @@ export function generateFinancialCSV(reportData: any): string {
     const balRows = reportData.balancesByRegistration.map((b: any) => ({
       Payer: b.payer,
       'Registration Type': b.registrationType,
+      Spots: b.spots ?? '',
       Status: b.paymentStatus,
       Invoiced: dollars(b.totalAmountDue),
       Paid: dollars(b.amountPaid),
@@ -156,17 +198,20 @@ export function generateFinancialCSV(reportData: any): string {
       'Last Payment Date': b.lastPaymentDate
         ? new Date(b.lastPaymentDate).toLocaleDateString()
         : '',
+      Notes: b.notes || '',
     }))
     sections.push(
       '\n\nBalance by Registration\n' +
         generateCSV(balRows, [
           'Payer',
           'Registration Type',
+          'Spots',
           'Status',
           'Invoiced',
           'Paid',
           'Balance',
           'Last Payment Date',
+          'Notes',
         ])
     )
   }

@@ -180,6 +180,34 @@ export async function generateFinancialReportPDF(reportData: any, eventName: str
       )
       y += 8
 
+      if (Number(reportData?.creditsOwed) > 0) {
+        y += 4
+        row('Refunds / Credits Owed:', fmtMoney(reportData.creditsOwed), '#6B21A8')
+      }
+
+      // Notes — how to read this statement
+      const reportNotes: string[] = Array.isArray(reportData?.reportNotes)
+        ? reportData.reportNotes.map((n: any) => safeTxt(n, '')).filter(Boolean)
+        : []
+      if (reportNotes.length > 0) {
+        y += 8
+        const noteW = W - 24
+        doc.font('Helvetica').fontSize(9)
+        const heights = reportNotes.map(n => doc.heightOfString(n, { width: noteW }) + 3)
+        const boxH = 22 + heights.reduce((a, b) => a + b, 0) + 6
+        checkPage(boxH)
+        doc.rect(M, y, W, boxH).fillColor('#EFF6FF').fill()
+        doc.moveTo(M, y).lineTo(M, y + boxH).strokeColor(NAVY).lineWidth(3).stroke()
+        doc.font('Helvetica-Bold').fontSize(10).fillColor(NAVY).text('Notes — how to read this statement', M + 10, y + 7)
+        let ny = y + 22
+        reportNotes.forEach((n, i) => {
+          doc.font('Helvetica').fontSize(9).fillColor('#374151').text('•', M + 10, ny)
+          doc.text(n, M + 20, ny, { width: noteW })
+          ny += heights[i]
+        })
+        y += boxH
+      }
+
       // Reconciliation warning
       if (reportData?.paymentMismatch) {
         y += 8
@@ -349,6 +377,68 @@ export async function generateFinancialReportPDF(reportData: any, eventName: str
       }
 
       // ============================================================
+      // Adjustments (price changes after sign-up)
+      // ============================================================
+      if (Array.isArray(reportData?.adjustments) && reportData.adjustments.length > 0) {
+        doc.addPage()
+        y = M
+        doc.font('Helvetica-Bold').fontSize(16).fillColor(NAVY).text('Adjustments', M, y)
+        y += 22
+        const adjSum = reportData.adjustmentSummary || {}
+        const net = Number(adjSum.netChange || 0)
+        let intro = `Admin changes to what a registration owes after sign-up, with the reason for each. Net change: ${net < 0 ? '-' : '+'}${fmtMoney(Math.abs(net))}.`
+        if (Number(adjSum.depositsForfeited) > 0) {
+          intro += ` Non-refundable deposit kept on dropped spots: ${fmtMoney(adjSum.depositsForfeited)}.`
+        }
+        if (Number(adjSum.depositsWaived) > 0) {
+          intro += ` Deposit waived on dropped spots: ${fmtMoney(adjSum.depositsWaived)}.`
+        }
+        doc.font('Helvetica').fontSize(10).fillColor(GRAY).text(intro, M, y, { width: W })
+        y += doc.heightOfString(intro, { width: W }) + 10
+
+        const adjCols: { label: string; w: number; align?: 'left' | 'right' }[] = [
+          { label: 'Date', w: 70 },
+          { label: 'Registration', w: 160 },
+          { label: 'Old Total', w: 80, align: 'right' },
+          { label: 'New Total', w: 80, align: 'right' },
+          { label: 'Change', w: W - 70 - 160 - 80 - 80, align: 'right' },
+        ]
+        drawTableHeader(adjCols)
+        let zebra = false
+        for (const a of reportData.adjustments) {
+          const note = safeTxt(a?.note, '')
+          const by = a?.editedBy ? ` (by ${safeTxt(a.editedBy, '')})` : ''
+          const noteText = `${note}${by}`
+          doc.font('Helvetica').fontSize(8)
+          const noteH = noteText ? doc.heightOfString(noteText, { width: W - 76 }) + 4 : 0
+          if (y + 18 + noteH > BOTTOM) {
+            doc.addPage()
+            y = M
+            drawTableHeader(adjCols)
+            zebra = false
+          }
+          const diff = Number(a?.difference || 0)
+          if (zebra) doc.rect(M, y, W, 16 + noteH).fillColor(ROW_ALT).fill()
+          drawTableRow(
+            adjCols.map((c, i) => (i === 4 ? { ...c, color: diff < 0 ? GREEN : ORANGE } : c)),
+            [
+              fmtDate(a?.editedAt),
+              safeTxt(a?.payer, '—'),
+              fmtMoney(a?.oldTotal),
+              fmtMoney(a?.newTotal),
+              `${diff < 0 ? '-' : '+'}${fmtMoney(Math.abs(diff))}`,
+            ],
+            false
+          )
+          if (noteText) {
+            doc.font('Helvetica').fontSize(8).fillColor('#4B5563').text(noteText, M + 76, y, { width: W - 76 })
+            y += noteH
+          }
+          zebra = !zebra
+        }
+      }
+
+      // ============================================================
       // Balance by Registration
       // ============================================================
       doc.addPage()
@@ -363,12 +453,12 @@ export async function generateFinancialReportPDF(reportData: any, eventName: str
       y += 18
 
       const balCols: { label: string; w: number; align?: 'left' | 'right' }[] = [
-        { label: 'Payer', w: 200 },
-        { label: 'Type', w: 70 },
-        { label: 'Status', w: 90 },
-        { label: 'Invoiced', w: 70, align: 'right' },
+        { label: 'Payer', w: 185 },
+        { label: 'Type', w: 50 },
+        { label: 'Status', w: 60 },
+        { label: 'Invoiced', w: 75, align: 'right' },
         { label: 'Paid', w: 70, align: 'right' },
-        { label: 'Balance', w: W - 200 - 70 - 90 - 70 - 70, align: 'right' },
+        { label: 'Balance', w: W - 185 - 50 - 60 - 75 - 70, align: 'right' },
       ]
 
       if (
@@ -393,18 +483,34 @@ export async function generateFinancialReportPDF(reportData: any, eventName: str
           sumInvoiced += invoiced
           sumPaid += paid
           sumBalance += balance
+          const spotsLabel =
+            b?.registrationType === 'Group' && b?.spots != null ? ` (${safeNum(b.spots)} spots)` : ''
+          const balNote = safeTxt(b?.notes, '')
+          doc.font('Helvetica').fontSize(8)
+          const balNoteH = balNote ? doc.heightOfString(balNote, { width: W - 12 }) + 4 : 0
+          if (balNoteH && y + 16 + balNoteH > BOTTOM) {
+            doc.addPage()
+            y = M
+            drawTableHeader(balCols)
+            zebra = false
+          }
+          if (zebra) doc.rect(M, y, W, 16 + balNoteH).fillColor(ROW_ALT).fill()
           drawTableRow(
             balCols,
             [
-              safeTxt(b?.payer, '—'),
+              `${safeTxt(b?.payer, '—')}${spotsLabel}`,
               safeTxt(b?.registrationType, '—'),
               safeTxt(b?.paymentStatus, '—').replace(/_/g, ' '),
               fmtMoney(invoiced),
               fmtMoney(paid),
               fmtMoney(balance),
             ],
-            zebra
+            false
           )
+          if (balNote) {
+            doc.font('Helvetica').fontSize(8).fillColor('#4B5563').text(balNote, M + 12, y, { width: W - 12 })
+            y += balNoteH
+          }
           zebra = !zebra
         }
         checkPage(20)
