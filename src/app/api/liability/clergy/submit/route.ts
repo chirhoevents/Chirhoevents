@@ -216,10 +216,11 @@ export async function POST(request: NextRequest) {
     // from the same group submit within milliseconds of each other, only as
     // many as there are real spots left actually get through.
     let participant
+    let liabilityForm
     try {
-      participant = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
         await assertParticipantSlotAvailable(tx, groupRegistration.id)
-        return tx.participant.create({
+        const created = await tx.participant.create({
           data: {
             groupRegistrationId: groupRegistration.id,
             organizationId: groupRegistration.organizationId,
@@ -236,7 +237,60 @@ export async function POST(request: NextRequest) {
             parentEmail: null, // Not applicable for clergy
           },
         })
+        // Created in the same transaction as the Participant: if the form
+        // insert fails, the Participant rolls back too. Previously a failed
+        // form insert left a "Complete" participant with no form behind;
+        // the person resubmitted and the group leader saw duplicates with
+        // no view/delete actions.
+        const form = await tx.liabilityForm.create({
+          data: {
+            organizationId: groupRegistration.organizationId,
+            eventId: groupRegistration.eventId,
+            groupRegistrationId: groupRegistration.id,
+            participantId: created.id,
+            formType: 'clergy',
+            participantType: 'priest' as any,
+            participantGender: participantGender,
+            participantFirstName: first_name,
+            participantLastName: last_name,
+            participantPreferredName: preferred_name || null,
+            participantAge: age,
+            dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
+            participantEmail: email,
+            participantPhone: phone,
+            tShirtSize: t_shirt_size,
+            clergyTitle: clergy_title,
+            dioceseOfIncardination: diocese_of_incardination,
+            currentAssignment: current_assignment || null,
+            facultyInformation: faculty_information || null,
+            needsHousing: needs_housing || false,
+            medicalConditions: sanitizeMedicalText(medical_conditions) || null,
+            medications: sanitizeMedicalText(medications) || null,
+            allergies: sanitizeMedicalText(allergies) || null,
+            dietaryRestrictions: sanitizeMedicalText(dietary_restrictions) || null,
+            adaAccommodations: sanitizeMedicalText(ada_accommodations) || null,
+            emergencyContact1Name: emergency_contact_1_name,
+            emergencyContact1Phone: emergency_contact_1_phone,
+            emergencyContact1Relation: emergency_contact_1_relation,
+            emergencyContact2Name: emergency_contact_2_name || null,
+            emergencyContact2Phone: emergency_contact_2_phone || null,
+            emergencyContact2Relation: emergency_contact_2_relation || null,
+            insuranceProvider: insurance_provider,
+            insurancePolicyNumber: insurance_policy_number,
+            insuranceGroupNumber: insurance_group_number || null,
+            signatureData: signatureData,
+            completed: true,
+            completedByEmail: email,
+            completedAt: new Date(),
+          },
+          include: {
+            event: true,
+          },
+        })
+        return { participant: created, liabilityForm: form }
       })
+      participant = result.participant
+      liabilityForm = result.liabilityForm
     } catch (err) {
       if (err instanceof GroupCapacityFullError) {
         return NextResponse.json({ error: GROUP_CAPACITY_FULL_MESSAGE }, { status: 409 })
@@ -255,53 +309,6 @@ export async function POST(request: NextRequest) {
       console.error('Failed to generate QR code:', qrError)
       // Continue without failing - QR code can be generated later
     }
-
-    // Create liability form linked to the participant
-    const liabilityForm = await prisma.liabilityForm.create({
-      data: {
-        organizationId: groupRegistration.organizationId,
-        eventId: groupRegistration.eventId,
-        groupRegistrationId: groupRegistration.id,
-        participantId: participant.id,
-        formType: 'clergy',
-        participantType: 'priest' as any,
-        participantGender: participantGender,
-        participantFirstName: first_name,
-        participantLastName: last_name,
-        participantPreferredName: preferred_name || null,
-        participantAge: age,
-        dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
-        participantEmail: email,
-        participantPhone: phone,
-        tShirtSize: t_shirt_size,
-        clergyTitle: clergy_title,
-        dioceseOfIncardination: diocese_of_incardination,
-        currentAssignment: current_assignment || null,
-        facultyInformation: faculty_information || null,
-        needsHousing: needs_housing || false,
-        medicalConditions: sanitizeMedicalText(medical_conditions) || null,
-        medications: sanitizeMedicalText(medications) || null,
-        allergies: sanitizeMedicalText(allergies) || null,
-        dietaryRestrictions: sanitizeMedicalText(dietary_restrictions) || null,
-        adaAccommodations: sanitizeMedicalText(ada_accommodations) || null,
-        emergencyContact1Name: emergency_contact_1_name,
-        emergencyContact1Phone: emergency_contact_1_phone,
-        emergencyContact1Relation: emergency_contact_1_relation,
-        emergencyContact2Name: emergency_contact_2_name || null,
-        emergencyContact2Phone: emergency_contact_2_phone || null,
-        emergencyContact2Relation: emergency_contact_2_relation || null,
-        insuranceProvider: insurance_provider,
-        insurancePolicyNumber: insurance_policy_number,
-        insuranceGroupNumber: insurance_group_number || null,
-        signatureData: signatureData,
-        completed: true,
-        completedByEmail: email,
-        completedAt: new Date(),
-      },
-      include: {
-        event: true,
-      },
-    })
 
     // Generate PDF URL (using API endpoint for now until R2 is set up)
     const pdfUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/liability/forms/${liabilityForm.id}/pdf`
