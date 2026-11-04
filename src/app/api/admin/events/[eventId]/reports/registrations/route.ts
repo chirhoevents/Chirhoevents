@@ -170,12 +170,64 @@ export async function GET(
       }))
       .sort((a: { count: number }, b: { count: number }) => b.count - a.count)
 
+    // Purchased vs. registered spots — per group. youthCount / chaperoneCount /
+    // priestCount are the spots the group bought (what they're invoiced for);
+    // participants are the people who have actually filled those spots.
+    const emptyCounts = () => ({ youth: 0, chaperones: 0, clergy: 0, total: 0 })
+    const purchasedTotals = emptyCounts()
+    const registeredTotals = emptyCounts()
+    const groupSpots = groupRegistrations
+      .map((g: any) => {
+        const purchasedYouth = g.youthCount || 0
+        const purchasedChaperones = g.chaperoneCount || 0
+        const purchasedClergy = g.priestCount || 0
+        const purchasedSum = purchasedYouth + purchasedChaperones + purchasedClergy
+        const purchased = {
+          youth: purchasedYouth,
+          chaperones: purchasedChaperones,
+          clergy: purchasedClergy,
+          total: purchasedSum > 0 ? purchasedSum : g.totalParticipants || 0,
+        }
+        const registered = emptyCounts()
+        for (const p of g.participants) {
+          const t = p.participantType
+          if (t === 'youth_u18' || t === 'youth_o18') registered.youth++
+          else if (t === 'chaperone') registered.chaperones++
+          else if (getClergyRole(t, p.clergyTitle)) registered.clergy++
+          registered.total++
+        }
+        for (const k of ['youth', 'chaperones', 'clergy', 'total'] as const) {
+          purchasedTotals[k] += purchased[k]
+          registeredTotals[k] += registered[k]
+        }
+        return {
+          name: g.groupName || g.parishName || 'Unnamed Group',
+          parishName: g.parishName || null,
+          groupLeaderName: g.groupLeaderName || null,
+          groupLeaderEmail: g.groupLeaderEmail || null,
+          housingType: g.housingType || null,
+          registrationStatus: g.registrationStatus || null,
+          purchased,
+          registered,
+          remaining: Math.max(0, purchased.total - registered.total),
+        }
+      })
+      .sort((a: any, b: any) => a.name.localeCompare(b.name))
+
+    const spotsSummary = {
+      purchased: purchasedTotals,
+      registered: registeredTotals,
+      remaining: Math.max(0, purchasedTotals.total - registeredTotals.total),
+    }
+
     return NextResponse.json({
       totalRegistrations,
       groupCount,
       groupParticipants,
       individualCount,
       avgGroupSize,
+      spotsSummary,
+      groupSpots,
       demographics,
       housingBreakdown,
       topGroups,

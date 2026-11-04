@@ -276,7 +276,60 @@ export function generateRegistrationCSV(reportData: any): string {
     summaryRows.push({ Metric: `Housing - ${type.replace(/_/g, ' ')}`, Value: count })
   })
 
+  if (reportData.spotsSummary) {
+    const ss = reportData.spotsSummary
+    for (const [label, key] of [
+      ['Youth', 'youth'],
+      ['Chaperones', 'chaperones'],
+      ['Clergy', 'clergy'],
+      ['Total', 'total'],
+    ]) {
+      summaryRows.push({ Metric: `Spots Purchased - ${label}`, Value: ss.purchased?.[key] ?? 0 })
+      summaryRows.push({ Metric: `Spots Registered - ${label}`, Value: ss.registered?.[key] ?? 0 })
+    }
+    summaryRows.push({ Metric: 'Spots Unfilled', Value: ss.remaining ?? 0 })
+  }
+
   sections.push(generateCSV(summaryRows, ['Metric', 'Value']))
+
+  // Purchased vs registered spots — one row per group
+  if (Array.isArray(reportData.groupSpots) && reportData.groupSpots.length > 0) {
+    const spotHeaders = [
+      'Group',
+      'Parish',
+      'Group Leader',
+      'Leader Email',
+      'Housing',
+      'Status',
+      'Youth Purchased',
+      'Youth Registered',
+      'Chaperones Purchased',
+      'Chaperones Registered',
+      'Clergy Purchased',
+      'Clergy Registered',
+      'Total Purchased',
+      'Total Registered',
+      'Unfilled Spots',
+    ]
+    const spotRows = reportData.groupSpots.map((g: any) => ({
+      Group: g.name || '',
+      Parish: g.parishName || '',
+      'Group Leader': g.groupLeaderName || '',
+      'Leader Email': g.groupLeaderEmail || '',
+      Housing: g.housingType || '',
+      Status: g.registrationStatus || '',
+      'Youth Purchased': g.purchased?.youth ?? 0,
+      'Youth Registered': g.registered?.youth ?? 0,
+      'Chaperones Purchased': g.purchased?.chaperones ?? 0,
+      'Chaperones Registered': g.registered?.chaperones ?? 0,
+      'Clergy Purchased': g.purchased?.clergy ?? 0,
+      'Clergy Registered': g.registered?.clergy ?? 0,
+      'Total Purchased': g.purchased?.total ?? 0,
+      'Total Registered': g.registered?.total ?? 0,
+      'Unfilled Spots': g.remaining ?? 0,
+    }))
+    sections.push('\n\nPurchased vs Registered Spots by Group\n' + generateCSV(spotRows, spotHeaders))
+  }
 
   // Roster — one row per registered person
   if (Array.isArray(reportData.roster) && reportData.roster.length > 0) {

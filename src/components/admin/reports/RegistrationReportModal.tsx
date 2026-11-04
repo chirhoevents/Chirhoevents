@@ -126,6 +126,64 @@ export default function RegistrationReportModal({
               </CardContent>
             </Card>
 
+            {/* Purchased vs Registered Spots */}
+            {data.groupSpots && data.groupSpots.length > 0 && data.spotsSummary && (
+              <div>
+                <h3 className="font-semibold text-[#1E3A5F] mb-1">PURCHASED VS. REGISTERED SPOTS</h3>
+                <p className="text-xs text-[#6B7280] mb-3">
+                  Spots each group bought compared with how many people have registered to fill them.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  {([
+                    ['Youth', 'youth'],
+                    ['Chaperones', 'chaperones'],
+                    ['Clergy', 'clergy'],
+                    ['Total', 'total'],
+                  ] as const).map(([label, key]) => (
+                    <div key={key} className="p-3 bg-gray-50 rounded">
+                      <p className="text-sm text-[#6B7280]">{label}</p>
+                      <p className="text-xl font-bold text-[#1E3A5F]">
+                        {data.spotsSummary.registered[key]} / {data.spotsSummary.purchased[key]}
+                      </p>
+                      <p className="text-xs text-[#6B7280]">registered / purchased</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-[#1E3A5F] mb-3">
+                  <span className="font-semibold">{data.spotsSummary.remaining}</span> purchased spot(s) still unfilled
+                </p>
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-left text-xs uppercase text-[#6B7280]">
+                      <tr>
+                        <th className="px-3 py-2">Group</th>
+                        <th className="px-3 py-2 text-right">Youth</th>
+                        <th className="px-3 py-2 text-right">Chaperones</th>
+                        <th className="px-3 py-2 text-right">Clergy</th>
+                        <th className="px-3 py-2 text-right">Total</th>
+                        <th className="px-3 py-2 text-right">Unfilled</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.groupSpots.map((g: any, i: number) => (
+                        <tr key={i} className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-medium text-[#1E3A5F]">{g.name}</td>
+                          <td className="px-3 py-2 text-right">{g.registered.youth} / {g.purchased.youth}</td>
+                          <td className="px-3 py-2 text-right">{g.registered.chaperones} / {g.purchased.chaperones}</td>
+                          <td className="px-3 py-2 text-right">{g.registered.clergy} / {g.purchased.clergy}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{g.registered.total} / {g.purchased.total}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${g.remaining > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {g.remaining}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-[#6B7280] mt-2">Shown as registered / purchased.</p>
+              </div>
+            )}
+
             {/* Demographics */}
             <div>
               <h3 className="font-semibold text-[#1E3A5F] mb-3">DEMOGRAPHICS</h3>
