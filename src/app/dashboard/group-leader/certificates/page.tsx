@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useEvent } from '@/contexts/EventContext'
 import {
   Shield,
   Upload,
@@ -42,6 +43,7 @@ interface CertificatesData {
 }
 
 export default function CertificatesPage() {
+  const { selectedEventId } = useEvent()
   const [data, setData] = useState<CertificatesData | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
@@ -54,11 +56,20 @@ export default function CertificatesPage() {
 
   useEffect(() => {
     fetchCertificates()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEventId])
 
   const fetchCertificates = async () => {
+    if (!selectedEventId) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     try {
-      const response = await fetch('/api/group-leader/certificates')
+      // Scope to the event selected in the dashboard. Without this, a group
+      // leader with registrations for multiple events could be shown a
+      // different (empty) registration's chaperones.
+      const response = await fetch(`/api/group-leader/certificates?eventId=${selectedEventId}`)
       if (response.ok) {
         const certificatesData = await response.json()
         setData(certificatesData)
