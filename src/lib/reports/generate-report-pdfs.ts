@@ -730,6 +730,50 @@ export async function generateRegistrationReportPDF(reportData: any, eventName: 
       row('Average Group Size:', `${safeNum(reportData?.avgGroupSize, 1)} people`)
       y += 8
 
+      // Purchased vs Registered Spots
+      if (Array.isArray(reportData?.groupSpots) && reportData.groupSpots.length > 0 && reportData?.spotsSummary) {
+        const ss = reportData.spotsSummary
+        y += 10
+        sectionHead('Purchased vs. Registered Spots')
+        const pair = (key: string) =>
+          `${safeNum(ss?.registered?.[key])} registered of ${safeNum(ss?.purchased?.[key])} purchased`
+        row('Youth:', pair('youth'))
+        row('Chaperones:', pair('chaperones'))
+        row('Clergy:', pair('clergy'))
+        row('Total:', pair('total'))
+        row('Unfilled Spots:', `${safeNum(ss?.remaining)}`)
+        y += 6
+
+        const spotCols: { label: string; w: number; align?: 'left' | 'right' }[] = [
+          { label: 'Group', w: W - 75 * 4 - 60 },
+          { label: 'Youth', w: 75, align: 'right' },
+          { label: 'Chaperones', w: 75, align: 'right' },
+          { label: 'Clergy', w: 75, align: 'right' },
+          { label: 'Total', w: 75, align: 'right' },
+          { label: 'Unfilled', w: 60, align: 'right' },
+        ]
+        drawTableHeader(spotCols)
+        let spotZebra = false
+        for (const g of reportData.groupSpots) {
+          if (y + 18 > BOTTOM) {
+            doc.addPage()
+            y = M
+            drawTableHeader(spotCols)
+            spotZebra = false
+          }
+          const cell = (key: string) => `${safeNum(g?.registered?.[key])} / ${safeNum(g?.purchased?.[key])}`
+          drawTableRow(
+            spotCols,
+            [safeTxt(g?.name, '—'), cell('youth'), cell('chaperones'), cell('clergy'), cell('total'), `${safeNum(g?.remaining)}`],
+            spotZebra
+          )
+          spotZebra = !spotZebra
+        }
+        checkPage(14)
+        doc.font('Helvetica').fontSize(8).fillColor(GRAY).text('Shown as registered / purchased.', M, y + 2)
+        y += 14
+      }
+
       // Demographics (dynamic)
       const totalRegs = Number(reportData?.totalRegistrations || 0)
       if (reportData?.demographics && typeof reportData.demographics === 'object') {
