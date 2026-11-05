@@ -17,26 +17,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find the group registration linked to this Clerk user
-    const groupRegistration = await prisma.groupRegistration.findFirst({
-      where: { clerkUserId: userId },
-      select: {
-        id: true,
-        organizationId: true,
-        eventId: true,
-      },
-    })
-
-    if (!groupRegistration) {
-      return NextResponse.json(
-        { error: 'No group registration found for this user' },
-        { status: 404 }
-      )
-    }
-
-    const readOnly = await rejectIfGroupEventEnded(groupRegistration.id)
-    if (readOnly) return readOnly
-
     // Parse form data
     const formData = await request.formData()
     const participantId = formData.get('participantId') as string
@@ -52,21 +32,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify the participant belongs to this group
+    // Verify the participant belongs to a group owned by this user. Looking up
+    // via the participant (rather than findFirst on the user's registrations)
+    // keeps uploads working for leaders with registrations in multiple events.
     const participant = await prisma.participant.findFirst({
       where: {
         id: participantId,
-        groupRegistrationId: groupRegistration.id,
-        participantType: 'chaperone',
+        groupRegistration: { clerkUserId: userId },
+        participantType: {
+          in: ['chaperone', 'priest', 'deacon', 'seminarian', 'religious_sister', 'religious_brother'],
+        },
+      },
+      include: {
+        groupRegistration: {
+          select: { id: true, organizationId: true, eventId: true },
+        },
       },
     })
 
-    if (!participant) {
+    if (!participant || !participant.groupRegistration) {
       return NextResponse.json(
         { error: 'Participant not found or is not a chaperone in this group' },
         { status: 404 }
       )
     }
+
+    const groupRegistration = participant.groupRegistration
+
+    const readOnly = await rejectIfGroupEventEnded(groupRegistration.id)
+    if (readOnly) return readOnly
 
     // Validate file type (PDF only for now)
     if (!file.type.includes('pdf')) {
