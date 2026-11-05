@@ -55,7 +55,15 @@ export async function POST(
 
     // TODO: Send rejection email with reason to group leader
 
-    return NextResponse.json({ success: true, certificate: updated })
+    // fileSizeBytes is a BigInt, which JSON cannot serialize
+    return NextResponse.json({
+      success: true,
+      certificate: {
+        ...updated,
+        fileSizeBytes:
+          updated.fileSizeBytes === null ? null : Number(updated.fileSizeBytes),
+      },
+    })
   } catch (error) {
     console.error('Rejection error:', error)
     return NextResponse.json(
