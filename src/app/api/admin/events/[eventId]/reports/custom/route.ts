@@ -190,12 +190,25 @@ async function executeRegistrationsReport(eventId: string, config: any) {
       ? reg.allocatedRooms.map((r: any) => `${r.building?.name} ${r.roomNumber}`).join(', ')
       : ''
 
+    // Spots the group purchased (what they're invoiced for), as opposed to the
+    // registered counts above, which only count people who have filled a spot.
+    const purchasedYouthCount = reg.youthCount || 0
+    const purchasedChaperoneCount = reg.chaperoneCount || 0
+    const purchasedClergyCount = reg.priestCount || 0
+    const purchasedSum = purchasedYouthCount + purchasedChaperoneCount + purchasedClergyCount
+    const purchasedTotalCount = purchasedSum > 0 ? purchasedSum : reg.totalParticipants || 0
+
     return {
       ...reg,
       youthCount,
       chaperoneCount,
       priestCount,
       totalParticipants: reg.participants.length,
+      purchasedYouthCount,
+      purchasedChaperoneCount,
+      purchasedClergyCount,
+      purchasedTotalCount,
+      unfilledSpots: Math.max(0, purchasedTotalCount - reg.participants.length),
       paymentStatus: balance?.paymentStatus || 'unpaid',
       totalAmountDue: balance ? Number(balance.totalAmountDue) : 0,
       amountPaid: balance ? Number(balance.amountPaid) : 0,
