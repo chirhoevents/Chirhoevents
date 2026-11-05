@@ -1,5 +1,21 @@
 import { PrismaClient } from '@prisma/client'
 
+// Some columns (fileSizeBytes) are BigInt, and JSON.stringify throws on BigInt
+// ("Do not know how to serialize a BigInt"), which turned any route returning
+// such a record into a 500. Every route that reads the database imports this
+// file, so teach JSON to write BigInt as a number here, once.
+// File sizes are far below Number.MAX_SAFE_INTEGER, so no precision is lost.
+declare global {
+  interface BigInt {
+    toJSON(): number
+  }
+}
+if (typeof BigInt.prototype.toJSON !== 'function') {
+  BigInt.prototype.toJSON = function () {
+    return Number(this)
+  }
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }

@@ -53,7 +53,15 @@ export async function POST(
       },
     })
 
-    return NextResponse.json({ success: true, certificate: updated })
+    // fileSizeBytes is a BigInt, which JSON cannot serialize
+    return NextResponse.json({
+      success: true,
+      certificate: {
+        ...updated,
+        fileSizeBytes:
+          updated.fileSizeBytes === null ? null : Number(updated.fileSizeBytes),
+      },
+    })
   } catch (error) {
     console.error('Verification error:', error)
     return NextResponse.json(
