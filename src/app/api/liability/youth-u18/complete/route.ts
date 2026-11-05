@@ -13,6 +13,8 @@ import { assertParticipantSlotAvailable, GroupCapacityFullError, GROUP_CAPACITY_
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
+class FormAlreadyCompletedError extends Error {}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -120,6 +122,35 @@ export async function POST(request: NextRequest) {
       parentEmail: liabilityForm.parentEmail,
     }
 
+    // The parent's step-2 data. Applied with a conditional update
+    // (completed: false) so that a double submit, or a retry racing an
+    // earlier attempt, can only complete the form once.
+    const completionData = {
+      // Never set at initiate time either — without this, the admin dashboard's
+      // youth-submitted count (filtered on LiabilityForm.participantType) silently
+      // excludes every youth-u18 submission, which is exactly the kind of gap that
+      // could hide an unsafe youth-to-chaperone ratio from event staff.
+      participantType: 'youth_u18' as const,
+      medicalConditions: sanitizeMedicalText(medical_conditions) || null,
+      medications: sanitizeMedicalText(medications) || null,
+      allergies: sanitizeMedicalText(allergies) || null,
+      dietaryRestrictions: sanitizeMedicalText(dietary_restrictions) || null,
+      adaAccommodations: sanitizeMedicalText(ada_accommodations) || null,
+      emergencyContact1Name: emergency_contact_1_name,
+      emergencyContact1Phone: emergency_contact_1_phone,
+      emergencyContact1Relation: emergency_contact_1_relation,
+      emergencyContact2Name: emergency_contact_2_name || null,
+      emergencyContact2Phone: emergency_contact_2_phone || null,
+      emergencyContact2Relation: emergency_contact_2_relation || null,
+      insuranceProvider: insurance_provider,
+      insurancePolicyNumber: insurance_policy_number,
+      insuranceGroupNumber: insurance_group_number || null,
+      signatureData: signatureData,
+      completed: true,
+      completedByEmail: liabilityForm.parentEmail,
+      completedAt: new Date(),
+    }
+
     // Group forms become a Participant on the group. Individual registrations
     // are already their own attendee record (with their own QR code), so the
     // form just links to that registration.
@@ -134,13 +165,26 @@ export async function POST(request: NextRequest) {
       try {
         participant = await prisma.$transaction(async (tx) => {
           await assertParticipantSlotAvailable(tx, groupRegistrationId)
-          return tx.participant.create({
+          const created = await tx.participant.create({
             data: { groupRegistrationId, ...participantData },
           })
+          // Same transaction as the Participant: if linking the form fails,
+          // the Participant rolls back too, instead of being left behind as a
+          // "Complete" entry with no form that the group leader can't delete
+          // (and that the parent then duplicates by resubmitting).
+          const claimed = await tx.liabilityForm.updateMany({
+            where: { id: liabilityForm.id, completed: false },
+            data: { ...completionData, participantId: created.id },
+          })
+          if (claimed.count === 0) throw new FormAlreadyCompletedError()
+          return created
         })
       } catch (err) {
         if (err instanceof GroupCapacityFullError) {
           return NextResponse.json({ error: GROUP_CAPACITY_FULL_MESSAGE }, { status: 409 })
+        }
+        if (err instanceof FormAlreadyCompletedError) {
+          return NextResponse.json({ error: 'This form has already been completed' }, { status: 400 })
         }
         throw err
       }
@@ -158,38 +202,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update liability form with parent's data and link to participant
-    const updatedForm = await prisma.liabilityForm.update({
+    if (!participant) {
+      // Individual registration: no Participant to create, just complete the form.
+      const claimed = await prisma.liabilityForm.updateMany({
+        where: { id: liabilityForm.id, completed: false },
+        data: completionData,
+      })
+      if (claimed.count === 0) {
+        return NextResponse.json({ error: 'This form has already been completed' }, { status: 400 })
+      }
+    }
+
+    const updatedForm = await prisma.liabilityForm.findUniqueOrThrow({
       where: { id: liabilityForm.id },
-      data: {
-        participantId: participant?.id ?? null,
-        // Never set at initiate time either — without this, the admin dashboard's
-        // youth-submitted count (filtered on LiabilityForm.participantType) silently
-        // excludes every youth-u18 submission, which is exactly the kind of gap that
-        // could hide an unsafe youth-to-chaperone ratio from event staff.
-        participantType: 'youth_u18',
-        medicalConditions: sanitizeMedicalText(medical_conditions) || null,
-        medications: sanitizeMedicalText(medications) || null,
-        allergies: sanitizeMedicalText(allergies) || null,
-        dietaryRestrictions: sanitizeMedicalText(dietary_restrictions) || null,
-        adaAccommodations: sanitizeMedicalText(ada_accommodations) || null,
-        emergencyContact1Name: emergency_contact_1_name,
-        emergencyContact1Phone: emergency_contact_1_phone,
-        emergencyContact1Relation: emergency_contact_1_relation,
-        emergencyContact2Name: emergency_contact_2_name || null,
-        emergencyContact2Phone: emergency_contact_2_phone || null,
-        emergencyContact2Relation: emergency_contact_2_relation || null,
-        insuranceProvider: insurance_provider,
-        insurancePolicyNumber: insurance_policy_number,
-        insuranceGroupNumber: insurance_group_number || null,
-        signatureData: signatureData,
-        completed: true,
-        completedByEmail: liabilityForm.parentEmail,
-        completedAt: new Date(),
-      },
-      include: {
-        event: true,
-      },
+      include: { event: true },
     })
 
     // Generate PDF URL (using API endpoint for now until R2 is set up)

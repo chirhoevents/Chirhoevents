@@ -517,6 +517,19 @@ export default function LiabilityFormsPage() {
                             </button>
                           </>
                         )}
+                        {/* A "completed" participant with no linked form is an orphan left
+                            behind by a failed submit (the person then resubmitted, creating
+                            a duplicate). There's nothing to view or download, but the group
+                            leader still needs to be able to remove it. */}
+                        {form.formStatus === 'completed' && !form.formId && !form.id.startsWith('pending-') && (
+                          <button
+                            onClick={() => handleDeleteForm(form.id, `${form.firstName ?? ''} ${form.lastName ?? ''}`.trim() || 'this participant')}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete this entry (no signed form is attached)"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                         {form.formStatus !== 'completed' && form.participantType === 'youth_u18' && !form.id.startsWith('pending-') && (
                           editingId === form.id ? (
                             <div className="flex items-center gap-1">

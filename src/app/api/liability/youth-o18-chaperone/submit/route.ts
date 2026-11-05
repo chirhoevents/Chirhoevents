@@ -580,9 +580,9 @@ export async function POST(request: NextRequest) {
     // other, only as many as there are real spots left actually get through.
     let participant
     try {
-      participant = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
         await assertParticipantSlotAvailable(tx, groupRegistration.id)
-        return tx.participant.create({
+        const created = await tx.participant.create({
           data: {
             groupRegistrationId: groupRegistration.id,
             organizationId: groupRegistration.organizationId,
@@ -598,7 +598,55 @@ export async function POST(request: NextRequest) {
             parentEmail: null,
           },
         })
+        // Created in the same transaction as the Participant: if the form
+        // insert fails, the Participant rolls back too. Previously a failed
+        // form insert left a "Complete" participant with no form behind;
+        // the person resubmitted and the group leader saw duplicates with
+        // no view/delete actions.
+        const form = await tx.liabilityForm.create({
+          data: {
+            organizationId: groupRegistration.organizationId,
+            eventId: groupRegistration.eventId,
+            groupRegistrationId: groupRegistration.id,
+            participantId: created.id,
+            formType: 'youth_o18_chaperone',
+            participantType: participant_type,
+            participantFirstName: first_name,
+            participantLastName: last_name,
+            participantPreferredName: preferred_name || null,
+            participantAge: age,
+            participantGender: gender,
+            dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
+            participantEmail: email,
+            participantPhone: phone,
+            tShirtSize: t_shirt_size,
+            medicalConditions: cleanMedicalConditions,
+            medications: cleanMedications,
+            allergies: cleanAllergies,
+            dietaryRestrictions: cleanDietary,
+            adaAccommodations: cleanAda,
+            emergencyContact1Name: emergency_contact_1_name,
+            emergencyContact1Phone: emergency_contact_1_phone,
+            emergencyContact1Relation: emergency_contact_1_relation,
+            emergencyContact2Name: emergency_contact_2_name || null,
+            emergencyContact2Phone: emergency_contact_2_phone || null,
+            emergencyContact2Relation: emergency_contact_2_relation || null,
+            insuranceProvider: insurance_provider,
+            insurancePolicyNumber: insurance_policy_number,
+            insuranceGroupNumber: insurance_group_number || null,
+            signatureData: signatureData,
+            completed: true,
+            completedByEmail: email,
+            completedAt: new Date(),
+          },
+          include: {
+            event: true,
+          },
+        })
+        return { participant: created, liabilityForm: form }
       })
+      participant = result.participant
+      liabilityForm = result.liabilityForm
     } catch (err) {
       if (err instanceof GroupCapacityFullError) {
         return NextResponse.json({ error: GROUP_CAPACITY_FULL_MESSAGE }, { status: 409 })
@@ -616,48 +664,6 @@ export async function POST(request: NextRequest) {
     } catch (qrError) {
       console.error('Failed to generate QR code:', qrError)
     }
-
-    // Create liability form linked to the participant
-    liabilityForm = await prisma.liabilityForm.create({
-      data: {
-        organizationId: groupRegistration.organizationId,
-        eventId: groupRegistration.eventId,
-        groupRegistrationId: groupRegistration.id,
-        participantId: participant.id,
-        formType: 'youth_o18_chaperone',
-        participantType: participant_type,
-        participantFirstName: first_name,
-        participantLastName: last_name,
-        participantPreferredName: preferred_name || null,
-        participantAge: age,
-        participantGender: gender,
-        dateOfBirth: date_of_birth ? new Date(date_of_birth) : null,
-        participantEmail: email,
-        participantPhone: phone,
-        tShirtSize: t_shirt_size,
-        medicalConditions: cleanMedicalConditions,
-        medications: cleanMedications,
-        allergies: cleanAllergies,
-        dietaryRestrictions: cleanDietary,
-        adaAccommodations: cleanAda,
-        emergencyContact1Name: emergency_contact_1_name,
-        emergencyContact1Phone: emergency_contact_1_phone,
-        emergencyContact1Relation: emergency_contact_1_relation,
-        emergencyContact2Name: emergency_contact_2_name || null,
-        emergencyContact2Phone: emergency_contact_2_phone || null,
-        emergencyContact2Relation: emergency_contact_2_relation || null,
-        insuranceProvider: insurance_provider,
-        insurancePolicyNumber: insurance_policy_number,
-        insuranceGroupNumber: insurance_group_number || null,
-        signatureData: signatureData,
-        completed: true,
-        completedByEmail: email,
-        completedAt: new Date(),
-      },
-      include: {
-        event: true,
-      },
-    })
 
     // Handle safe environment certificate if chaperone and uploaded
     if (participant_type === 'chaperone' && safe_env_cert_file && !safe_env_cert_upload_later) {
