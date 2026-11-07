@@ -135,15 +135,19 @@ function VendorPortalContent() {
           fetch(`/api/vendor/leads?code=${encodeURIComponent(accessCode)}`)
             .then((r) => (r.ok ? r.json() : null))
             .then((leads) => {
-              if (leads) {
-                setLeadSummary({
-                  enabled: leads.enabled,
-                  count: Array.isArray(leads.leads) ? leads.leads.length : 0,
-                  blockedReason: leads.blockedReason,
-                })
-              }
+              setLeadSummary(
+                leads
+                  ? {
+                      enabled: leads.enabled,
+                      count: Array.isArray(leads.leads) ? leads.leads.length : 0,
+                      blockedReason: leads.blockedReason,
+                    }
+                  : { enabled: false, count: 0, blockedReason: 'Lead scanning is unavailable right now. Please try again later.' }
+              )
             })
-            .catch(() => {})
+            .catch(() =>
+              setLeadSummary({ enabled: false, count: 0, blockedReason: 'Lead scanning is unavailable right now. Please try again later.' })
+            )
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load vendor data')
@@ -492,19 +496,31 @@ function VendorPortalContent() {
               </Card>
             )}
 
-            {/* Lead Retrieval Card - Only show if approved and turned on for the event */}
-            {vendor.status === 'approved' && leadSummary?.enabled && (
+            {/* Lead Retrieval Card - shown to approved vendors; the scanner itself
+                only appears once the organizer turns lead scanning on. */}
+            {vendor.status === 'approved' && leadSummary && (
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-xl font-semibold text-[#1E3A5F]">Lead Retrieval</h2>
-                  <span className="text-[#6B7280]">
-                    {leadSummary.count} {leadSummary.count === 1 ? 'lead' : 'leads'}
-                  </span>
+                  {leadSummary.enabled && (
+                    <span className="text-[#6B7280]">
+                      {leadSummary.count} {leadSummary.count === 1 ? 'lead' : 'leads'}
+                    </span>
+                  )}
                 </div>
                 <p className="text-[#6B7280] mb-4">
                   Scan attendees&apos; name badges at your booth to collect leads, add notes, then email them
                   through ChiRho or download a CSV after the event.
                 </p>
+                {!leadSummary.enabled ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+                    <Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-sm text-amber-800">
+                      {leadSummary.blockedReason || 'Lead scanning is not turned on for this event yet.'}
+                    </p>
+                  </div>
+                ) : (
+                <>
                 <Link href={`/vendor-dashboard/leads?code=${encodeURIComponent(accessCode || '')}`} className="block">
                   <Button className="w-full bg-[#9C8466] hover:bg-[#8B7355] text-white">
                     <QrCode className="h-4 w-4 mr-2" />
@@ -539,6 +555,8 @@ function VendorPortalContent() {
                     )}
                   </Button>
                 </div>
+                </>
+                )}
               </Card>
             )}
 
