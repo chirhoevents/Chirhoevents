@@ -222,6 +222,8 @@ model Event {
   lettersOfGoodStanding     LetterOfGoodStanding[]
   waitlistEntries           WaitlistEntry[]
   vendorRegistrations       VendorRegistration[]
+  vendorLeads               VendorLead[]
+  vendorLeadMessages        VendorLeadMessage[]
   staffRegistrations        StaffRegistration[]
   supportTickets            SupportTicket[]
   coupons                   Coupon[]
@@ -331,6 +333,13 @@ model EventSettings {
   // Vendor Registration Settings
   vendorRegistrationEnabled       Boolean  @default(false) @map("vendor_registration_enabled")
   vendorTiers                     Json?    @map("vendor_tiers") @db.JsonB // [{id, name, price, description, active, quantityLimit?, quantityUsed?}]
+
+  // Vendor lead retrieval: approved vendors scan attendee badges at their
+  // booth to build a lead list. Name + email are always shared; phone and
+  // parish/group only when the admin turns them on here.
+  vendorLeadsEnabled              Boolean  @default(false) @map("vendor_leads_enabled")
+  vendorLeadsSharePhone           Boolean  @default(false) @map("vendor_leads_share_phone")
+  vendorLeadsShareGroup           Boolean  @default(false) @map("vendor_leads_share_group")
   // Allow login when registration is closed (for group leaders to access dashboard)
   allowLoginWhenClosed            Boolean  @default(true) @map("allow_login_when_closed")
 
@@ -2948,6 +2957,8 @@ model VendorRegistration {
   // Relations
   event               Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   boothStaff          StaffRegistration[]
+  leads               VendorLead[]
+  leadMessages        VendorLeadMessage[]
   liabilityForm       LiabilityForm? @relation("VendorLiabilityForm", fields: [liabilityFormId], references: [id], onDelete: SetNull)
 
   @@index([eventId], name: "idx_vendor_reg_event")
@@ -2956,6 +2967,78 @@ model VendorRegistration {
   @@index([vendorCode], name: "idx_vendor_reg_vendor_code")
   @@index([accessCode], name: "idx_vendor_reg_access_code")
   @@map("vendor_registrations")
+}
+
+// A badge scanned at a vendor's booth. Contact details are copied at scan
+// time so the lead list (and the admin's final report) survives later edits
+// or cancellations. A minor's own contact info is never stored: their lead
+// carries the group leader (or, for an individual registration, the
+// registration contact) so vendors reach the family through an adult.
+model VendorLead {
+  id                   String    @id @default(uuid()) @db.Uuid
+  vendorRegistrationId String    @map("vendor_registration_id") @db.Uuid
+  eventId              String    @map("event_id") @db.Uuid
+  organizationId       String    @map("organization_id") @db.Uuid
+
+  // Who was scanned: participant | individual | staff | vendor
+  attendeeType         String    @map("attendee_type") @db.VarChar(20)
+  attendeeId           String    @map("attendee_id") @db.Uuid
+
+  firstName            String    @map("first_name") @db.VarChar(255)
+  lastName             String    @map("last_name") @db.VarChar(255)
+  // Attendee's own contact details (adults only; always null for minors)
+  email                String?   @db.VarChar(255)
+  phone                String?   @db.VarChar(20)
+  groupName            String?   @map("group_name") @db.VarChar(255)
+  parishName           String?   @map("parish_name") @db.VarChar(255)
+
+  // Minors: the adult the vendor reaches instead
+  isMinor              Boolean   @default(false) @map("is_minor")
+  contactName          String?   @map("contact_name") @db.VarChar(255)
+  contactEmail         String?   @map("contact_email") @db.VarChar(255)
+  contactPhone         String?   @map("contact_phone") @db.VarChar(20)
+
+  // Vendor's own follow-up info
+  notes                String?   @db.Text
+  tags                 Json?     @db.JsonB // string[], e.g. ["Vocations info"]
+  scannedByName        String?   @map("scanned_by_name") @db.VarChar(255)
+
+  // Unsubscribe from this vendor's follow-up emails
+  unsubscribeToken     String    @unique @default(uuid()) @map("unsubscribe_token") @db.Uuid
+  unsubscribedAt       DateTime? @map("unsubscribed_at") @db.Timestamptz(6)
+
+  scannedAt            DateTime  @default(now()) @map("scanned_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  vendorRegistration   VendorRegistration @relation(fields: [vendorRegistrationId], references: [id], onDelete: Cascade)
+  event                Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorRegistrationId, attendeeType, attendeeId], name: "vendor_lead_unique_attendee")
+  @@index([eventId], name: "idx_vendor_lead_event")
+  @@index([organizationId], name: "idx_vendor_lead_org")
+  @@map("vendor_leads")
+}
+
+// A follow-up email a vendor sent to their leads through ChiRho. Kept so the
+// event admin can see everything vendors sent.
+model VendorLeadMessage {
+  id                   String   @id @default(uuid()) @db.Uuid
+  vendorRegistrationId String   @map("vendor_registration_id") @db.Uuid
+  eventId              String   @map("event_id") @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  subject              String   @db.VarChar(255)
+  body                 String   @db.Text
+  leadIds              Json     @map("lead_ids") @db.JsonB // string[] of VendorLead ids targeted
+  emailsSent           Int      @default(0) @map("emails_sent")
+  emailsFailed         Int      @default(0) @map("emails_failed")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  vendorRegistration   VendorRegistration @relation(fields: [vendorRegistrationId], references: [id], onDelete: Cascade)
+  event                Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([vendorRegistrationId], name: "idx_vendor_lead_msg_vendor")
+  @@index([eventId], name: "idx_vendor_lead_msg_event")
+  @@map("vendor_lead_messages")
 }
 
 model StaffRegistration {

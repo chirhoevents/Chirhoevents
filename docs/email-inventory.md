@@ -38,6 +38,7 @@ This document catalogs all email sending functionality in the ChiRho Events plat
 | Registration Edit Confirm | `api/group-leader/registration/edit/route.ts` | Group Leader | Implemented |
 | Support Ticket Created | `api/support-tickets/route.ts` | Submitter | Implemented |
 | Medical Incident (Rapha) | `api/admin/events/[eventId]/rapha/email/route.ts` | Parent | Implemented |
+| Vendor Lead Follow-up | `api/vendor/leads/message/route.ts` | Scanned attendees (adults) / group leaders (minors) | Implemented. Sent from `vendors@chirhoevents.com` (`RESEND_VENDOR_FROM_EMAIL`), Reply-To the vendor |
 | Onboarding Request Approved | `api/master-admin/onboarding-requests/[requestId]/approve/route.ts` | Org Admin | Implemented |
 
 ---

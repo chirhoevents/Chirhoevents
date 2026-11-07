@@ -49,7 +49,7 @@ import CustomQuestionsManager from '@/components/admin/CustomQuestionsManager'
 import RefundModal from '@/components/admin/RefundModal'
 import BulkVendorEmailModal from '@/components/admin/BulkVendorEmailModal'
 import { openBadgePrintWindow } from '@/lib/badge-renderer'
-import { Printer } from 'lucide-react'
+import { Printer, QrCode } from 'lucide-react'
 
 interface CustomAnswer {
   questionText: string
@@ -495,6 +495,12 @@ export default function VendorsManagementPage() {
           <p className="text-[#6B7280]">{event?.name}</p>
         </div>
         <div className="flex gap-2">
+          <Link href={`/dashboard/admin/events/${eventId}/vendors/leads`}>
+            <Button variant="outline" title="Badge scanning and lead follow-up for vendors">
+              <QrCode className="h-4 w-4 mr-2" />
+              Lead Retrieval
+            </Button>
+          </Link>
           <Button variant="outline" onClick={() => setBulkEmailOpen(true)} title="Email approved vendors">
             <Mail className="h-4 w-4 mr-2" />
             Email Vendors

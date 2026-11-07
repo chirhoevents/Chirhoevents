@@ -49,6 +49,7 @@ const docSections = [
       { id: "poros-liability-wording", title: "Setting Up Liability Form Wording" },
       { id: "salve-checkin", title: "Using SALVE for Check-In" },
       { id: "rapha-medical", title: "Using Rapha for Medical Info" },
+      { id: "vendor-leads-admin", title: "Vendor Lead Retrieval" },
       { id: "reports", title: "Generating Reports" },
       { id: "custom-reports", title: "Custom Report Builder" },
       { id: "team", title: "Managing Your Team" },
@@ -94,6 +95,7 @@ const docSections = [
       { id: "vendor-registration", title: "Vendor Booth Registration" },
       { id: "vendor-portal", title: "Using the Vendor Portal" },
       { id: "vendor-staff", title: "Managing Booth Staff" },
+      { id: "vendor-leads", title: "Scanning Badges for Leads" },
       { id: "vendor-future", title: "Upcoming Features" },
     ]
   },
@@ -1315,6 +1317,50 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
       </div>
     )
   },
+  "vendor-leads-admin": {
+    title: "Vendor Lead Retrieval",
+    content: (
+      <div className="space-y-4">
+        <p>
+          Lead retrieval lets approved vendors scan attendees&apos; name badges at their booth, take notes,
+          and follow up after the event, all through ChiRho so attendee contact details stay protected.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Turning It On</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Go to your event&apos;s <strong>Vendors</strong> page and click <strong>Lead Retrieval</strong></li>
+          <li>Turn on <strong>Let vendors scan badges for leads</strong></li>
+          <li>Optionally share phone numbers and/or parish and group with vendors. Name and email are always shared</li>
+        </ol>
+        <p>
+          Approved vendors then see a Lead Retrieval card in their vendor portal. Badges need QR codes, so make sure
+          your name tag template shows them.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">How Attendee Info Is Protected</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Scanning a badge at a booth counts as the attendee&apos;s consent to be contacted by that vendor</li>
+          <li>Minors&apos; own contact info is never stored or shared. Their lead shows the group leader (or, for an individual registration, the registration contact)</li>
+          <li>Vendor emails go to the leader, asking them to pass the message on to the family</li>
+          <li>Vendor emails come from a dedicated vendors@chirhoevents.com sender, never your event or Poros addresses, and replies go to the vendor</li>
+          <li>Every email has an unsubscribe link, and vendors can only email until 30 days after the event</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Seeing Everything</h3>
+        <p>The Lead Retrieval page shows:</p>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Totals and a per-vendor breakdown (leads, minors, messages, emails sent)</li>
+          <li>Every message vendors sent, with the full text</li>
+          <li>Every lead, with tags and notes, and an <strong>Export All Leads</strong> CSV</li>
+        </ul>
+        <p>
+          The <strong>Master Event Report</strong> PDF also includes Vendor Leads and Vendor Lead Emails sections,
+          so it&apos;s all part of your final event record.
+        </p>
+      </div>
+    )
+  },
+
   "rapha-medical": {
     title: "Using Rapha for Medical Info",
     content: (
@@ -4092,6 +4138,14 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           <li>Download payment receipts</li>
         </ul>
 
+        <h4 className="text-lg font-medium text-navy mt-4">Lead Retrieval</h4>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Scan attendees&apos; name badges at your booth (when the organizer turns it on)</li>
+          <li>Add tags and notes to each lead</li>
+          <li>Email your leads through ChiRho and download a CSV</li>
+          <li>See <strong>Scanning Badges for Leads</strong> for the details</li>
+        </ul>
+
         <h4 className="text-lg font-medium text-navy mt-4">Logo Upload</h4>
         <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
           <li>Upload your business logo</li>
@@ -4169,6 +4223,65 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
     )
   },
 
+  "vendor-leads": {
+    title: "Scanning Badges for Leads",
+    content: (
+      <div className="space-y-4">
+        <p>
+          When the event organizer turns on lead retrieval, your vendor portal gets a lead scanner.
+          Scan the QR code on an attendee&apos;s name badge and they&apos;re added to your lead list.
+          It&apos;s an easy way to keep track of who wants more information, whether that&apos;s
+          about your religious community, a retreat, or something you sell.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Scanning at Your Booth</h3>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Open your vendor portal and click <strong>Open Lead Scanner</strong></li>
+          <li>Optionally type your name so you know who scanned whom</li>
+          <li>Tap <strong>Scan Badge</strong> and point your phone camera at the badge QR code</li>
+          <li>Tap quick tags like <em>Vocations info</em> or <em>Wants more info</em>, add notes, and save</li>
+          <li>Tap <strong>Scan next badge</strong> for the next visitor</li>
+        </ol>
+        <p>
+          Scanning the same person twice doesn&apos;t create a duplicate. It just opens their existing lead.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Booth Staff</h3>
+        <p>
+          Everyone working your booth can scan on their own phone. Copy the <strong>Booth Staff Link</strong>
+          from the Lead Retrieval card in your portal and send it to them. Booth staff can scan badges and add
+          notes and tags. Only the main vendor contact (signed in with the access code) can download the CSV,
+          email leads, or remove a lead.
+        </p>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">What You Get</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Each lead&apos;s <strong>name and email</strong></li>
+          <li>Phone number and parish/group, only if the organizer chooses to share them</li>
+          <li>Your own tags and notes</li>
+        </ul>
+
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mt-4">
+          <p className="text-sm">
+            <strong>Attendees under 18:</strong> you&apos;ll never see a minor&apos;s own contact information.
+            Their lead lists their group leader instead, and when you email them, ChiRho sends your message to the
+            group leader and asks them to pass it along to the family. If several teens from one group stopped by,
+            their leader gets one email listing all of them.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-navy mt-6">Following Up</h3>
+        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
+          <li>Click <strong>Email all leads</strong>, or select some leads first to email just those</li>
+          <li>Emails come from <strong>vendors@chirhoevents.com</strong> under your business name, and replies go straight to your email</li>
+          <li>Each email has an unsubscribe link. Leads who unsubscribe won&apos;t get more emails from you</li>
+          <li>You can email leads until <strong>30 days after the event</strong>, up to 5 sends a day</li>
+          <li>Click <strong>Download CSV</strong> any time to export your full lead list</li>
+        </ul>
+      </div>
+    )
+  },
+
   "vendor-future": {
     title: "Upcoming Vendor Features",
     content: (
@@ -4178,22 +4291,17 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
           we&apos;re working on bringing to ChiRho Events.
         </p>
 
-        <h3 className="text-xl font-semibold text-navy mt-6">Lead Scanning (Coming Soon)</h3>
-        <p>
-          Capture leads directly from event attendees who visit your booth:
-        </p>
-        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
-          <li>Scan attendee badges to capture contact information</li>
-          <li>Add notes about conversations and interests</li>
-          <li>Export leads for follow-up marketing</li>
-          <li>Track engagement metrics</li>
-        </ul>
+        <div className="bg-green-50 border-l-4 border-green-500 p-4">
+          <p className="text-sm">
+            <strong>Now available:</strong> lead scanning. Scan attendee badges at your booth, add notes,
+            then email your leads or download a CSV. See <strong>Scanning Badges for Leads</strong>.
+          </p>
+        </div>
 
         <h3 className="text-xl font-semibold text-navy mt-6">Enhanced Vendor Portal</h3>
         <p>Future portal improvements:</p>
         <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
           <li>Real-time booth traffic analytics</li>
-          <li>Attendee messaging capabilities</li>
           <li>Product/service showcase pages</li>
           <li>Appointment scheduling with attendees</li>
         </ul>

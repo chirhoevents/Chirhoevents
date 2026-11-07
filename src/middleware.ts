@@ -45,6 +45,7 @@ const isPublicRoute = createRouteMatcher([
   '/survey(.*)',  // Survey links - anonymous, the token in the link is the access check
   '/portal(.*)',  // All portal routes (salve, rapha, youth-group) - they handle their own auth
   '/vendor-dashboard(.*)',  // Vendor dashboard - uses access code auth
+  '/vendor-leads(.*)',  // Vendor lead unsubscribe links - the token in the link is the access check
   '/dashboard(.*)',  // All dashboard routes - they handle their own auth
   '/api/poros(.*)',  // Poros participant APIs - public, endpoints handle their own auth
   '/api/user/role',  // Needed by dashboard redirect page
