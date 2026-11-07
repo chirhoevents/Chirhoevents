@@ -403,7 +403,7 @@ export function PorosConfessions({ eventId }: PorosConfessionsProps) {
               onClick={saveGuideUrl}
               disabled={savingGuideUrl}
               variant={guideUrlDirty ? 'default' : 'outline'}
-              className={guideUrlDirty ? 'bg-navy hover:bg-navy/90 animate-pulse-once' : ''}
+              className={guideUrlDirty ? 'bg-navy text-white hover:bg-navy/90 animate-pulse-once' : ''}
             >
               {savingGuideUrl ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

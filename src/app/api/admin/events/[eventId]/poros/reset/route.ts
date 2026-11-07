@@ -49,6 +49,15 @@ export async function POST(
           where: { eventId },
           data: { currentSize: 0 },
         })
+        // The Small Groups screen stores each parish group's meeting room on the
+        // group registration and its SGLs/religious in groupStaffAssignment.
+        await prisma.groupStaffAssignment.deleteMany({
+          where: { groupRegistration: { eventId } },
+        })
+        await prisma.groupRegistration.updateMany({
+          where: { eventId, smallGroupRoomId: { not: null } },
+          data: { smallGroupRoomId: null },
+        })
         return NextResponse.json({ message: 'Small group assignments reset' })
 
       case 'seating':
