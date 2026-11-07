@@ -16,6 +16,8 @@ import { PorosInfo } from '@/components/admin/poros/PorosInfo'
 import { PorosAdoration } from '@/components/admin/poros/PorosAdoration'
 import { GroupAllocations } from '@/components/admin/poros/GroupAllocations'
 import { PorosImport } from '@/components/admin/poros/PorosImport'
+import { PorosGroupNumbers } from '@/components/admin/poros/PorosGroupNumbers'
+import { isGroupDirectoryEvent } from '@/lib/poros-group-directory'
 import {
   LayoutDashboard,
   Home,
@@ -30,7 +32,8 @@ import {
   Upload,
   Church,
   Info,
-  Sun
+  Sun,
+  Hash
 } from 'lucide-react'
 
 interface PorosPortalClientProps {
@@ -67,6 +70,7 @@ export default function PorosPortalClient({
   const confessionsEnabled = settings?.porosConfessionsEnabled ?? false
   const infoEnabled = settings?.porosInfoEnabled ?? false
   const adorationEnabled = settings?.porosAdorationEnabled ?? false
+  const groupNumbersEnabled = isGroupDirectoryEvent(eventId)
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
@@ -127,6 +131,13 @@ export default function PorosPortalClient({
             <TabsTrigger value="meal-groups" className="flex items-center gap-2">
               <Utensils className="w-4 h-4" />
               Meal Groups
+            </TabsTrigger>
+          )}
+
+          {groupNumbersEnabled && (
+            <TabsTrigger value="group-numbers" className="flex items-center gap-2">
+              <Hash className="w-4 h-4" />
+              Group Numbers
             </TabsTrigger>
           )}
 
@@ -210,6 +221,12 @@ export default function PorosPortalClient({
         {mealGroupsEnabled && (
           <TabsContent value="meal-groups">
             <PorosMealGroups eventId={eventId} />
+          </TabsContent>
+        )}
+
+        {groupNumbersEnabled && (
+          <TabsContent value="group-numbers">
+            <PorosGroupNumbers eventId={eventId} />
           </TabsContent>
         )}
 

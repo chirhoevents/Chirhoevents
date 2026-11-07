@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation'
 import PorosPublicClient from './PorosPublicClient'
 import M2KPublicView from '@/components/poros/M2KPublicView'
 import { getConfessions, getInfoItems, getAdorations } from '@/lib/poros-raw-queries'
+import { isGroupDirectoryEvent } from '@/lib/poros-group-directory'
+import { fetchGroupDirectory } from '@/lib/poros-group-directory-server'
+import type { DirectoryGroup } from '@/lib/poros-group-directory'
 
 // M2K specific event - hardcoded for custom portal
 const M2K_EVENT_ID = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1'
@@ -536,6 +539,17 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
     // If no data at all, fall through to regular view
   }
 
+  // Searchable group directory (enabled per event)
+  let groups: DirectoryGroup[] | null = null
+  if (isGroupDirectoryEvent(eventId)) {
+    try {
+      groups = await fetchGroupDirectory(eventId)
+    } catch (error) {
+      console.error('Error loading group directory:', error)
+      groups = []
+    }
+  }
+
   return (
     <PorosPublicClient
       event={{
@@ -555,6 +569,7 @@ export default async function PorosPublicEventPage({ params }: PageProps) {
       adorations={adorations}
       seatingEnabled={settings?.porosSeatingEnabled ?? false}
       schedulePdfUrl={schedulePdf?.url || null}
+      groups={groups}
     />
   )
 }
