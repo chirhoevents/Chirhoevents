@@ -88,12 +88,20 @@ export async function POST(request: NextRequest) {
       user_agent: request.headers.get('user-agent') || 'unknown',
     }
 
-    // Staff registration (STF- prefix)
-    if (access_code.startsWith('STF-')) {
-      const staffRegistration = await prisma.staffRegistration.findUnique({
-        where: { porosAccessCode: access_code },
-        include: { event: { include: { organization: true, settings: true } } },
-      })
+    // Staff registration (STF- prefix) or vendor contact (VNDPOR- prefix,
+    // issued at vendor approval). Both are adults completing their own form;
+    // religious sisters/brothers running a vendor booth need the clergy form.
+    if (access_code.startsWith('STF-') || access_code.startsWith('VNDPOR-')) {
+      const isVendorContact = access_code.startsWith('VNDPOR-')
+      const staffRegistration = isVendorContact
+        ? await prisma.vendorRegistration.findUnique({
+            where: { porosAccessCode: access_code },
+            include: { event: { include: { organization: true, settings: true } } },
+          })
+        : await prisma.staffRegistration.findUnique({
+            where: { porosAccessCode: access_code },
+            include: { event: { include: { organization: true, settings: true } } },
+          })
 
       if (!staffRegistration) {
         return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
@@ -157,10 +165,17 @@ export async function POST(request: NextRequest) {
         include: { event: true },
       })
 
-      await prisma.staffRegistration.update({
-        where: { id: staffRegistration.id },
-        data: { liabilityFormId: staffLiabilityForm.id },
-      })
+      if (isVendorContact) {
+        await prisma.vendorRegistration.update({
+          where: { id: staffRegistration.id },
+          data: { liabilityFormId: staffLiabilityForm.id },
+        })
+      } else {
+        await prisma.staffRegistration.update({
+          where: { id: staffRegistration.id },
+          data: { liabilityFormId: staffLiabilityForm.id },
+        })
+      }
 
       const pdfUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/liability/forms/${staffLiabilityForm.id}/pdf`
       await prisma.liabilityForm.update({ where: { id: staffLiabilityForm.id }, data: { pdfUrl } })

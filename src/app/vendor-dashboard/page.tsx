@@ -463,7 +463,12 @@ function VendorPortalContent() {
                   Your Vendor Code
                 </h2>
                 <p className="text-[#6B7280] mb-4">
-                  Share this code with your booth staff so they can register for the event.
+                  One code for your whole booth. Share it with your booth staff so they can register for the
+                  event. If the event requires liability forms, you and your staff all use this same code at{' '}
+                  <Link href={`/poros?code=${encodeURIComponent(vendor.vendorCode)}`} className="text-[#1E3A5F] underline">
+                    Poros
+                  </Link>{' '}
+                  and tap your own name.
                 </p>
                 <div className="flex items-center gap-3 bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB]">
                   <code className="text-2xl font-mono font-bold text-[#1E3A5F] tracking-wider flex-1">

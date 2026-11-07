@@ -4213,12 +4213,20 @@ const docContent: Record<string, { title: string; content: React.ReactNode }> = 
         </ul>
 
         <h3 className="text-xl font-semibold text-navy mt-6">Staff Liability Forms</h3>
-        <p>If required by the event, staff must complete liability forms:</p>
-        <ul className="list-disc list-inside space-y-2 text-gray-600 mt-2">
-          <li>Form link is sent via email after registration</li>
-          <li>Must be completed before check-in</li>
-          <li>Includes medical and emergency contact information</li>
-        </ul>
+        <p>
+          If the event requires liability forms, your <strong>vendor code works like a group access code</strong>:
+          one code for the whole booth.
+        </p>
+        <ol className="list-decimal list-inside space-y-2 text-gray-600 mt-2">
+          <li>Staff register first, using the vendor code</li>
+          <li>Everyone (you included) goes to <strong>chirhoevents.com/poros</strong> and enters the vendor code</li>
+          <li>Each person taps their own name and fills out their own form</li>
+          <li>Completed forms are marked done and can&apos;t be reopened by anyone else</li>
+        </ol>
+        <p>
+          Each staff member also gets a personal liability form code in their registration email; either one works.
+          Forms must be completed before check-in and include medical and emergency contact information.
+        </p>
       </div>
     )
   },

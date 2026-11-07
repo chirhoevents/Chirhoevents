@@ -124,6 +124,29 @@ export async function POST(request: NextRequest) {
           participantName = participantName ?? `${reg.firstName} ${reg.lastName}`
         }
       }
+    } else if (accessCode.startsWith('STF-') || accessCode.startsWith('VNDPOR-')) {
+      // Staff / vendor contact: an adult's own code, with their form linked
+      // on the registration itself.
+      const reg = accessCode.startsWith('VNDPOR-')
+        ? await prisma.vendorRegistration
+            .findUnique({
+              where: { porosAccessCode: accessCode },
+              select: { eventId: true, organizationId: true, liabilityFormId: true, contactFirstName: true, contactLastName: true },
+            })
+            .then((r) => r && { ...r, name: `${r.contactFirstName} ${r.contactLastName}` })
+        : await prisma.staffRegistration
+            .findUnique({
+              where: { porosAccessCode: accessCode },
+              select: { eventId: true, organizationId: true, liabilityFormId: true, firstName: true, lastName: true },
+            })
+            .then((r) => r && { ...r, name: `${r.firstName} ${r.lastName}` })
+      if (!reg) {
+        return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
+      }
+      eventId = reg.eventId
+      organizationId = reg.organizationId
+      if (!liabilityFormId && reg.liabilityFormId) liabilityFormId = reg.liabilityFormId
+      participantName = participantName ?? reg.name
     } else {
       const reg = await prisma.groupRegistration.findUnique({
         where: { accessCode },

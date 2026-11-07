@@ -38,7 +38,24 @@ interface StaffData {
   autoFormType: 'youth_o18_chaperone'
 }
 
-type PortalData = GroupData | IndividualData | StaffData
+interface VendorBoothPerson {
+  name: string
+  role: string
+  completed: boolean
+  /** That person's own form code; only present while their form is still open */
+  formCode: string | null
+}
+
+interface VendorBoothData {
+  registrationType: 'vendor_booth'
+  vendorName: string
+  eventName: string
+  eventDates: string
+  registerStaffUrl: string
+  people: VendorBoothPerson[]
+}
+
+type PortalData = GroupData | IndividualData | StaffData | VendorBoothData
 
 export default function PorosRoleSelection() {
   const params = useParams()
@@ -91,6 +108,15 @@ export default function PorosRoleSelection() {
             eventDates: data.eventDates,
             formCompleted: data.formCompleted,
             autoFormType: data.autoFormType,
+          })
+        } else if (data.registrationType === 'vendor_booth') {
+          setPortalData({
+            registrationType: 'vendor_booth',
+            vendorName: data.vendorName,
+            eventName: data.eventName,
+            eventDates: data.eventDates,
+            registerStaffUrl: data.registerStaffUrl,
+            people: Array.isArray(data.people) ? data.people : [],
           })
         } else if (data.registrationType === 'staff') {
           if (data.formCompleted) {
@@ -357,6 +383,99 @@ export default function PorosRoleSelection() {
   }
 
   // Staff Registration Flow - Show role selector (Adult/Volunteer or Clergy)
+  if (portalData.registrationType === 'vendor_booth') {
+    const pending = portalData.people.filter((p) => !p.completed)
+    const done = portalData.people.filter((p) => p.completed)
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-navy py-6 shadow-md">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center">
+              <Link href="/poros">
+                <Image
+                  src="/Poros logo.png"
+                  alt="Poros - ChiRho Events"
+                  width={350}
+                  height={105}
+                  className="h-16 md:h-20 w-auto cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-navy mb-3">Fill Out Your Liability Form</h1>
+              <p className="text-xl text-gray-700 mb-1">{portalData.eventName}</p>
+              <p className="text-lg text-gray-600 mb-2">{portalData.eventDates}</p>
+              <p className="text-gray-500">Vendor booth: <strong className="text-navy">{portalData.vendorName}</strong></p>
+            </div>
+
+            <h2 className="text-2xl font-semibold text-navy text-center mb-2">Who are you?</h2>
+            <p className="text-center text-gray-600 mb-6">
+              Tap your own name. Everyone on the booth fills out their own form.
+            </p>
+
+            {pending.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-600">
+                {portalData.people.length === 0
+                  ? 'No one from this booth has registered yet.'
+                  : 'Everyone on this booth has completed their form.'}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pending.map((p) => (
+                  <button
+                    key={p.formCode || p.name}
+                    onClick={() => p.formCode && router.push(`/poros/${p.formCode}`)}
+                    className="w-full bg-white border-2 border-gray-200 hover:border-navy hover:shadow-md rounded-xl p-5 flex items-center justify-between text-left transition-all"
+                  >
+                    <span>
+                      <span className="block text-lg font-semibold text-navy">{p.name}</span>
+                      <span className="block text-sm text-gray-600">{p.role}</span>
+                    </span>
+                    <span className="text-navy font-medium flex items-center shrink-0">
+                      Start my form
+                      <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {done.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Already completed</h3>
+                <ul className="bg-white rounded-xl border border-gray-200 divide-y">
+                  {done.map((p) => (
+                    <li key={p.name} className="px-5 py-3 flex items-center justify-between">
+                      <span className="text-gray-700">{p.name}</span>
+                      <span className="text-green-700 text-sm font-medium">✓ Completed</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="mt-8 bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+              <p className="text-sm text-gray-700">
+                <strong>Don&apos;t see your name?</strong> Register as booth staff first using this same vendor code,
+                then come back here.{' '}
+                <Link href={portalData.registerStaffUrl} className="text-navy font-semibold underline">
+                  Register as booth staff
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (portalData.registrationType === 'staff') {
     return (
       <div className="min-h-screen bg-gray-50">

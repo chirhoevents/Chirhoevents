@@ -60,15 +60,16 @@ export async function POST(
 
       ${emailInfoBox(
         `
-        <strong>Vendor Code (share with your booth staff):</strong>
+        <strong>Vendor Code (one code for your whole booth: share it with your booth staff):</strong>
         <div style="font-size:24px;letter-spacing:3px;color:#1E3A5F;margin-top:6px;">${vendor.vendorCode}</div>
+        <p style="margin:8px 0 0 0;font-size:13px;color:#666;">Booth staff register with it${vendor.porosAccessCode ? ', and everyone on the booth (you included) uses it for liability forms' : ''}.</p>
       `,
         'info'
       )}
 
       ${emailInfoBox(
         `
-        <strong>Portal Access Code (for you):</strong>
+        <strong>Portal Access Code (private, for you only):</strong>
         <div style="font-size:24px;letter-spacing:3px;color:#1E3A5F;margin-top:6px;">${vendor.accessCode}</div>
       `,
         'info'
@@ -80,9 +81,9 @@ export async function POST(
         vendor.porosAccessCode
           ? emailInfoBox(
               `
-        <strong>Liability Form Access Code:</strong>
-        <div style="font-size:24px;letter-spacing:3px;color:#1E3A5F;margin-top:6px;">${vendor.porosAccessCode}</div>
-        <p style="margin:8px 0 0 0;font-size:13px;color:#666;">Complete at: <a href="${baseUrl}/poros?code=${vendor.porosAccessCode}" style="color:#1E3A5F;">${baseUrl}/poros?code=${vendor.porosAccessCode}</a></p>
+        <strong>Liability Forms:</strong>
+        <p style="margin:6px 0 0 0;font-size:14px;color:#444;">Use your vendor code <strong>${vendor.vendorCode}</strong>, tap your name, and fill out your own form. Booth staff do the same once they've registered.</p>
+        <p style="margin:8px 0 0 0;font-size:13px;color:#666;">Complete at: <a href="${baseUrl}/poros?code=${vendor.vendorCode}" style="color:#1E3A5F;">${baseUrl}/poros?code=${vendor.vendorCode}</a></p>
       `,
               'warning'
             )

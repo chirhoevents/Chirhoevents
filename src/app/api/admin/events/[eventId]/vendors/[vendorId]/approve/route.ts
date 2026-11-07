@@ -109,7 +109,10 @@ export async function POST(
         'https://chirhoevents.com'
       const portalUrl = `${baseUrl}/vendor-dashboard?code=${vendor.accessCode}`
       const staffRegUrl = `${baseUrl}/events/${vendor.event.slug}/register-staff`
-      const liabilityUrl = porosAccessCode ? `${baseUrl}/poros?code=${porosAccessCode}` : null
+      // One code for the whole booth (like a group access code): the vendor
+      // code opens the booth's liability-form page in Poros, where everyone,
+      // the vendor contact included, picks their own name.
+      const liabilityUrl = porosAccessCode ? `${baseUrl}/poros?code=${vendor.vendorCode}` : null
       const supportEmail = resolveReplyTo(vendor.event.settings, vendor.event.organization)
 
       const emailContent = wrapEmail(`
@@ -128,14 +131,14 @@ export async function POST(
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #e8f4fd; border-radius: 8px; padding: 20px; text-align: center;">
           <tr>
             <td>
-              <p style="margin: 0; font-size: 14px; color: #666;">Share this code with your booth staff</p>
+              <p style="margin: 0; font-size: 14px; color: #666;">One code for your whole booth: share it with your booth staff</p>
               <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1E3A5F;">${vendor.vendorCode}</p>
             </td>
           </tr>
         </table>
 
         <h2>Staff Registration</h2>
-        <p>Your booth staff should register using this link and enter the vendor code above:</p>
+        <p>Your booth staff should register using this link and enter the vendor code above${porosAccessCode ? '. They use the same code afterwards to fill out their liability forms' : ''}:</p>
         ${emailButton('Register Booth Staff', staffRegUrl, 'secondary')}
         <p style="font-size: 14px; color: #666; text-align: center;">
           Or copy this link: <a href="${staffRegUrl}">${staffRegUrl}</a>
@@ -168,16 +171,16 @@ export async function POST(
 
         ${liabilityUrl && porosAccessCode ? `
         <h2>Liability Form &amp; Safe Environment Required</h2>
-        ${emailInfoBox('<strong>Action Required:</strong> This event requires all vendors to complete a liability form and provide a Safe Environment certificate.', 'warning')}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #e8f4fd; border-radius: 8px; padding: 20px; text-align: center;">
-          <tr>
-            <td>
-              <p style="margin: 0; font-size: 14px; color: #666;">Your Liability Form Access Code</p>
-              <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1E3A5F;">${porosAccessCode}</p>
-            </td>
-          </tr>
-        </table>
+        ${emailInfoBox('<strong>Action Required:</strong> This event requires you and every member of your booth staff to complete a liability form and provide a Safe Environment certificate.', 'warning')}
+        <p>
+          Use your vendor code <strong>${vendor.vendorCode}</strong> for liability forms too. Open the link below,
+          tap your name, and fill out your own form. Share the same code and link with your booth staff:
+          once they've registered, they'll find their own names there.
+        </p>
         ${emailButton('Complete Liability Form', liabilityUrl, 'primary')}
+        <p style="font-size: 14px; color: #666; text-align: center;">
+          Or go to <a href="${baseUrl}/poros">${baseUrl}/poros</a> and enter <strong>${vendor.vendorCode}</strong>
+        </p>
         <p style="font-size: 13px; color: #666; text-align: center; margin-top: 8px;">
           Don't have your Safe Environment certificate handy? You can email a copy to
           <a href="mailto:${supportEmail}" style="color: #1E3A5F;">${supportEmail}</a>

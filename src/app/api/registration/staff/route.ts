@@ -321,6 +321,12 @@ export async function POST(request: NextRequest) {
             </td>
           </tr>
         </table>
+        ${isVendorStaff ? `
+        <p style="font-size: 14px; color: #666; text-align: center;">
+          Or use your booth's vendor code <strong>${vendorCode.toUpperCase()}</strong> at
+          ${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://chirhoevents.com'}/poros and tap your name.
+        </p>
+        ` : ''}
         <p style="font-size: 13px; color: #666; text-align: center; margin-top: -8px;">
           You can upload your Safe Environment certificate on the form. Don't have it handy? Email a copy to
           <a href="mailto:${resolveReplyTo(event.settings, event.organization)}" style="color: #1E3A5F;">${resolveReplyTo(event.settings, event.organization)}</a>

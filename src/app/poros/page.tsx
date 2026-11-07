@@ -7,7 +7,7 @@ import Link from 'next/link'
 
 interface GroupInfo {
   displayName: string
-  registrationType: 'group' | 'individual' | 'staff'
+  registrationType: 'group' | 'individual' | 'staff' | 'vendor_booth'
   eventName: string
   eventDates: string
   accessCode: string
@@ -55,6 +55,8 @@ export default function PorosLandingPage() {
       const displayName =
         data.registrationType === 'staff'
           ? data.staffName
+          : data.registrationType === 'vendor_booth'
+          ? data.vendorName
           : data.registrationType === 'individual'
           ? data.participantName
           : data.groupName
@@ -135,7 +137,7 @@ export default function PorosLandingPage() {
                 </div>
 
                 <p className="text-xs text-gray-500 -mt-4">
-                  Staff &amp; volunteer codes begin with <strong>STF-</strong> · Group codes look like <strong>EX2026-GROUPNAME-XXXX</strong>
+                  Staff &amp; volunteer codes begin with <strong>STF-</strong> · Vendor booth codes begin with <strong>VND-</strong> · Group codes look like <strong>EX2026-GROUPNAME-XXXX</strong>
                 </p>
 
                 {error && (
@@ -184,7 +186,7 @@ export default function PorosLandingPage() {
               <div className="bg-gray-50 rounded-lg p-6 mb-8 space-y-3">
                 <div className="flex justify-between items-center pb-3 border-b border-gray-200">
                   <span className="text-gray-600 font-medium">
-                    {groupInfo.registrationType === 'staff' ? 'Name:' : groupInfo.registrationType === 'individual' ? 'Participant:' : 'Group Name:'}
+                    {groupInfo.registrationType === 'staff' ? 'Name:' : groupInfo.registrationType === 'vendor_booth' ? 'Vendor Booth:' : groupInfo.registrationType === 'individual' ? 'Participant:' : 'Group Name:'}
                   </span>
                   <span className="text-navy font-semibold text-right">{groupInfo.displayName}</span>
                 </div>

@@ -3,6 +3,12 @@ import { prisma } from '@/lib/prisma'
 import { checkGroupParticipantCapacity } from '@/lib/group-participant-capacity'
 import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
 
+function formatEventDates(start: Date, end: Date): string {
+  const fmt = (d: Date) =>
+    new Date(d).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+  return `${fmt(start)} - ${fmt(end)}`
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -15,15 +21,128 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Detect vendor codes entered by mistake
-    if (access_code.startsWith('VND-') || access_code.startsWith('VNDACC-')) {
+    // The private vendor-portal login code, entered here by mistake
+    if (access_code.startsWith('VNDACC-')) {
       return NextResponse.json(
         {
           error: 'vendor_code',
-          message: 'That looks like a vendor registration code, not a liability form code. Your liability form code starts with STF- and was sent in your staff registration confirmation email.',
+          message: "That's your private vendor portal code. For liability forms, use your booth's vendor code (it starts with VND-), the same one your booth staff register with.",
         },
         { status: 400 }
       )
+    }
+
+    // Vendor booth code (VND-): works like a group access code. Everyone on
+    // the booth (vendor contact + registered booth staff) uses this one code,
+    // picks their own name, and fills out their own form.
+    if (access_code.startsWith('VND-')) {
+      const vendor = await prisma.vendorRegistration.findUnique({
+        where: { vendorCode: access_code },
+        include: {
+          event: { include: { settings: true } },
+          boothStaff: {
+            select: { firstName: true, lastName: true, role: true, porosAccessCode: true, liabilityFormId: true },
+            orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+          },
+        },
+      })
+
+      if (!vendor || vendor.status !== 'approved') {
+        return NextResponse.json(
+          { error: 'Invalid access code. Please check and try again.' },
+          { status: 404 }
+        )
+      }
+
+      const liabilityRequired =
+        vendor.event.settings?.liabilityFormsRequiredGroup ||
+        vendor.event.settings?.liabilityFormsRequiredIndividual ||
+        false
+      if (!liabilityRequired) {
+        return NextResponse.json(
+          { error: 'Liability forms are not required for this event.' },
+          { status: 400 }
+        )
+      }
+
+      if (hasEventEnded(vendor.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
+      }
+
+      // Each person's own form code is only handed out while their form is
+      // still open; a completed form can't be reopened by a coworker.
+      const people = [
+        ...(vendor.porosAccessCode
+          ? [{
+              name: `${vendor.contactFirstName} ${vendor.contactLastName}`.trim(),
+              role: 'Vendor contact',
+              completed: !!vendor.liabilityFormId,
+              formCode: vendor.liabilityFormId ? null : vendor.porosAccessCode,
+            }]
+          : []),
+        ...vendor.boothStaff
+          .filter((s) => s.porosAccessCode)
+          .map((s) => ({
+            name: `${s.firstName} ${s.lastName}`.trim(),
+            role: s.role || 'Booth staff',
+            completed: !!s.liabilityFormId,
+            formCode: s.liabilityFormId ? null : s.porosAccessCode,
+          })),
+      ]
+
+      return NextResponse.json({
+        success: true,
+        registrationType: 'vendor_booth',
+        vendorName: vendor.businessName,
+        eventName: vendor.event.name,
+        eventDates: formatEventDates(vendor.event.startDate, vendor.event.endDate),
+        registerStaffUrl: `/events/${vendor.event.slug}/register-staff`,
+        people,
+      })
+    }
+
+    // Vendor contact's own liability form code (VNDPOR-, issued at approval).
+    // Same adult self-completion flow as staff.
+    if (access_code.startsWith('VNDPOR-')) {
+      const vendor = await prisma.vendorRegistration.findUnique({
+        where: { porosAccessCode: access_code },
+        include: { event: { include: { settings: true } } },
+      })
+
+      if (!vendor) {
+        return NextResponse.json(
+          { error: 'Invalid access code. Please check and try again.' },
+          { status: 404 }
+        )
+      }
+
+      const liabilityRequired =
+        vendor.event.settings?.liabilityFormsRequiredGroup ||
+        vendor.event.settings?.liabilityFormsRequiredIndividual ||
+        false
+      if (!liabilityRequired) {
+        return NextResponse.json(
+          { error: 'Liability forms are not required for this event.' },
+          { status: 400 }
+        )
+      }
+
+      if (hasEventEnded(vendor.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        registrationType: 'staff',
+        staffId: vendor.id,
+        staffName: `${vendor.contactFirstName} ${vendor.contactLastName}`.trim(),
+        staffEmail: vendor.email,
+        eventId: vendor.event.id,
+        eventName: vendor.event.name,
+        eventDates: formatEventDates(vendor.event.startDate, vendor.event.endDate),
+        autoFormType: 'youth_o18_chaperone',
+        formCompleted: !!vendor.liabilityFormId,
+      })
     }
 
     // Check if this is an individual registration code (starts with "IND-")
