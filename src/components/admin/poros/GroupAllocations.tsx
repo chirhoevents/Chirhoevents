@@ -384,10 +384,13 @@ export function GroupAllocations({ eventId }: GroupAllocationsProps) {
           <div className="flex items-start gap-3">
             <Building2 className="w-5 h-5 text-blue-600 mt-0.5" />
             <div>
-              <h3 className="font-medium text-blue-900">Group Room Allocations</h3>
+              <h3 className="font-medium text-blue-900">Room Blocks for Groups</h3>
               <p className="text-sm text-blue-700 mt-1">
-                Allocate specific rooms to groups before they assign their participants to beds.
-                Group leaders will only see and be able to assign participants to rooms allocated to them.
+                Reserve sleeping rooms for each parish group. Their group leader then places their own
+                participants into beds, and only sees the rooms you reserved for them.
+              </p>
+              <p className="text-sm text-blue-700 mt-1">
+                Want to place people into beds yourself instead? Use <strong>Overnight Housing</strong>.
               </p>
             </div>
           </div>

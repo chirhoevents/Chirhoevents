@@ -45,10 +45,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { toast } from '@/lib/toast'
 
+export type PorosResourcesSection = 'announcements' | 'resources' | 'schedule' | 'confessions'
+
 interface PorosResourcesProps {
   eventId: string
   eventStartDate?: string
   eventEndDate?: string
+  /** Which cards to show. Defaults to all of them. */
+  sections?: PorosResourcesSection[]
 }
 
 interface Resource {
@@ -86,7 +90,8 @@ interface Announcement {
   isActive: boolean
 }
 
-export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosResourcesProps) {
+export function PorosResources({ eventId, eventStartDate, eventEndDate, sections }: PorosResourcesProps) {
+  const show = (section: PorosResourcesSection) => !sections || sections.includes(section)
   const [resources, setResources] = useState<Resource[]>([])
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([])
   const [confessionTimes, setConfessionTimes] = useState<ConfessionTime[]>([])
@@ -593,6 +598,8 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
 
   return (
     <div className="space-y-6">
+      {!sections && (
+        <>
       {/* Info Card */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="pt-4">
@@ -607,6 +614,11 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
         </CardContent>
       </Card>
 
+        </>
+      )}
+
+      {show('announcements') && (
+        <>
       {/* Announcements Section */}
       <Card>
         <CardHeader>
@@ -694,6 +706,11 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
         </CardContent>
       </Card>
 
+        </>
+      )}
+
+      {show('resources') && (
+        <>
       {/* Resources Section */}
       <Card>
         <CardHeader>
@@ -762,6 +779,11 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
         </CardContent>
       </Card>
 
+        </>
+      )}
+
+      {show('schedule') && (
+        <>
       {/* Schedule Section */}
       <Card>
         <CardHeader>
@@ -860,6 +882,11 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
         </CardContent>
       </Card>
 
+        </>
+      )}
+
+      {show('confessions') && (
+        <>
       {/* Confession Schedule Section */}
       <Card>
         <CardHeader>
@@ -985,6 +1012,9 @@ export function PorosResources({ eventId, eventStartDate, eventEndDate }: PorosR
           )}
         </CardContent>
       </Card>
+
+        </>
+      )}
 
       {/* Confession Time Dialog */}
       <Dialog open={confessionDialogOpen} onOpenChange={setConfessionDialogOpen}>
