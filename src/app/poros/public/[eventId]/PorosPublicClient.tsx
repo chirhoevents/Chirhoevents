@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { parseDateOnly } from '@/lib/utils'
+import type { DirectoryGroup } from '@/lib/poros-group-directory'
+import { GroupCard, GroupSearchInput, filterDirectoryGroups, useFavoriteGroups } from './GroupDirectory'
 
 interface ScheduleEntry {
   id: string
@@ -84,6 +86,8 @@ interface Props {
   adorations: Adoration[]
   seatingEnabled: boolean
   schedulePdfUrl: string | null
+  // Searchable group directory; null/undefined when not enabled for this event
+  groups?: DirectoryGroup[] | null
 }
 
 const MEAL_COLORS: Record<string, string> = {
@@ -109,9 +113,27 @@ export default function PorosPublicClient({
   infoItems,
   adorations,
   seatingEnabled,
-  schedulePdfUrl
+  schedulePdfUrl,
+  groups
 }: Props) {
   const [activeModal, setActiveModal] = useState<string | null>(null)
+  const [groupSearch, setGroupSearch] = useState('')
+  const [allGroupsSearch, setAllGroupsSearch] = useState('')
+  const { favorites, toggle: toggleFavorite } = useFavoriteGroups(event.id)
+  const directoryEnabled = Array.isArray(groups)
+  const searching = directoryEnabled && groupSearch.trim() !== ''
+  const searchResults = useMemo(
+    () => (groups ? filterDirectoryGroups(groups, groupSearch) : []),
+    [groups, groupSearch]
+  )
+  const allGroupsList = useMemo(
+    () => (groups ? (allGroupsSearch.trim() ? filterDirectoryGroups(groups, allGroupsSearch) : groups) : []),
+    [groups, allGroupsSearch]
+  )
+  const favoriteGroups = useMemo(
+    () => (groups ? groups.filter(g => favorites.includes(g.id)) : []),
+    [groups, favorites]
+  )
   const [dismissedAnnouncements, setDismissedAnnouncements] = useState<Set<string>>(new Set())
 
   // Filter out dismissed announcements
@@ -165,7 +187,10 @@ export default function PorosPublicClient({
   // Order for meal types
   const mealOrder = ['breakfast', 'lunch', 'dinner']
 
-  const closeModal = () => setActiveModal(null)
+  const closeModal = () => {
+    setActiveModal(null)
+    setAllGroupsSearch('')
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#1E3A5F] to-[#0f1f33]">
@@ -236,6 +261,52 @@ export default function PorosPublicClient({
           </div>
         )}
 
+        {/* Group search */}
+        {directoryEnabled && (
+          <div className="mb-6">
+            <GroupSearchInput value={groupSearch} onChange={setGroupSearch} />
+            {searching && (
+              <div className="mt-4 space-y-3">
+                {searchResults.length > 0 ? (
+                  <>
+                    <p className="text-white/70 text-sm">
+                      {searchResults.length} group{searchResults.length === 1 ? '' : 's'} found
+                    </p>
+                    {searchResults.map(group => (
+                      <GroupCard
+                        key={group.id}
+                        group={group}
+                        isFavorite={favorites.includes(group.id)}
+                        onToggleFavorite={toggleFavorite}
+                      />
+                    ))}
+                  </>
+                ) : (
+                  <div className="bg-white/10 rounded-2xl p-4 text-center">
+                    <p className="text-white/70">No groups found</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Starred groups */}
+        {!searching && favoriteGroups.length > 0 && (
+          <div className="mb-6 space-y-3">
+            <h3 className="text-white font-semibold text-center">⭐ My Groups</h3>
+            {favoriteGroups.map(group => (
+              <GroupCard
+                key={group.id}
+                group={group}
+                isFavorite
+                onToggleFavorite={toggleFavorite}
+              />
+            ))}
+          </div>
+        )}
+
+        {!searching && (<>
         {/* Main Action Buttons */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           {/* Schedule */}
@@ -322,6 +393,18 @@ export default function PorosPublicClient({
           )}
         </div>
 
+        {directoryEnabled && (
+          <button
+            onClick={() => setActiveModal('groups')}
+            className="w-full flex items-center justify-center gap-3 p-5 mb-6 rounded-3xl text-white font-semibold text-lg shadow-md bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 active:scale-[0.98] transition-all"
+          >
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            All Groups ({groups!.length})
+          </button>
+        )}
+
         {/* Quick Links from Resources */}
         {resources.length > 0 && (
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-6">
@@ -365,6 +448,7 @@ export default function PorosPublicClient({
             Tap the share button and select &quot;Add to Home Screen&quot;
           </p>
         </div>
+        </>)}
       </main>
 
       {/* Footer */}
@@ -418,6 +502,32 @@ export default function PorosPublicClient({
           ) : (
             <p className="text-center text-gray-500 py-8">
               Schedule information coming soon!
+            </p>
+          )}
+        </Modal>
+      )}
+
+      {/* All Groups Modal */}
+      {activeModal === 'groups' && directoryEnabled && (
+        <Modal onClose={closeModal} title={`All Groups (${groups!.length})`}>
+          <div className="mb-4">
+            <GroupSearchInput value={allGroupsSearch} onChange={setAllGroupsSearch} variant="light" />
+          </div>
+          {allGroupsList.length > 0 ? (
+            <div className="space-y-3">
+              {allGroupsList.map(group => (
+                <div key={group.id} className="border border-gray-100 rounded-2xl">
+                  <GroupCard
+                    group={group}
+                    isFavorite={favorites.includes(group.id)}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 py-8">
+              {groups!.length === 0 ? 'Groups will be posted soon!' : 'No groups found'}
             </p>
           )}
         </Modal>
