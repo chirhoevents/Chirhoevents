@@ -75,6 +75,13 @@ ALTER TABLE "surveys" ADD COLUMN IF NOT EXISTS "scheduled_send_message" TEXT;
 ALTER TABLE "surveys" ADD COLUMN IF NOT EXISTS "scheduled_send_claimed_at" TIMESTAMPTZ(6);
 COMMIT;
 
+-- Vendor lead retrieval toggles (every event_settings query selects these)
+BEGIN;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "vendor_leads_enabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "vendor_leads_share_phone" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "event_settings" ADD COLUMN IF NOT EXISTS "vendor_leads_share_group" BOOLEAN NOT NULL DEFAULT false;
+COMMIT;
+
 -- Drop the old poros_confession_times table if it exists (we use poros_confessions now)
 BEGIN;
 DROP TABLE IF EXISTS "poros_confession_times" CASCADE;
@@ -189,6 +196,16 @@ BEGIN
   -- Get Started form answers (every onboarding request insert writes it)
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='organization_onboarding_requests' AND column_name='needs') THEN
     RAISE EXCEPTION 'Schema drift after db push: organization_onboarding_requests.needs is missing';
+  END IF;
+  -- Vendor lead retrieval
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='event_settings' AND column_name='vendor_leads_enabled') THEN
+    RAISE EXCEPTION 'Schema drift after db push: event_settings.vendor_leads_enabled is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='vendor_leads') THEN
+    RAISE EXCEPTION 'Schema drift after db push: vendor_leads table is missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='vendor_lead_messages') THEN
+    RAISE EXCEPTION 'Schema drift after db push: vendor_lead_messages table is missing';
   END IF;
   -- Scheduled survey sends: every surveys query selects these
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys' AND column_name='scheduled_send_mode') THEN

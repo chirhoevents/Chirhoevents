@@ -462,6 +462,66 @@ export async function loadArchiveSections(base: ArchiveBaseData): Promise<Archiv
       })),
     })
   }
+
+  // ========== Vendor lead retrieval ==========
+  // Every badge vendors scanned at their booths and every follow-up email
+  // they sent through ChiRho. Minors' rows show the adult contact (group
+  // leader / registration contact) — their own contact info is never stored.
+  const [vendorLeads, vendorLeadMessages] = await Promise.all([
+    safe('vendorLeads', prisma.vendorLead.findMany({
+      where: { eventId },
+      include: { vendorRegistration: { select: { businessName: true } } },
+      orderBy: [{ vendorRegistrationId: 'asc' }, { scannedAt: 'asc' }],
+    }), [] as any[]),
+    safe('vendorLeadMessages', prisma.vendorLeadMessage.findMany({
+      where: { eventId },
+      include: { vendorRegistration: { select: { businessName: true } } },
+      orderBy: { createdAt: 'asc' },
+    }), [] as any[]),
+  ])
+  if (vendorLeads.length > 0) {
+    registrationSections.push({
+      title: 'Vendor Leads',
+      subtitle: 'Attendee badges scanned at vendor booths. For minors, the contact shown is the adult follow-up goes to; their own contact info is never shared with vendors.',
+      placement: 'registrations',
+      columns: [
+        { label: 'Vendor', weight: 12 }, { label: 'Attendee', weight: 11 }, { label: 'Type', weight: 7 },
+        { label: 'Email / Contact', weight: 17 }, { label: 'Group / Parish', weight: 12 },
+        { label: 'Tags', weight: 11 }, { label: 'Notes', weight: 15 }, { label: 'Scanned', weight: 9 },
+        { label: 'Unsub.', weight: 4 },
+      ],
+      rows: vendorLeads.map((l: any) => [
+        txt(l.vendorRegistration?.businessName),
+        `${l.firstName} ${l.lastName}`.trim(),
+        `${humanize(l.attendeeType)}${l.isMinor ? ' (minor)' : ''}`,
+        l.isMinor
+          ? `${txt(l.contactName, 'Group leader')}: ${txt(l.contactEmail)}`
+          : [l.email, l.phone].filter(Boolean).join(' · ') || '—',
+        [l.groupName, l.parishName].filter(Boolean).join(' / ') || '—',
+        Array.isArray(l.tags) ? l.tags.join(', ') || '—' : '—',
+        txt(l.notes),
+        `${date(l.scannedAt)}${l.scannedByName ? ` by ${l.scannedByName}` : ''}`,
+        l.unsubscribedAt ? 'Yes' : '',
+      ]),
+    })
+  }
+  if (vendorLeadMessages.length > 0) {
+    registrationSections.push({
+      title: 'Vendor Lead Emails',
+      subtitle: 'Follow-up emails vendors sent to their leads through ChiRho (from the vendors@ sender, replies to the vendor).',
+      placement: 'registrations',
+      records: vendorLeadMessages.map((m: any) => ({
+        heading: `${txt(m.vendorRegistration?.businessName)}  ·  ${m.subject}`,
+        keyValues: [
+          ['Sent:', date(m.createdAt)],
+          ['Leads Targeted:', String(Array.isArray(m.leadIds) ? m.leadIds.length : 0)],
+          ['Emails Delivered:', String(m.emailsSent)],
+          ['Emails Failed:', String(m.emailsFailed)],
+          ['Message:', txt(m.body)],
+        ] as Array<[string, string]>,
+      })),
+    })
+  }
   if (base.staff.length > 0) {
     registrationSections.push({
       title: 'Staff & Volunteer Details',

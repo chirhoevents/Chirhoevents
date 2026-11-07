@@ -22,6 +22,7 @@ import {
   Calendar,
   Trash2,
   Loader2,
+  QrCode,
 } from 'lucide-react'
 
 interface VendorData {
@@ -84,6 +85,8 @@ function VendorPortalContent() {
   const [hasFetched, setHasFetched] = useState(false)
   const [paying, setPaying] = useState(false)
   const [paymentMessage, setPaymentMessage] = useState<string | null>(null)
+  const [leadSummary, setLeadSummary] = useState<{ enabled: boolean; count: number; blockedReason: string | null } | null>(null)
+  const [staffLinkCopied, setStaffLinkCopied] = useState(false)
 
   useEffect(() => {
     // Prevent double-fetching
@@ -127,6 +130,21 @@ function VendorPortalContent() {
         setVendor(data.vendor)
         setEvent(data.event)
         setBoothStaff(data.boothStaff || [])
+
+        if (data.vendor.status === 'approved') {
+          fetch(`/api/vendor/leads?code=${encodeURIComponent(accessCode)}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((leads) => {
+              if (leads) {
+                setLeadSummary({
+                  enabled: leads.enabled,
+                  count: Array.isArray(leads.leads) ? leads.leads.length : 0,
+                  blockedReason: leads.blockedReason,
+                })
+              }
+            })
+            .catch(() => {})
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load vendor data')
       } finally {
@@ -471,6 +489,56 @@ function VendorPortalContent() {
                     Staff Registration Page
                   </Button>
                 </Link>
+              </Card>
+            )}
+
+            {/* Lead Retrieval Card - Only show if approved and turned on for the event */}
+            {vendor.status === 'approved' && leadSummary?.enabled && (
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-semibold text-[#1E3A5F]">Lead Retrieval</h2>
+                  <span className="text-[#6B7280]">
+                    {leadSummary.count} {leadSummary.count === 1 ? 'lead' : 'leads'}
+                  </span>
+                </div>
+                <p className="text-[#6B7280] mb-4">
+                  Scan attendees&apos; name badges at your booth to collect leads, add notes, then email them
+                  through ChiRho or download a CSV after the event.
+                </p>
+                <Link href={`/vendor-dashboard/leads?code=${encodeURIComponent(accessCode || '')}`} className="block">
+                  <Button className="w-full bg-[#9C8466] hover:bg-[#8B7355] text-white">
+                    <QrCode className="h-4 w-4 mr-2" />
+                    Open Lead Scanner
+                  </Button>
+                </Link>
+                <div className="mt-4 bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB]">
+                  <p className="text-sm text-[#6B7280] mb-2">
+                    Booth staff link: anyone working your booth can scan with this on their own phone. It
+                    can&apos;t export leads or send emails.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full border-[#1E3A5F] text-[#1E3A5F]"
+                    onClick={() => {
+                      const url = `${window.location.origin}/vendor-dashboard/leads?code=${encodeURIComponent(vendor.vendorCode)}`
+                      navigator.clipboard.writeText(url)
+                      setStaffLinkCopied(true)
+                      setTimeout(() => setStaffLinkCopied(false), 2000)
+                    }}
+                  >
+                    {staffLinkCopied ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Booth Staff Link
+                      </>
+                    )}
+                  </Button>
+                </div>
               </Card>
             )}
 

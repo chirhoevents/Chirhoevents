@@ -563,6 +563,21 @@ export default function FeaturesPage() {
 
                 <Card>
                   <CardHeader>
+                    <CardTitle>Vendor Lead Retrieval</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2 text-gray-600">
+                      <li>• Vendors scan attendee badges at their booth</li>
+                      <li>• Tags & notes on every lead</li>
+                      <li>• Follow-up emails sent safely through ChiRho</li>
+                      <li>• Minors routed through their group leader</li>
+                      <li>• Lead CSVs & admin oversight in the final report</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
                     <CardTitle>Virtual Terminal</CardTitle>
                   </CardHeader>
                   <CardContent>
