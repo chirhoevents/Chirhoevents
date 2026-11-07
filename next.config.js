@@ -48,8 +48,12 @@ const nextConfig = {
             value: '1; mode=block',
           },
           {
+            // camera=(self): ChiRho's own pages may use the camera (SALVE /
+            // Rapha check-in and vendor lead scanners read badge QR codes);
+            // embedded third-party frames still can't. camera=() blocked
+            // every QR scanner on the site in browsers that honour it.
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            value: 'camera=(self), microphone=(), geolocation=()',
           },
         ],
       },
