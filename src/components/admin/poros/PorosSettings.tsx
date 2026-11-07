@@ -449,7 +449,7 @@ export function PorosSettings({ eventId, settings, saving, onToggle, onUpdate }:
             <div>
               <p className="font-medium">Reset Small Group Assignments</p>
               <p className="text-sm text-muted-foreground">
-                Remove all small group assignments
+                Clear every group&apos;s small group meeting room, SGLs, and religious
               </p>
             </div>
             <Button

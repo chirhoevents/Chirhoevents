@@ -71,6 +71,14 @@ export async function GET(
             })
           }
         } : true,
+        // Groups that meet here for small groups, and the group this room is reserved for.
+        // Lets the rooms list show a room as in use even when nobody sleeps in it.
+        smallGroupAssignedGroups: {
+          select: { id: true, groupName: true, totalParticipants: true },
+        },
+        allocatedToGroup: {
+          select: { id: true, groupName: true },
+        },
       },
       orderBy: [{ buildingId: 'asc' }, { floor: 'asc' }, { roomNumber: 'asc' }],
     })

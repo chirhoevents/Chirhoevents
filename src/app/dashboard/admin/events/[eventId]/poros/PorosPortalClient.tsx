@@ -42,6 +42,7 @@ import {
   Globe,
   Megaphone,
   Link as LinkIcon,
+  DoorOpen,
 } from 'lucide-react'
 
 interface PorosPortalClientProps {
@@ -104,7 +105,7 @@ export default function PorosPortalClient({
   const [settings, setSettings] = useState(initialSettings || {})
   const [saving, setSaving] = useState(false)
   const [section, setSection] = useState<Section>('overview')
-  const [roomsTab, setRoomsTab] = useState('housing')
+  const [roomsTab, setRoomsTab] = useState('buildings')
   const [scheduleTab, setScheduleTab] = useState('portal')
 
   // Restore the section from the URL (?section=rooms) so links and refreshes keep your place.
@@ -232,9 +233,17 @@ export default function PorosPortalClient({
         <TabsContent value="rooms" className="space-y-6">
           <PorosSectionIntro
             title="Rooms & Housing"
-            description="Everything that puts people into a physical space. Pick what you're working on below."
+            description="Set up your buildings and rooms once under Buildings & Rooms, then use the other tabs to put people in them."
           >
-            <div className="grid gap-3 md:grid-cols-3 text-sm">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 text-sm">
+              <div className="rounded-lg border p-3">
+                <p className="font-medium text-navy flex items-center gap-2">
+                  <DoorOpen className="w-4 h-4" /> Buildings &amp; Rooms
+                </p>
+                <p className="text-muted-foreground">
+                  Your list of <strong>every building and room</strong>: add, edit, import, and see who&apos;s using each one.
+                </p>
+              </div>
               <div className="rounded-lg border p-3">
                 <p className="font-medium text-navy flex items-center gap-2">
                   <Home className="w-4 h-4" /> Overnight Housing
@@ -262,6 +271,7 @@ export default function PorosPortalClient({
             value={roomsTab}
             onChange={setRoomsTab}
             items={[
+              { value: 'buildings', label: 'Buildings & Rooms', icon: <DoorOpen className="w-4 h-4" /> },
               { value: 'housing', label: 'Overnight Housing', icon: <Home className="w-4 h-4" />, off: !on('porosHousingEnabled') },
               { value: 'room-blocks', label: 'Room Blocks for Groups', icon: <Building2 className="w-4 h-4" />, off: !on('porosHousingEnabled') },
               { value: 'small-groups', label: 'Small Group Meeting Rooms', icon: <Users className="w-4 h-4" />, off: !on('porosSmallGroupEnabled') },
@@ -270,8 +280,9 @@ export default function PorosPortalClient({
             ]}
           />
 
+          {roomsTab === 'buildings' && <PorosHousing eventId={eventId} settings={settings} mode="setup" />}
           {roomsTab === 'housing' &&
-            gate('porosHousingEnabled', <PorosHousing eventId={eventId} settings={settings} />)}
+            gate('porosHousingEnabled', <PorosHousing eventId={eventId} settings={settings} mode="assign" />)}
           {roomsTab === 'room-blocks' &&
             gate('porosHousingEnabled', <GroupAllocations eventId={eventId} />)}
           {roomsTab === 'small-groups' &&

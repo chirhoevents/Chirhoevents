@@ -521,6 +521,7 @@ export function RoomsManager({
                 <TableHead>Floor</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Purpose</TableHead>
+                <TableHead>Used By</TableHead>
                 <TableHead className="text-center">Occupancy</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
@@ -529,6 +530,10 @@ export function RoomsManager({
             <TableBody>
               {filteredRooms.map((room) => {
                 const building = buildings.find(b => b.id === room.buildingId)
+                const meetingGroups = room.smallGroupAssignedGroups || []
+                const meetingCount = meetingGroups.reduce((sum, g) => sum + (g.totalParticipants || 0), 0)
+                const sleepsHere = room.roomPurpose !== 'small_group'
+                const meetsHere = room.roomPurpose === 'small_group' || room.roomPurpose === 'both' || meetingGroups.length > 0
                 return (
                   <TableRow key={room.id}>
                     <TableCell>
@@ -560,27 +565,61 @@ export function RoomsManager({
                         )
                       })()}
                     </TableCell>
+                    <TableCell>
+                      {meetingGroups.length === 0 && !room.allocatedToGroup ? (
+                        <span className="text-muted-foreground">-</span>
+                      ) : (
+                        <div className="space-y-1 text-sm">
+                          {meetingGroups.map((g) => (
+                            <div key={g.id}>
+                              <span className="text-muted-foreground">Small group: </span>
+                              {g.groupName}
+                            </div>
+                          ))}
+                          {room.allocatedToGroup && (
+                            <div>
+                              <span className="text-muted-foreground">Reserved for: </span>
+                              {room.allocatedToGroup.groupName}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <span
-                          className={
-                            room.currentOccupancy >= room.capacity
-                              ? 'text-red-600 font-medium'
-                              : ''
-                          }
-                        >
-                          {room.currentOccupancy}/{room.capacity}
-                        </span>
+                      <div className="space-y-1 text-sm">
+                        {sleepsHere && (
+                          <div className="flex items-center justify-center gap-1" title="People sleeping here">
+                            <Users className="w-4 h-4 text-muted-foreground" />
+                            <span className={room.currentOccupancy >= room.capacity ? 'text-red-600 font-medium' : ''}>
+                              {room.currentOccupancy}/{room.capacity}
+                            </span>
+                            {meetsHere && <span className="text-xs text-muted-foreground">beds</span>}
+                          </div>
+                        )}
+                        {meetsHere && (
+                          <div className="flex items-center justify-center gap-1" title="People meeting here for small groups">
+                            {!sleepsHere && <Users className="w-4 h-4 text-muted-foreground" />}
+                            <span className={meetingCount > room.capacity ? 'text-red-600 font-medium' : ''}>
+                              {meetingCount}/{room.capacity}
+                            </span>
+                            {sleepsHere && <span className="text-xs text-muted-foreground">meeting</span>}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       {!room.isAvailable ? (
                         <Badge variant="secondary">Unavailable</Badge>
-                      ) : room.currentOccupancy >= room.capacity ? (
+                      ) : sleepsHere && room.currentOccupancy >= room.capacity ? (
                         <Badge className="bg-red-100 text-red-800">Full</Badge>
-                      ) : room.currentOccupancy > 0 ? (
+                      ) : meetingCount > room.capacity ? (
+                        <Badge className="bg-red-100 text-red-800">Over capacity</Badge>
+                      ) : sleepsHere && room.currentOccupancy > 0 ? (
                         <Badge className="bg-yellow-100 text-yellow-800">Partial</Badge>
+                      ) : meetingGroups.length > 0 ? (
+                        <Badge className="bg-purple-100 text-purple-800">In use</Badge>
+                      ) : room.allocatedToGroup ? (
+                        <Badge className="bg-amber-100 text-amber-800">Reserved</Badge>
                       ) : (
                         <Badge className="bg-green-100 text-green-800">Available</Badge>
                       )}

@@ -24,6 +24,12 @@ import { toast } from '@/lib/toast'
 interface PorosHousingProps {
   eventId: string
   settings: any
+  /**
+   * setup:  manage buildings & rooms (import/export, posters)
+   * assign: place groups / individuals into beds
+   * Omit to show everything (legacy layout).
+   */
+  mode?: 'setup' | 'assign'
 }
 
 export interface Building {
@@ -57,6 +63,10 @@ export interface Room {
   isAdaAccessible: boolean
   building?: Building
   assignments?: RoomAssignment[]
+  /** Parish groups that meet in this room for small groups */
+  smallGroupAssignedGroups?: { id: string; groupName: string; totalParticipants?: number }[]
+  /** Parish group this room is reserved for (Room Blocks for Groups) */
+  allocatedToGroup?: { id: string; groupName: string } | null
 }
 
 export interface RoomAssignment {
@@ -88,11 +98,13 @@ export interface RoomAssignment {
   }
 }
 
-export function PorosHousing({ eventId, settings }: PorosHousingProps) {
+export function PorosHousing({ eventId, settings, mode }: PorosHousingProps) {
+  const showSetup = mode !== 'assign'
+  const showAssign = mode !== 'setup'
   const [buildings, setBuildings] = useState<Building[]>([])
   const [rooms, setRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('group-assignments')
+  const [activeTab, setActiveTab] = useState(mode === 'setup' ? 'rooms' : 'group-assignments')
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
 
   // Import/Export state
@@ -247,7 +259,8 @@ Marian Hall,female,youth_u18,2,102,1,triple,3,false,,`
   return (
     <div className="space-y-6">
       {/* Import/Export Actions */}
-      <div className="flex justify-end gap-2">
+      {showSetup && (
+      <div className="flex flex-wrap justify-end gap-2">
         <Button variant="outline" onClick={handleDownloadTemplate}>
           <FileSpreadsheet className="w-4 h-4 mr-2" />
           Download Template
@@ -269,6 +282,7 @@ Marian Hall,female,youth_u18,2,102,1,triple,3,false,,`
           </Button>
         )}
       </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -347,22 +361,30 @@ Marian Hall,female,youth_u18,2,102,1,triple,3,false,,`
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="group-assignments" className="flex items-center gap-2">
-            <Users2 className="w-4 h-4" />
-            Groups
-          </TabsTrigger>
-          <TabsTrigger value="assignments" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Individuals
-          </TabsTrigger>
-          <TabsTrigger value="rooms" className="flex items-center gap-2">
-            <DoorOpen className="w-4 h-4" />
-            Rooms
-          </TabsTrigger>
-          <TabsTrigger value="buildings" className="flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            Buildings
-          </TabsTrigger>
+          {showAssign && (
+            <>
+              <TabsTrigger value="group-assignments" className="flex items-center gap-2">
+                <Users2 className="w-4 h-4" />
+                Assign by Group
+              </TabsTrigger>
+              <TabsTrigger value="assignments" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Assign Individuals
+              </TabsTrigger>
+            </>
+          )}
+          {showSetup && (
+            <>
+              <TabsTrigger value="rooms" className="flex items-center gap-2">
+                <DoorOpen className="w-4 h-4" />
+                Rooms
+              </TabsTrigger>
+              <TabsTrigger value="buildings" className="flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                Buildings
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         <TabsContent value="group-assignments" className="mt-4">

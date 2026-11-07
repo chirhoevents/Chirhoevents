@@ -366,7 +366,7 @@ export function PorosSmallGroupsSimple({ eventId }: PorosSmallGroupsSimpleProps)
             className="pl-10"
           />
         </div>
-        <Button onClick={() => setShowAutoAssignDialog(true)} className="bg-navy hover:bg-navy/90">
+        <Button onClick={() => setShowAutoAssignDialog(true)} className="bg-navy text-white hover:bg-navy/90">
           <Wand2 className="w-4 h-4 mr-2" />
           Auto-Assign Rooms
         </Button>
