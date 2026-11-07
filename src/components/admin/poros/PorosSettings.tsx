@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -18,31 +16,22 @@ import {
 } from '@/components/ui/dialog'
 import {
   Settings,
-  Home,
-  Grid3X3,
-  Users,
-  Utensils,
-  Church,
-  Globe,
   Trash2,
   Loader2,
   AlertTriangle,
   RefreshCw,
-  Link as LinkIcon,
-  Copy,
-  Check,
-  Mail,
   Upload,
   FileJson,
   X,
-  Info,
-  Sun,
 } from 'lucide-react'
 import { toast } from '@/lib/toast'
+import { POROS_AREAS, POROS_FEATURES, isPorosFeatureOn, type PorosFeatureArea } from './poros-features'
 
 interface PorosSettingsProps {
   eventId: string
   settings: any
+  saving?: boolean
+  onToggle: (key: string, value: boolean) => void
   onUpdate: () => void
 }
 
@@ -50,14 +39,10 @@ interface PorosSettingsProps {
 const M2K_EVENT_ID = 'b9b70d36-ae35-47a0-aeb7-a50df9a598f1'
 const M2K_ORG_ID = '675c8b23-70aa-4d26-b3f7-c4afdf39ebff'
 
-export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: PorosSettingsProps) {
-  const [settings, setSettings] = useState(initialSettings || {})
-  const [saving, setSaving] = useState(false)
+export function PorosSettings({ eventId, settings, saving, onToggle, onUpdate }: PorosSettingsProps) {
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [resetType, setResetType] = useState<string | null>(null)
   const [resetting, setResetting] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
 
   // JSON import state (only for M2K event)
   const [jsonImportData, setJsonImportData] = useState<any>(null)
@@ -82,22 +67,6 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
         .catch(err => console.error('Failed to load existing import:', err))
     }
   }, [eventId, isM2KEvent])
-
-  // Generate the public portal URL
-  const publicPortalUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/poros/public/${eventId}`
-    : `/poros/public/${eventId}`
-
-  async function copyToClipboard() {
-    try {
-      await navigator.clipboard.writeText(publicPortalUrl)
-      setCopied(true)
-      toast.success('Link copied to clipboard!')
-      setTimeout(() => setCopied(false), 2000)
-    } catch (error) {
-      toast.error('Failed to copy link')
-    }
-  }
 
   // JSON file upload handler
   function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
@@ -199,33 +168,6 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
     }
   }
 
-  async function updateSetting(key: string, value: boolean) {
-    const newSettings = { ...settings, [key]: value }
-    setSettings(newSettings)
-
-    setSaving(true)
-    try {
-      const response = await fetch(`/api/admin/events/${eventId}/settings`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [key]: value }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to update setting')
-      }
-
-      toast.success('Setting updated')
-      onUpdate()
-    } catch (error) {
-      // Revert on error - ensure settings is never null
-      setSettings(initialSettings || {})
-      toast.error('Failed to update setting')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   function openResetDialog(type: string) {
     setResetType(type)
     setResetDialogOpen(true)
@@ -259,266 +201,55 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
 
   return (
     <div className="space-y-6">
-      {/* Feature Toggles */}
+      {/* Feature Toggles, grouped by work area */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5" />
-            Feature Settings
+            Features
           </CardTitle>
           <CardDescription>
-            Enable or disable Poros Portal features for this event
+            Every Poros feature in one list. You can also turn each one on or off right inside its own section.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Housing */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Home className="w-5 h-5 text-blue-600" />
-              </div>
+        <CardContent className="space-y-8">
+          {(Object.keys(POROS_AREAS) as PorosFeatureArea[]).map((area) => (
+            <div key={area} className="space-y-3">
               <div>
-                <Label className="text-base font-medium">Housing</Label>
-                <p className="text-sm text-muted-foreground">
-                  Room assignments and building management
-                </p>
+                <h3 className="font-semibold text-navy">{POROS_AREAS[area].label}</h3>
+                <p className="text-sm text-muted-foreground">{POROS_AREAS[area].description}</p>
+              </div>
+              <div className="rounded-lg border divide-y">
+                {POROS_FEATURES.filter((f) => f.area === area).map((feature) => {
+                  const Icon = feature.icon
+                  return (
+                    <div key={feature.key} className="flex items-center justify-between gap-4 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg ${feature.color}`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <Label htmlFor={feature.key} className="text-base font-medium">
+                            {feature.label}
+                          </Label>
+                          <p className="text-sm text-muted-foreground">{feature.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Manage in: <span className="font-medium">{feature.location}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        id={feature.key}
+                        checked={isPorosFeatureOn(settings, feature.key)}
+                        onCheckedChange={(checked) => onToggle(feature.key, checked)}
+                        disabled={saving}
+                      />
+                    </div>
+                  )
+                })}
               </div>
             </div>
-            <Switch
-              checked={settings.porosHousingEnabled ?? true}
-              onCheckedChange={(checked) => updateSetting('porosHousingEnabled', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Seating */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Grid3X3 className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <Label className="text-base font-medium">Seating</Label>
-                <p className="text-sm text-muted-foreground">
-                  Seating sections for Mass and sessions
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.porosSeatingEnabled ?? false}
-              onCheckedChange={(checked) => updateSetting('porosSeatingEnabled', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Small Groups */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Users className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <Label className="text-base font-medium">Small Groups</Label>
-                <p className="text-sm text-muted-foreground">
-                  Small group assignments with SGLs
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.porosSmallGroupEnabled ?? false}
-              onCheckedChange={(checked) => updateSetting('porosSmallGroupEnabled', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Meal Groups */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Utensils className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <Label className="text-base font-medium">Meal Colors</Label>
-                <p className="text-sm text-muted-foreground">
-                  Color-coded meal time assignments
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.porosMealColorsEnabled ?? false}
-              onCheckedChange={(checked) => updateSetting('porosMealColorsEnabled', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Confessions */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Church className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <Label className="text-base font-medium">Confessions</Label>
-                <p className="text-sm text-muted-foreground">
-                  Confession time slots and locations
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.porosConfessionsEnabled ?? false}
-              onCheckedChange={(checked) => updateSetting('porosConfessionsEnabled', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Info */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <Info className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <Label className="text-base font-medium">Info</Label>
-                <p className="text-sm text-muted-foreground">
-                  Custom information items for participants
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.porosInfoEnabled ?? false}
-              onCheckedChange={(checked) => updateSetting('porosInfoEnabled', checked)}
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Adoration */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-rose-100 rounded-lg">
-                <Sun className="w-5 h-5 text-rose-600" />
-              </div>
-              <div>
-                <Label className="text-base font-medium">Adoration</Label>
-                <p className="text-sm text-muted-foreground">
-                  Adoration time slots and locations
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.porosAdorationEnabled ?? false}
-              onCheckedChange={(checked) => updateSetting('porosAdorationEnabled', checked)}
-              disabled={saving}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Public Portal Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="w-5 h-5" />
-            Public Resource Portal
-          </CardTitle>
-          <CardDescription>
-            Settings for the participant-facing portal
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-medium">Enable Public Portal</Label>
-              <p className="text-sm text-muted-foreground">
-                Allow participants to access the public resource portal
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {settings.porosPublicPortalEnabled ? (
-                <Badge className="bg-green-100 text-green-800">Enabled</Badge>
-              ) : (
-                <Badge variant="secondary">Disabled</Badge>
-              )}
-              <Switch
-                checked={settings.porosPublicPortalEnabled ?? false}
-                onCheckedChange={(checked) => updateSetting('porosPublicPortalEnabled', checked)}
-                disabled={saving}
-              />
-            </div>
-          </div>
-
-          {settings.porosPublicPortalEnabled && (
-            <>
-              <Separator />
-
-              {/* Shareable Link Section */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium flex items-center gap-2">
-                  <LinkIcon className="w-4 h-4" />
-                  Shareable Link
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Share this link with participants to access the public portal
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    value={publicPortalUrl}
-                    readOnly
-                    className="flex-1 bg-gray-50 font-mono text-sm"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={copyToClipboard}
-                    className="flex-shrink-0"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="w-4 h-4 mr-2 text-green-600" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4 mr-2" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Email Template Button */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  Send to Participants
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Get an email template to send to your participants
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => setEmailDialogOpen(true)}
-                  className="w-full sm:w-auto"
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  View Email Template
-                </Button>
-              </div>
-            </>
-          )}
+          ))}
         </CardContent>
       </Card>
 
@@ -815,73 +546,6 @@ export function PorosSettings({ eventId, settings: initialSettings, onUpdate }: 
         </DialogContent>
       </Dialog>
 
-      {/* Email Template Dialog */}
-      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              Email Template
-            </DialogTitle>
-            <DialogDescription>
-              Copy this email template to send to your participants
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Subject Line</Label>
-              <div className="mt-1 p-3 bg-gray-50 rounded-lg border text-sm">
-                Event Resources Now Available - Access Your Portal
-              </div>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Email Body</Label>
-              <div className="mt-1 p-4 bg-gray-50 rounded-lg border text-sm space-y-3 whitespace-pre-line">
-                <p>Hello!</p>
-                <p>We&apos;re excited to share that the event resource portal is now available. You can access schedules, meal times, campus maps, and other important information all in one place.</p>
-                <p><strong>Access the portal here:</strong></p>
-                <p className="text-blue-600 break-all">{publicPortalUrl}</p>
-                <p><strong>Tip:</strong> Add this page to your home screen for quick access during the event! Just tap the share button on your phone and select &quot;Add to Home Screen.&quot;</p>
-                <p>If you have any questions, please don&apos;t hesitate to reach out.</p>
-                <p>See you soon!</p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={async () => {
-                const emailText = `Subject: Event Resources Now Available - Access Your Portal
-
-Hello!
-
-We're excited to share that the event resource portal is now available. You can access schedules, meal times, campus maps, and other important information all in one place.
-
-Access the portal here:
-${publicPortalUrl}
-
-Tip: Add this page to your home screen for quick access during the event! Just tap the share button on your phone and select "Add to Home Screen."
-
-If you have any questions, please don't hesitate to reach out.
-
-See you soon!`
-                try {
-                  await navigator.clipboard.writeText(emailText)
-                  toast.success('Email template copied!')
-                } catch {
-                  toast.error('Failed to copy')
-                }
-              }}
-            >
-              <Copy className="w-4 h-4 mr-2" />
-              Copy Email
-            </Button>
-            <Button onClick={() => setEmailDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
