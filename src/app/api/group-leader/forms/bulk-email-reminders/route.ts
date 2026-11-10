@@ -72,6 +72,8 @@ export async function POST(req: NextRequest) {
         },
         liabilityFormCompleted: false,
         participantType: 'youth_u18',
+        // A mislabeled adult (e.g. "youth u18" aged 60) never gets a parent link
+        age: { lt: 18 },
         parentEmail: { not: null },
       },
       include: {
@@ -137,6 +139,7 @@ export async function POST(req: NextRequest) {
         participantId: null,
         completed: false,
         formType: 'youth_u18',
+        OR: [{ participantAge: null }, { participantAge: { lt: 18 } }],
         parentEmail: { not: null },
         groupRegistration: {
           is: { clerkUserId: userId },

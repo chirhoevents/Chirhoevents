@@ -6,6 +6,7 @@ import { Resend } from '@/lib/resend'
 import { randomUUID } from 'crypto'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { hasEventEnded, EVENT_ENDED_ADMIN_RESEND_MESSAGE } from '@/lib/event-ended'
+import { isParentFormForAdult, NOT_A_MINOR_PARENT_FORM_MESSAGE } from '@/lib/youth-age'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -65,6 +66,19 @@ export async function POST(
 
     if (form.formType !== 'youth_u18') {
       return NextResponse.json({ error: 'This form is not a youth under-18 form' }, { status: 400 })
+    }
+
+    // A youth-u18 form can still be attached to an adult — e.g. one created by
+    // the old group-leader "Resend Email" button on a chaperone's row. Don't
+    // keep mailing parent-consent links for those.
+    const linkedParticipant = form.participantId
+      ? await prisma.participant.findUnique({
+          where: { id: form.participantId },
+          select: { participantType: true, age: true },
+        })
+      : null
+    if (isParentFormForAdult(form, linkedParticipant)) {
+      return NextResponse.json({ error: NOT_A_MINOR_PARENT_FORM_MESSAGE }, { status: 400 })
     }
 
     const targetParentEmail = overrideParentEmail || form.parentEmail

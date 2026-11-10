@@ -5,6 +5,7 @@ import { Resend } from '@/lib/resend'
 import { getClerkUserIdFromRequest } from '@/lib/jwt-auth-helper'
 import { rejectIfGroupEventEnded } from '@/lib/group-leader-read-only'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { canReceiveParentConsentForm, NOT_A_MINOR_PARENT_FORM_MESSAGE } from '@/lib/youth-age'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -71,6 +72,23 @@ export async function POST(req: NextRequest) {
       const readOnly = await rejectIfGroupEventEnded(participant.groupRegistrationId)
       if (readOnly) return readOnly
 
+      // This used to run for anyone on the roster. Clicking "Resend Email" on an
+      // adult chaperone's completed row prompted for an address and then created
+      // a brand-new Youth Under 18 form for them (e.g. "Age 60 | youth u18,
+      // waiting on parent") and emailed out a parent-consent link.
+      if (!canReceiveParentConsentForm(participant)) {
+        return NextResponse.json({ error: NOT_A_MINOR_PARENT_FORM_MESSAGE }, { status: 400 })
+      }
+
+      // A signed form is done — creating another blank one just leaves a stray
+      // "waiting on parent" duplicate next to the completed entry.
+      if (participant.liabilityFormCompleted) {
+        return NextResponse.json(
+          { error: "This participant's liability form is already completed and signed, so there is nothing to resend." },
+          { status: 400 }
+        )
+      }
+
       firstName = participant.firstName
       lastName = participant.lastName
       event = participant.groupRegistration.event
@@ -132,6 +150,7 @@ export async function POST(req: NextRequest) {
           id: participantId,
           participantId: null,
           completed: false,
+          formType: 'youth_u18',
           groupRegistration: {
             clerkUserId: userId,
           },

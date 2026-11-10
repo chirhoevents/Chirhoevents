@@ -44,8 +44,17 @@ export async function DELETE(
 
     await prisma.liabilityForm.delete({ where: { id: formId } })
 
-    // Keep the roster's completed flag in sync if this was a group participant's form
-    if (form.participantId) {
+    // Keep the roster's completed flag in sync if this was a group participant's
+    // form. Only when the deleted form was the signed one, though: deleting a
+    // stray pending form (e.g. a parent link mistakenly created for a chaperone
+    // who already signed their own form) must not mark the person incomplete.
+    const otherCompletedForm = form.participantId && form.completed
+      ? await prisma.liabilityForm.findFirst({
+          where: { participantId: form.participantId, completed: true },
+          select: { id: true },
+        })
+      : null
+    if (form.participantId && form.completed && !otherCompletedForm) {
       await prisma.participant.update({
         where: { id: form.participantId },
         data: { liabilityFormCompleted: false, liabilityFormUrl: null },

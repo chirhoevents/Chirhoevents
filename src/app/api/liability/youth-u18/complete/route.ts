@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { POROS_FROM } from '@/lib/poros-email'
 import { prisma } from '@/lib/prisma'
-import { CANCELLED_REGISTRATION_FORM_MESSAGE, isLiabilityFormRegistrationCancelled } from '@/lib/liability-form-registration'
+import { CANCELLED_REGISTRATION_FORM_MESSAGE, isLiabilityFormRegistrationCancelled, isStrayParentForm, STRAY_PARENT_LINK_MESSAGE } from '@/lib/liability-form-registration'
 import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
 import { Resend } from '@/lib/resend'
 import { generateLiabilityFormPDF } from '@/lib/pdf/generate-liability-form-pdf'
@@ -83,6 +83,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (await isStrayParentForm(liabilityForm)) {
+      return NextResponse.json({ error: STRAY_PARENT_LINK_MESSAGE }, { status: 410 })
+    }
+
     if (await isLiabilityFormRegistrationCancelled(liabilityForm)) {
       return NextResponse.json({ error: CANCELLED_REGISTRATION_FORM_MESSAGE }, { status: 410 })
     }
@@ -157,28 +161,59 @@ export async function POST(request: NextRequest) {
     let participant: { id: string } | null = null
     if (liabilityForm.groupRegistrationId) {
       const groupRegistrationId = liabilityForm.groupRegistrationId
+      let needsQrCode = true
       // A parent can be completing a form for a group that's already over-invited
       // (more pending forms outstanding than real spots left) — check for a free
       // seat and create the Participant in one transaction, so that if several
       // parents for the same group submit within milliseconds of each other,
       // only as many as there are real spots left actually get through.
       try {
-        participant = await prisma.$transaction(async (tx) => {
-          await assertParticipantSlotAvailable(tx, groupRegistrationId)
-          const created = await tx.participant.create({
-            data: { groupRegistrationId, ...participantData },
-          })
+        const result = await prisma.$transaction(async (tx) => {
+          // Forms sent from the roster (an admin import, or a group leader's
+          // "send to parent") are already attached to a Participant who holds
+          // a spot. Complete that record: creating a new one listed the same
+          // teen twice and needed a second free spot, so a full group got
+          // "no spots available" instead.
+          const linked = liabilityForm.participantId
+            ? await tx.participant.findFirst({
+                where: { id: liabilityForm.participantId, groupRegistrationId },
+                select: { id: true, qrCode: true, tShirtSize: true },
+              })
+            : null
+
+          let target: { id: string }
+          let qrMissing = true
+          if (linked) {
+            const marked = await tx.participant.updateMany({
+              where: { id: linked.id, liabilityFormCompleted: false },
+              data: {
+                liabilityFormCompleted: true,
+                parentEmail: liabilityForm.parentEmail,
+                ...(linked.tShirtSize ? {} : { tShirtSize: liabilityForm.tShirtSize }),
+              },
+            })
+            if (marked.count === 0) throw new FormAlreadyCompletedError()
+            target = { id: linked.id }
+            qrMissing = !linked.qrCode
+          } else {
+            await assertParticipantSlotAvailable(tx, groupRegistrationId)
+            target = await tx.participant.create({
+              data: { groupRegistrationId, ...participantData },
+            })
+          }
           // Same transaction as the Participant: if linking the form fails,
           // the Participant rolls back too, instead of being left behind as a
           // "Complete" entry with no form that the group leader can't delete
           // (and that the parent then duplicates by resubmitting).
           const claimed = await tx.liabilityForm.updateMany({
             where: { id: liabilityForm.id, completed: false },
-            data: { ...completionData, participantId: created.id },
+            data: { ...completionData, participantId: target.id },
           })
           if (claimed.count === 0) throw new FormAlreadyCompletedError()
-          return created
+          return { participant: target, qrMissing }
         })
+        participant = result.participant
+        needsQrCode = result.qrMissing
       } catch (err) {
         if (err instanceof GroupCapacityFullError) {
           return NextResponse.json({ error: GROUP_CAPACITY_FULL_MESSAGE }, { status: 409 })
@@ -189,16 +224,19 @@ export async function POST(request: NextRequest) {
         throw err
       }
 
-      // Generate QR code for participant (used for check-in and medical lookup)
-      try {
-        const qrCode = await generateParticipantQRCode(participant.id)
-        await prisma.participant.update({
-          where: { id: participant.id },
-          data: { qrCode },
-        })
-      } catch (qrError) {
-        console.error('Failed to generate QR code:', qrError)
-        // Continue without failing - QR code can be generated later
+      // Generate QR code for participant (used for check-in and medical lookup).
+      // A roster participant may already have one printed on a badge — keep it.
+      if (needsQrCode) {
+        try {
+          const qrCode = await generateParticipantQRCode(participant.id)
+          await prisma.participant.update({
+            where: { id: participant.id },
+            data: { qrCode },
+          })
+        } catch (qrError) {
+          console.error('Failed to generate QR code:', qrError)
+          // Continue without failing - QR code can be generated later
+        }
       }
     }
 
