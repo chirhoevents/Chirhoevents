@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { secureFileLink } from '@/lib/r2/private-files'
+import { generateVendorCode, generateVendorAccessCode } from '@/lib/access-code'
+import { logVendorActivity, toCents } from '@/lib/vendor-admin'
+
+interface VendorTier {
+  id: string
+  name: string
+  price: string | number
+  description?: string
+  active?: boolean
+}
 
 export async function GET(
   request: NextRequest,
@@ -23,7 +33,7 @@ export async function GET(
 
     // Fetch vendor registrations
     const vendors = await prisma.vendorRegistration.findMany({
-      where: { eventId },
+      where: { eventId, organizationId: effectiveOrgId },
       include: {
         _count: {
           select: {
@@ -77,7 +87,18 @@ export async function GET(
       })),
     }))
 
-    return NextResponse.json({ vendors: vendorsWithAnswers })
+    const settings = await prisma.eventSettings.findUnique({
+      where: { eventId },
+      select: { vendorTiers: true },
+    })
+    const tiers = ((settings?.vendorTiers as VendorTier[] | null) || []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      price: Number(t.price || 0),
+      active: t.active !== false,
+    }))
+
+    return NextResponse.json({ vendors: vendorsWithAnswers, tiers })
   } catch (error) {
     console.error('Error fetching vendors:', error)
     return NextResponse.json(
@@ -85,4 +106,80 @@ export async function GET(
       { status: 500 }
     )
   }
+}
+
+
+/**
+ * Admin adds a vendor directly (phone/email signups, walk-ins) without the
+ * public form. Created as pending with no email sent; the admin then uses
+ * Review to approve and send the invoice.
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
+  const { eventId } = await params
+  const { error, user, effectiveOrgId } = await verifyEventAccess(request, eventId, {
+    requireAdmin: true,
+    logPrefix: '[Admin Add Vendor]',
+  })
+  if (error) return error
+  if (!user || !effectiveOrgId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const body = await request.json()
+  const required = ['businessName', 'contactFirstName', 'contactLastName', 'email'] as const
+  for (const key of required) {
+    if (!String(body[key] || '').trim()) {
+      return NextResponse.json({ error: `${key} is required` }, { status: 400 })
+    }
+  }
+  const tierPrice = toCents(Number(body.tierPrice || 0))
+  if (!Number.isFinite(tierPrice) || tierPrice < 0) {
+    return NextResponse.json({ error: 'Booth price must be a positive number' }, { status: 400 })
+  }
+
+  const uniqueCode = async (gen: () => string, field: 'vendorCode' | 'accessCode') => {
+    for (let i = 0; i < 5; i++) {
+      const code = gen()
+      const existing = await prisma.vendorRegistration.findFirst({
+        where: { [field]: code },
+        select: { id: true },
+      })
+      if (!existing) return code
+    }
+    throw new Error(`Could not generate a unique ${field}`)
+  }
+
+  const vendor = await prisma.vendorRegistration.create({
+    data: {
+      eventId,
+      organizationId: effectiveOrgId,
+      businessName: String(body.businessName).trim(),
+      contactFirstName: String(body.contactFirstName).trim(),
+      contactLastName: String(body.contactLastName).trim(),
+      email: String(body.email).trim(),
+      phone: String(body.phone || '').trim(),
+      boothDescription: String(body.boothDescription || '').trim(),
+      selectedTier: String(body.selectedTier || '').trim() || 'Custom',
+      tierPrice,
+      additionalNeeds: String(body.additionalNeeds || '').trim() || null,
+      status: 'pending',
+      vendorCode: await uniqueCode(generateVendorCode, 'vendorCode'),
+      accessCode: await uniqueCode(generateVendorAccessCode, 'accessCode'),
+      paymentStatus: 'unpaid',
+      amountPaid: 0,
+    },
+  })
+
+  await logVendorActivity({
+    vendorId: vendor.id,
+    organizationId: effectiveOrgId,
+    userId: user.id,
+    editType: 'info_updated',
+    action: 'created_by_admin',
+  })
+
+  return NextResponse.json({ vendor })
 }

@@ -6,6 +6,7 @@ import { logEmail, logEmailFailure } from '@/lib/email-logger'
 import { wrapEmail, emailButton, emailInfoBox } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { generateVendorPorosCode } from '@/lib/access-code'
+import { deriveVendorPaymentStatus } from '@/lib/vendor-admin'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -97,6 +98,9 @@ export async function POST(
         invoiceLineItems: invoiceLineItems || null,
         invoiceTotal,
         invoiceNotes: invoiceNotes || null,
+        // A re-approval (after "move back to pending") keeps money already
+        // paid, so recompute status against the new invoice total.
+        paymentStatus: deriveVendorPaymentStatus(invoiceTotal, Number(vendor.amountPaid || 0)),
         porosAccessCode,
       },
     })

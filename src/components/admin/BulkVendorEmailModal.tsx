@@ -13,12 +13,25 @@ interface Props {
   eventId: string
   open: boolean
   onClose: () => void
-  counts: { all: number; approved: number; pending: number }
+  counts: { all: number; approved: number; pending: number; unpaid: number }
+  /**
+   * When set, the email goes to exactly these vendors (one vendor, or the
+   * rows checked in the table) instead of a status group.
+   */
+  recipients?: Array<{ id: string; businessName: string }>
+  onSent?: () => void
 }
 
-type Filter = 'all' | 'approved' | 'pending'
+type Filter = 'all' | 'approved' | 'pending' | 'unpaid'
 
-export default function BulkVendorEmailModal({ eventId, open, onClose, counts }: Props) {
+const FILTER_LABELS: Record<Filter, string> = {
+  approved: 'Approved',
+  unpaid: 'Approved with balance due',
+  pending: 'Pending',
+  all: 'All',
+}
+
+export default function BulkVendorEmailModal({ eventId, open, onClose, counts, recipients, onSent }: Props) {
   const { getToken } = useAuth()
   const [status, setStatus] = useState<Filter>('approved')
   const [subject, setSubject] = useState('')
@@ -33,7 +46,8 @@ export default function BulkVendorEmailModal({ eventId, open, onClose, counts }:
     }
   }, [open])
 
-  const recipientCount = counts[status]
+  const targeted = !!recipients && recipients.length > 0
+  const recipientCount = targeted ? recipients!.length : counts[status]
 
   const send = async () => {
     if (!subject.trim() || !message.trim()) {
@@ -56,7 +70,9 @@ export default function BulkVendorEmailModal({ eventId, open, onClose, counts }:
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ subject, message, status }),
+        body: JSON.stringify(
+          targeted ? { subject, message, vendorIds: recipients!.map((r) => r.id) } : { subject, message, status }
+        ),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -65,6 +81,7 @@ export default function BulkVendorEmailModal({ eventId, open, onClose, counts }:
       }
       const data = await res.json()
       alert(`Sent to ${data.sent} of ${data.total} vendor${data.total === 1 ? '' : 's'}${data.failed ? ` (${data.failed} failed)` : ''}.`)
+      onSent?.()
       onClose()
     } finally {
       setSending(false)
@@ -75,24 +92,36 @@ export default function BulkVendorEmailModal({ eventId, open, onClose, counts }:
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Email Vendors</DialogTitle>
+          <DialogTitle>
+            {targeted && recipients!.length === 1 ? `Email ${recipients![0].businessName}` : 'Email Vendors'}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
             <Label className="text-sm font-medium text-[#1E3A5F]">Recipients</Label>
-            <div className="flex gap-2 mt-2">
-              {(['approved', 'pending', 'all'] as Filter[]).map((s) => (
-                <Button
-                  key={s}
-                  size="sm"
-                  variant={status === s ? 'default' : 'outline'}
-                  onClick={() => setStatus(s)}
-                >
-                  {s.charAt(0).toUpperCase() + s.slice(1)} ({counts[s]})
-                </Button>
-              ))}
-            </div>
+            {targeted ? (
+              <div className="flex flex-wrap gap-1 mt-2 max-h-24 overflow-y-auto">
+                {recipients!.map((r) => (
+                  <span key={r.id} className="text-xs bg-gray-100 text-[#1E3A5F] rounded px-2 py-1">
+                    {r.businessName}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(['approved', 'unpaid', 'pending', 'all'] as Filter[]).map((s) => (
+                  <Button
+                    key={s}
+                    size="sm"
+                    variant={status === s ? 'default' : 'outline'}
+                    onClick={() => setStatus(s)}
+                  >
+                    {FILTER_LABELS[s]} ({counts[s]})
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
