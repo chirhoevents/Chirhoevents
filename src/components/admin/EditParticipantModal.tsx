@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, User, Save } from 'lucide-react'
+import { participantTypeAgeMismatch } from '@/lib/youth-age'
 
 interface LiabilityFormData {
   participantPhone?: string
@@ -55,6 +57,7 @@ export default function EditParticipantModal({
   participant,
   onSuccess,
 }: EditParticipantModalProps) {
+  const { getToken } = useAuth()
   const [saving, setSaving] = useState(false)
   const [sendEmail, setSendEmail] = useState(true)
   const [formData, setFormData] = useState({
@@ -153,12 +156,22 @@ export default function EditParticipantModal({
       return
     }
 
+    const typeAgeError = participantTypeAgeMismatch(formData.participantType, age)
+    if (typeAgeError) {
+      alert(typeAgeError)
+      return
+    }
+
     setSaving(true)
 
     try {
+      const token = await getToken()
       const res = await fetch(`/api/admin/participants/${participant.id}/edit`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           // Participant fields
           firstName: formData.firstName,
@@ -199,7 +212,7 @@ export default function EditParticipantModal({
         onSuccess()
         onClose()
       } else {
-        const error = await res.json()
+        const error = await res.json().catch(() => ({}))
         alert(`Error: ${error.error || 'Failed to update participant'}`)
       }
     } catch (error) {

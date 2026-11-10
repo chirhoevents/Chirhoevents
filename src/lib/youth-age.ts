@@ -52,6 +52,29 @@ export function isParentFormForAdult(
   return form.participantAge !== null && form.participantAge >= 18
 }
 
+/**
+ * Why a participant type doesn't fit an age, or null when it does. Mirrors the
+ * liability forms themselves: Youth Under 18 is for under-18s, and the 18+ /
+ * chaperone form rejects anyone under 18. Age 0 means "unknown" (old imports)
+ * and isn't checked. Clergy types aren't age-restricted.
+ */
+export function participantTypeAgeMismatch(
+  participantType: string | null | undefined,
+  age: number | null | undefined
+): string | null {
+  if (typeof age !== 'number' || !Number.isFinite(age) || age <= 0) return null
+  if (participantType === 'youth_u18' && age >= 18) {
+    return `Youth Under 18 is only for participants under 18, but the age is ${age}. Choose Youth Over 18 or Chaperone instead.`
+  }
+  if (participantType === 'youth_o18' && age < 18) {
+    return `Youth Over 18 is only for participants 18 and older, but the age is ${age}. Choose Youth Under 18 instead.`
+  }
+  if (participantType === 'chaperone' && age < 18) {
+    return `Chaperones must be 18 or older, but the age is ${age}.`
+  }
+  return null
+}
+
 export const ADULT_DOB_ON_YOUTH_FORM_MESSAGE =
   'The date of birth entered shows this person is 18 or older. Adults, including chaperones, should go back and choose the "Youth 18+ or Chaperone" form instead.'
 

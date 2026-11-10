@@ -335,6 +335,36 @@ SET "card_payment_disabled" = true
 WHERE "event_id" = '8c7aaf89-6790-4a81-bf6b-33e8dd8586f1';
 COMMIT;
 
+-- Remove stray, never-signed parent-consent (Youth Under 18) forms that are
+-- attached to someone who isn't a minor youth, or whose own form is already
+-- signed. The group leader "Resend Email" button used to create these — e.g. a
+-- 60-year-old chaperone listed a second time as "youth u18, waiting on parent".
+-- The app can't create them any more, so after the first deploy this deletes
+-- nothing. Only unsigned forms that were sent to a parent are touched, never
+-- one a certificate or letter points at, and a failure only logs a notice so
+-- it can never break the build.
+DO $$
+DECLARE removed INTEGER;
+BEGIN
+  DELETE FROM "liability_forms" lf
+  USING "participants" p
+  WHERE lf."participant_id" = p."id"
+    AND lf."form_type" = 'youth_u18'
+    AND lf."completed" = false
+    AND lf."parent_token" IS NOT NULL
+    AND (
+      p."liability_form_completed" = true
+      OR p."participant_type" <> 'youth_u18'
+      OR p."age" >= 18
+    )
+    AND NOT EXISTS (SELECT 1 FROM "safe_environment_certificates" c WHERE c."liability_form_id" = lf."id")
+    AND NOT EXISTS (SELECT 1 FROM "letters_of_good_standing" l WHERE l."liability_form_id" = lf."id");
+  GET DIAGNOSTICS removed = ROW_COUNT;
+  RAISE NOTICE 'Removed % stray parent-consent form(s)', removed;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Stray parent-consent form cleanup skipped: %', SQLERRM;
+END $$;
+
 -- Seed Mount 2000's external card-payment links (Mount Saint Mary's own
 -- Jenzabar portal — not processed by Chirho) the first time, same
 -- guarded-on-NULL pattern as the acknowledgment checklist above, so an

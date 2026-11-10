@@ -9,6 +9,7 @@ import {
   ageFromDateOfBirth,
   canReceiveParentConsentForm,
   isParentFormForAdult,
+  participantTypeAgeMismatch,
 } from '../../src/lib/youth-age'
 
 let failures = 0
@@ -60,6 +61,20 @@ section('Pending parent form that is really for an adult')
     'form linked to a minor youth → not adult',
     !isParentFormForAdult({ participantAge: 14 }, { participantType: 'youth_u18', age: 14 })
   )
+}
+
+section('Participant type must fit the age')
+{
+  check('youth_u18 aged 15 → ok', participantTypeAgeMismatch('youth_u18', 15) === null)
+  check('youth_u18 aged 60 → rejected', participantTypeAgeMismatch('youth_u18', 60) !== null)
+  check('youth_u18 aged 18 → rejected', participantTypeAgeMismatch('youth_u18', 18) !== null)
+  check('youth_o18 aged 18 → ok', participantTypeAgeMismatch('youth_o18', 18) === null)
+  check('youth_o18 aged 16 → rejected', participantTypeAgeMismatch('youth_o18', 16) !== null)
+  check('chaperone aged 45 → ok', participantTypeAgeMismatch('chaperone', 45) === null)
+  check('chaperone aged 16 → rejected', participantTypeAgeMismatch('chaperone', 16) !== null)
+  check('priest of any age → ok', participantTypeAgeMismatch('priest', 30) === null)
+  check('unknown age (0) → not checked', participantTypeAgeMismatch('youth_u18', 0) === null)
+  check('NaN age → not checked', participantTypeAgeMismatch('youth_u18', Number.NaN) === null)
 }
 
 console.log(failures ? `\n  ${failures} check(s) failed\n` : '\n  All checks passed\n')

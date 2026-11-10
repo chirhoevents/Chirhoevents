@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { verifyEventAccessWithPermission } from '@/lib/api-auth'
+import { participantTypeAgeMismatch } from '@/lib/youth-age'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -65,6 +67,26 @@ export async function PUT(
       )
     }
 
+    // /api/admin/* is public in middleware ("admin APIs handle their own
+    // auth"), and this route never did — anyone with a participant id could
+    // rewrite their name, age, type and medical details.
+    const { error: authError } = await verifyEventAccessWithPermission(
+      request,
+      existingParticipant.groupRegistration.eventId,
+      'registrations.edit',
+      { friendlyName: 'Editing participants', logPrefix: '[Edit Participant]' }
+    )
+    if (authError) return authError
+
+    const parsedAge = parseInt(age)
+    const typeAgeError = participantTypeAgeMismatch(
+      participantType ?? existingParticipant.participantType,
+      parsedAge
+    )
+    if (typeAgeError) {
+      return NextResponse.json({ error: typeAgeError }, { status: 400 })
+    }
+
     // Store old values for audit trail
     const oldValues = {
       firstName: existingParticipant.firstName,
@@ -85,7 +107,7 @@ export async function PUT(
         lastName,
         preferredName: preferredName || null,
         email: email || null,
-        age: parseInt(age),
+        age: parsedAge,
         gender,
         participantType,
         tShirtSize: tShirtSize || null,
@@ -124,7 +146,7 @@ export async function PUT(
           participantFirstName: firstName,
           participantLastName: lastName,
           participantPreferredName: preferredName || null,
-          participantAge: parseInt(age),
+          participantAge: parsedAge,
           participantGender: gender,
           participantEmail: email || null,
           participantPhone: liabilityFormData.participantPhone || null,
