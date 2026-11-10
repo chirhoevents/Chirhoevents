@@ -97,6 +97,9 @@ async function main() {
     'app/api/admin/events/[eventId]/vendors/[vendorId]/safe-env-cert/route.ts',
     'app/api/group-leader/certificates/route.ts',
     'app/api/group-leader/certificates/upload/route.ts',
+    'app/api/group-leader/letters/route.ts',
+    'app/api/group-leader/letters/upload/route.ts',
+    'app/api/admin/events/[eventId]/letters-of-good-standing/[letterId]/file/route.ts',
   ]
   for (const route of routesThatReturnFiles) {
     check(`${route} returns secureFileLink`, readSrc(route).includes('secureFileLink('))

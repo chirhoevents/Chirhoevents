@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Save, Loader2, CheckCircle, XCircle, ExternalLink, FileText } from 'lucide-react'
+import { Save, Loader2, CheckCircle, XCircle, ExternalLink, FileText, Upload } from 'lucide-react'
 
 interface LettersTabProps {
   eventId: string
@@ -94,6 +94,10 @@ export function LettersTab({ eventId }: LettersTabProps) {
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // File upload state (attaching a letter received by email/mail)
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<{ id: string; message: string } | null>(null)
 
   const fetchLetters = useCallback(async () => {
     try {
@@ -228,6 +232,45 @@ export function LettersTab({ eventId }: LettersTabProps) {
       console.error(err)
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  async function handleUpload(letterId: string, file: File | undefined) {
+    if (!file) return
+    setUploadError(null)
+    if (!['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
+      setUploadError({ id: letterId, message: 'Only PDF, JPEG, and PNG files are accepted' })
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError({ id: letterId, message: 'File size must be less than 10 MB' })
+      return
+    }
+    setUploadingId(letterId)
+    try {
+      const token = await getToken()
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(
+        `/api/admin/events/${eventId}/letters-of-good-standing/${letterId}/file`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        }
+      )
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error || 'Failed to upload letter')
+      }
+      await fetchLetters()
+    } catch (err) {
+      setUploadError({
+        id: letterId,
+        message: err instanceof Error ? err.message : 'Failed to upload letter',
+      })
+    } finally {
+      setUploadingId(null)
     }
   }
 
@@ -453,10 +496,15 @@ export function LettersTab({ eventId }: LettersTabProps) {
                             {letter.originalFilename}
                           </a>
                         )}
-                        {letter.submissionMethod === 'external_submission' && (
+                        {letter.submissionMethod === 'external_submission' && !letter.fileUrl && (
                           <div className="text-xs text-gray-500">
-                            To: {letter.submittedToContact ?? letter.submittedToEmail ?? '—'}
+                            {letter.submittedToContact || letter.submittedToEmail
+                              ? `To: ${letter.submittedToContact ?? letter.submittedToEmail}`
+                              : 'No file on hand'}
                           </div>
+                        )}
+                        {letter.externalSubmissionNotes && (
+                          <div className="text-xs text-gray-500 mt-1">Note: {letter.externalSubmissionNotes}</div>
                         )}
                         {letter.rejectionReason && (
                           <div className="text-xs text-red-600 mt-1">Reason: {letter.rejectionReason}</div>
@@ -519,6 +567,38 @@ export function LettersTab({ eventId }: LettersTabProps) {
                           <div className="text-xs text-gray-500">
                             By {letter.verifiedBy.firstName} {letter.verifiedBy.lastName}
                           </div>
+                        )}
+                        {!isRejecting && (
+                          <label
+                            className={`mt-1 inline-flex items-center gap-1 text-xs text-[#1E3A5F] hover:underline ${
+                              uploadingId === letter.id ? 'opacity-60 pointer-events-none' : 'cursor-pointer'
+                            }`}
+                            title="Attach a copy of the letter (for example one you received by email) so it is kept in the system and the master report"
+                          >
+                            {uploadingId === letter.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Upload className="w-3 h-3" />
+                            )}
+                            {uploadingId === letter.id
+                              ? 'Uploading...'
+                              : letter.fileUrl
+                                ? 'Replace file'
+                                : 'Upload file'}
+                            <input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              className="hidden"
+                              disabled={uploadingId === letter.id}
+                              onChange={e => {
+                                handleUpload(letter.id, e.target.files?.[0])
+                                e.target.value = ''
+                              }}
+                            />
+                          </label>
+                        )}
+                        {uploadError?.id === letter.id && (
+                          <div className="text-xs text-red-600 mt-1">{uploadError.message}</div>
                         )}
                       </td>
                     </tr>

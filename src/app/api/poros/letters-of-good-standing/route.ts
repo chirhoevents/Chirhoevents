@@ -249,6 +249,19 @@ export async function POST(request: NextRequest) {
       uploadedAt = new Date()
     }
 
+    // ── External submissions: record where the letter was sent ───────────────
+    if (submissionMethod === 'external_submission' && !submittedToContact && !submittedToEmail) {
+      const settings = await prisma.eventSettings.findUnique({
+        where: { eventId },
+        select: {
+          letterOfGoodStandingContactName: true,
+          letterOfGoodStandingContactEmail: true,
+        },
+      })
+      submittedToContact = settings?.letterOfGoodStandingContactName ?? null
+      submittedToEmail = settings?.letterOfGoodStandingContactEmail ?? null
+    }
+
     // ── Derive status from method ─────────────────────────────────────────────
     const newStatus =
       submissionMethod === 'file_upload'
