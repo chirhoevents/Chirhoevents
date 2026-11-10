@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { ageFromDateOfBirth, ADULT_DOB_ON_YOUTH_FORM_MESSAGE } from '@/lib/youth-age'
 
 export default function YouthU18InitialForm() {
   const params = useParams()
@@ -117,6 +118,12 @@ export default function YouthU18InitialForm() {
     // No lower limit: events like first Communion retreats include young children
     if (!(age >= 1 && age <= 17)) {
       setError('Age must be under 18 for Youth Under 18 forms')
+      return
+    }
+
+    const ageFromDob = ageFromDateOfBirth(formData.dateOfBirth)
+    if (ageFromDob !== null && ageFromDob >= 18) {
+      setError(ADULT_DOB_ON_YOUTH_FORM_MESSAGE)
       return
     }
 

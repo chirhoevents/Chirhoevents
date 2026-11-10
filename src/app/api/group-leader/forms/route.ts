@@ -23,8 +23,11 @@ export async function GET(request: NextRequest) {
       include: {
         participants: {
           include: {
+            // Prefer the signed form: a stray pending form created later (e.g. a
+            // parent link sent for someone who already signed) would otherwise
+            // make View/Download show a blank form.
             liabilityForms: {
-              orderBy: { createdAt: 'desc' },
+              orderBy: [{ completed: 'desc' }, { createdAt: 'desc' }],
               take: 1,
             },
           },

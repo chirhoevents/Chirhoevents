@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { checkGroupParticipantCapacity, GROUP_CAPACITY_FULL_MESSAGE } from '@/lib/group-participant-capacity'
 import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
+import { ageFromDateOfBirth, ADULT_DOB_ON_YOUTH_FORM_MESSAGE } from '@/lib/youth-age'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
@@ -57,6 +58,13 @@ export async function POST(request: NextRequest) {
         { error: 'Age must be under 18 for Youth Under 18 forms' },
         { status: 400 }
       )
+    }
+
+    // The typed age above used to be the only check, so an adult's real date
+    // of birth (e.g. 1966) went through as long as the age box said 17 or less.
+    const ageFromDob = ageFromDateOfBirth(date_of_birth)
+    if (ageFromDob !== null && ageFromDob >= 18) {
+      return NextResponse.json({ error: ADULT_DOB_ON_YOUTH_FORM_MESSAGE }, { status: 400 })
     }
 
     // Generate parent token (expires in 7 days)

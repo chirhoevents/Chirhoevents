@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { CANCELLED_REGISTRATION_FORM_MESSAGE, isLiabilityFormRegistrationCancelled } from '@/lib/liability-form-registration'
+import { CANCELLED_REGISTRATION_FORM_MESSAGE, isLiabilityFormRegistrationCancelled, isStrayParentForm, STRAY_PARENT_LINK_MESSAGE } from '@/lib/liability-form-registration'
 import { hasEventEnded, EVENT_ENDED_FORM_MESSAGE } from '@/lib/event-ended'
 
 export async function POST(request: NextRequest) {
@@ -42,6 +42,10 @@ export async function POST(request: NextRequest) {
         { error: 'This form has already been completed.' },
         { status: 400 }
       )
+    }
+
+    if (await isStrayParentForm(liabilityForm)) {
+      return NextResponse.json({ error: STRAY_PARENT_LINK_MESSAGE }, { status: 410 })
     }
 
     if (await isLiabilityFormRegistrationCancelled(liabilityForm)) {

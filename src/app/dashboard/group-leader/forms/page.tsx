@@ -136,27 +136,6 @@ export default function LiabilityFormsPage() {
     }
   }
 
-  const handleResendEmail = async (participantId: string, parentEmail: string | null) => {
-    const email = parentEmail || prompt('Enter email address to send the form link:')
-    if (!email) return
-
-    try {
-      const response = await fetch('/api/group-leader/forms/resend-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participantId, parentEmail: email })
-      })
-      if (response.ok) {
-        alert('Email sent successfully!')
-      } else {
-        alert('Failed to send email')
-      }
-    } catch (error) {
-      console.error('Error resending email:', error)
-      alert('Error sending email')
-    }
-  }
-
   const startEditEmail = (participantId: string, currentEmail: string | null) => {
     setEditingId(participantId)
     setDraftEmail(currentEmail || '')
@@ -177,7 +156,8 @@ export default function LiabilityFormsPage() {
         setEditingId(null)
         fetchForms()
       } else {
-        alert('Failed to send email')
+        const data = await response.json().catch(() => ({}))
+        alert(data.error || 'Failed to send email')
       }
     } catch (error) {
       console.error('Error sending email:', error)
@@ -500,13 +480,6 @@ export default function LiabilityFormsPage() {
                               title="Download PDF"
                             >
                               <Download className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleResendEmail(form.id, form.parentEmail ?? null)}
-                              className="text-[#3B82F6] hover:text-[#2563EB]"
-                              title="Resend Email"
-                            >
-                              <Mail className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteForm(form.id, `${form.firstName} ${form.lastName}`)}

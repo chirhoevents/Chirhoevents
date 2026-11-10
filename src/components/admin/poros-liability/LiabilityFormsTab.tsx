@@ -786,7 +786,7 @@ export function LiabilityFormsTab({ eventId, onUpdate }: LiabilityFormsTabProps)
                     <div className="space-y-2">
                       {group.participants.map((participant, index) => (
                         <ParticipantRow
-                          key={participant.id}
+                          key={participant.formId || participant.id}
                           participant={participant}
                           possibleDuplicate={isPossibleDuplicate(group.participants, index)}
                           eventId={eventId}
