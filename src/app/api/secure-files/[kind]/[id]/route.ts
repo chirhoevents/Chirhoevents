@@ -53,13 +53,19 @@ async function findFile(kind: SecureFileKind, id: string): Promise<FileRecord | 
     case 'letter': {
       const letter = await prisma.letterOfGoodStanding.findUnique({
         where: { id },
-        select: { fileUrl: true, eventId: true, participant: { select: { groupRegistrationId: true } } },
+        select: {
+          fileUrl: true,
+          eventId: true,
+          participant: { select: { groupRegistrationId: true } },
+          liabilityForm: { select: { groupRegistrationId: true } },
+        },
       })
       if (!letter) return null
       return {
         stored: letter.fileUrl,
         eventId: letter.eventId,
-        groupRegistrationId: letter.participant?.groupRegistrationId ?? null,
+        groupRegistrationId:
+          letter.participant?.groupRegistrationId ?? letter.liabilityForm?.groupRegistrationId ?? null,
       }
     }
     case 'staff-cert': {
