@@ -4,13 +4,17 @@ import { Resend } from '@/lib/resend'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { wrapEmail, formatPlainTextForEmail } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
+import { logEmail } from '@/lib/email-logger'
+import { escapeHtml } from '@/lib/vendor-admin'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
 interface Body {
   subject: string
   message: string
-  status?: 'all' | 'approved' | 'pending'
+  status?: 'all' | 'approved' | 'pending' | 'unpaid'
+  /** Send only to these vendors (single vendor or table selection). */
+  vendorIds?: string[]
 }
 
 export async function POST(
@@ -29,20 +33,30 @@ export async function POST(
   }
 
   const body = (await request.json()) as Body
-  const { subject, message, status = 'approved' } = body
+  const { subject, message, status = 'approved', vendorIds } = body
 
   if (!subject?.trim() || !message?.trim()) {
     return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 })
   }
 
-  const statusFilter = status === 'all' ? {} : { status }
+  // Explicit vendorIds win over the status group. "unpaid" = approved
+  // vendors who still owe something (unpaid or partial).
+  const filter =
+    Array.isArray(vendorIds) && vendorIds.length > 0
+      ? { id: { in: vendorIds.map(String) } }
+      : status === 'all'
+        ? {}
+        : status === 'unpaid'
+          ? { status: 'approved' as const, paymentStatus: { in: ['unpaid' as const, 'partial' as const] } }
+          : { status }
 
   const vendors = await prisma.vendorRegistration.findMany({
-    where: { eventId, organizationId: effectiveOrgId, ...statusFilter },
+    where: { eventId, organizationId: effectiveOrgId, ...filter },
     select: {
       id: true,
       businessName: true,
       contactFirstName: true,
+      contactLastName: true,
       email: true,
     },
   })
@@ -69,10 +83,10 @@ export async function POST(
   for (const v of vendors) {
     const html = wrapEmail(
       `
-        <p>Hi ${v.contactFirstName},</p>
+        <p>Hi ${escapeHtml(v.contactFirstName)},</p>
         ${messageHtml}
         <p style="margin-top:24px;font-size:13px;color:#666;">
-          Sent to <strong>${v.businessName}</strong> as a vendor at <strong>${event.name}</strong>.
+          Sent to <strong>${escapeHtml(v.businessName)}</strong> as a vendor at <strong>${escapeHtml(event.name)}</strong>.
         </p>
       `,
       {
@@ -91,6 +105,17 @@ export async function POST(
         html,
       })
       sent++
+      await logEmail({
+        organizationId: event.organizationId,
+        eventId,
+        registrationId: v.id,
+        registrationType: 'vendor',
+        recipientEmail: v.email,
+        recipientName: `${v.contactFirstName} ${v.contactLastName}`,
+        emailType: 'vendor_custom_message',
+        subject,
+        htmlContent: html,
+      })
     } catch (err) {
       console.error('[Vendor Bulk Email] Failed to send to', v.email, err)
       failed++
