@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from '@/lib/resend'
 import { verifyEventAccess } from '@/lib/api-auth'
-import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
+import { wrapEmail } from '@/lib/email-templates'
+import { vendorCodesGuideHtml } from '@/lib/vendor-code-emails'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -50,49 +51,30 @@ export async function POST(
     process.env.NEXT_PUBLIC_BASE_URL ||
     'https://chirhoevents.com'
 
-  const portalUrl = `${baseUrl}/vendor-dashboard?code=${vendor.accessCode}`
+  const supportEmail = resolveReplyTo(vendor.event.settings, vendor.event.organization)
 
   const html = wrapEmail(
     `
-      <h1>Your Vendor Codes</h1>
+      <h1>Your Vendor Codes &amp; Next Steps</h1>
       <p>Hi ${vendor.contactFirstName},</p>
-      <p>Here are your codes for <strong>${vendor.event.name}</strong> — save these somewhere safe.</p>
+      <p>Here is a reminder of the codes for <strong>${vendor.businessName}</strong> at <strong>${vendor.event.name}</strong>, and what each one is for.</p>
 
-      ${emailInfoBox(
-        `
-        <strong>Vendor Code (share with your booth staff):</strong>
-        <div style="font-size:24px;letter-spacing:3px;color:#1E3A5F;margin-top:6px;">${vendor.vendorCode}</div>
-      `,
-        'info'
-      )}
+      ${vendorCodesGuideHtml({
+        baseUrl,
+        eventSlug: vendor.event.slug,
+        eventName: vendor.event.name,
+        vendorCode: vendor.vendorCode,
+        accessCode: vendor.accessCode,
+        porosAccessCode: vendor.porosAccessCode,
+        supportEmail,
+      })}
 
-      ${emailInfoBox(
-        `
-        <strong>Portal Access Code (for you):</strong>
-        <div style="font-size:24px;letter-spacing:3px;color:#1E3A5F;margin-top:6px;">${vendor.accessCode}</div>
-      `,
-        'info'
-      )}
-
-      <p><a href="${portalUrl}" style="color:#1E3A5F;">Open your vendor portal</a></p>
-
-      ${
-        vendor.porosAccessCode
-          ? emailInfoBox(
-              `
-        <strong>Liability Form Access Code:</strong>
-        <div style="font-size:24px;letter-spacing:3px;color:#1E3A5F;margin-top:6px;">${vendor.porosAccessCode}</div>
-        <p style="margin:8px 0 0 0;font-size:13px;color:#666;">Complete at: <a href="${baseUrl}/poros?code=${vendor.porosAccessCode}" style="color:#1E3A5F;">${baseUrl}/poros?code=${vendor.porosAccessCode}</a></p>
-      `,
-              'warning'
-            )
-          : ''
-      }
+      <p style="font-size: 14px; color: #666;">Questions? Just reply to this email.</p>
     `,
     {
       organizationName: vendor.event.organization.name,
       preheader: `Your vendor codes for ${vendor.event.name}`,
-      supportEmail: resolveReplyTo(vendor.event.settings, vendor.event.organization),
+      supportEmail,
     }
   )
 
@@ -101,7 +83,7 @@ export async function POST(
       from: `ChiRho Events <${process.env.RESEND_FROM_EMAIL || 'notifications@chirhoevents.com'}>`,
       reply_to: resolveReplyTo(vendor.event.settings, vendor.event.organization),
       to: vendor.email,
-      subject: `Your Vendor Codes - ${vendor.event.name}`,
+      subject: `Your Vendor Codes & Next Steps - ${vendor.event.name}`,
       html,
     })
   } catch (e) {

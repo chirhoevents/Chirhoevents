@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
                   </td>
                   <td valign="top">
                     <p style="margin: 0; font-weight: bold; color: #1E3A5F;">Approval & Invoice</p>
-                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Once approved, you'll receive your vendor code and invoice for booth payment.</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">Once approved, you'll get an email with your invoice and your codes. It explains what each code is for.</p>
                   </td>
                 </tr>
               </table>
@@ -235,8 +235,8 @@ export async function POST(request: NextRequest) {
                     <div style="width: 32px; height: 32px; background: #1E3A5F; border-radius: 50%; color: white; font-weight: bold; text-align: center; line-height: 32px;">3</div>
                   </td>
                   <td valign="top">
-                    <p style="margin: 0; font-weight: bold; color: #1E3A5F;">Staff Registration</p>
-                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">After payment, share your vendor code with booth staff so they can register.</p>
+                    <p style="margin: 0; font-weight: bold; color: #1E3A5F;">Pay, Forms &amp; Staff Registration</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #666;">After approval, pay your invoice in your vendor portal, complete any required liability form, and send your booth staff their registration link and code. All of this will be spelled out in your approval email.</p>
                   </td>
                 </tr>
               </table>

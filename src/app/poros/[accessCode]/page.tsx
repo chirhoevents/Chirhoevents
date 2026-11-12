@@ -38,7 +38,15 @@ interface StaffData {
   autoFormType: 'youth_o18_chaperone'
 }
 
-type PortalData = GroupData | IndividualData | StaffData
+interface VendorData {
+  registrationType: 'vendor'
+  vendorName: string
+  businessName: string
+  eventName: string
+  eventDates: string
+}
+
+type PortalData = GroupData | IndividualData | StaffData | VendorData
 
 export default function PorosRoleSelection() {
   const params = useParams()
@@ -108,6 +116,20 @@ export default function PorosRoleSelection() {
             eventDates: data.eventDates,
             formCompleted: data.formCompleted,
             autoFormType: 'youth_o18_chaperone',
+          })
+        } else if (data.registrationType === 'vendor') {
+          if (data.formCompleted) {
+            setError('Your liability form has already been completed.')
+            setLoading(false)
+            return
+          }
+
+          setPortalData({
+            registrationType: 'vendor',
+            vendorName: data.vendorName,
+            businessName: data.businessName,
+            eventName: data.eventName,
+            eventDates: data.eventDates,
           })
         } else {
           // Group registration
@@ -196,7 +218,7 @@ export default function PorosRoleSelection() {
   }
 
   const handleStaffContinue = () => {
-    if (!portalData || portalData.registrationType !== 'staff') return
+    if (!portalData || (portalData.registrationType !== 'staff' && portalData.registrationType !== 'vendor')) return
     router.push(`/poros/${accessCode}/forms/youth-o18-chaperone/new?staff=true`)
   }
 
@@ -356,8 +378,10 @@ export default function PorosRoleSelection() {
     )
   }
 
-  // Staff Registration Flow - Show role selector (Adult/Volunteer or Clergy)
-  if (portalData.registrationType === 'staff') {
+  // Staff & Vendor Flow - Show role selector. Vendors only get the adult form
+  // (the clergy form has no vendor submission path).
+  if (portalData.registrationType === 'staff' || portalData.registrationType === 'vendor') {
+    const isVendor = portalData.registrationType === 'vendor'
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="bg-navy py-6 shadow-md">
@@ -382,14 +406,27 @@ export default function PorosRoleSelection() {
               <h1 className="text-4xl font-bold text-navy mb-3">Fill Out Your Liability Form</h1>
               <p className="text-xl text-gray-700 mb-1">{portalData.eventName}</p>
               <p className="text-lg text-gray-600 mb-2">{portalData.eventDates}</p>
-              <p className="text-gray-500">Staff: <strong className="text-navy">{portalData.staffName}</strong></p>
+              <p className="text-gray-500">
+                {isVendor ? 'Vendor' : 'Staff'}:{' '}
+                <strong className="text-navy">
+                  {portalData.registrationType === 'vendor'
+                    ? `${portalData.vendorName} (${portalData.businessName})`
+                    : portalData.staffName}
+                </strong>
+              </p>
+              {isVendor && (
+                <p className="text-sm text-gray-500 mt-3 max-w-xl mx-auto">
+                  This form is for the vendor contact only. Your booth staff will get their own
+                  liability form link when they register for the event.
+                </p>
+              )}
             </div>
 
             <div className="text-center mb-8">
               <h2 className="text-2xl font-semibold text-navy">Which form applies to you?</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            <div className={`grid grid-cols-1 ${isVendor ? '' : 'md:grid-cols-2'} gap-6 max-w-2xl mx-auto`}>
               {/* Adult / Volunteer */}
               <button
                 onClick={handleStaffContinue}
@@ -412,6 +449,7 @@ export default function PorosRoleSelection() {
               </button>
 
               {/* Clergy & Religious */}
+              {!isVendor && (
               <button
                 onClick={() => router.push(`/poros/${accessCode}/forms/clergy/new?staff=true`)}
                 className="bg-purple-50 border-2 border-purple-200 hover:border-purple-400 hover:shadow-lg transform hover:-translate-y-1 rounded-xl p-8 text-center transition-all duration-200"
@@ -431,6 +469,7 @@ export default function PorosRoleSelection() {
                   </svg>
                 </div>
               </button>
+              )}
             </div>
           </div>
         </div>

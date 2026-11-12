@@ -91,8 +91,10 @@ export async function POST(request: NextRequest) {
 
       vendorRegistration = await prisma.vendorRegistration.findFirst({
         where: {
-          vendorCode: vendorCode.toUpperCase(),
-          eventId,
+          vendorCode: String(vendorCode).trim().toUpperCase(),
+          // Use the resolved event id: the emailed link carries the event
+          // slug, and `eventId` here is whatever the page sent (slug or UUID).
+          eventId: event.id,
           status: 'approved',
         },
       })
@@ -161,7 +163,7 @@ export async function POST(request: NextRequest) {
         tshirtSize,
         dietaryRestrictions: dietaryRestrictions || null,
         isVendorStaff: isVendorStaff || false,
-        vendorCode: isVendorStaff ? vendorCode.toUpperCase() : null,
+        vendorCode: isVendorStaff ? String(vendorCode).trim().toUpperCase() : null,
         vendorRegistrationId: vendorRegistration?.id || null,
         pricePaid: totalAmount,
         paymentStatus: totalAmount > 0 ? 'pending' : 'paid',

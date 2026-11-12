@@ -48,6 +48,8 @@ interface VendorData {
   balance: number
   paidAt: string | null
   vendorCode: string
+  porosAccessCode: string | null
+  liabilityFormCompleted: boolean
   createdAt: string
 }
 
@@ -384,6 +386,71 @@ function VendorPortalContent() {
           </div>
         )}
 
+        {/* What you need to do - plain-English checklist */}
+        {vendor.status === 'approved' && (
+          <Card className="p-6 mb-6">
+            <h2 className="text-xl font-semibold text-[#1E3A5F] mb-1">Your To-Do List</h2>
+            <p className="text-sm text-[#6B7280] mb-4">
+              Here is everything you need to do for {event.name}. Each item turns green when it is done.
+            </p>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                {vendor.paymentStatus === 'paid' ? (
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                )}
+                <div>
+                  <p className="font-medium text-[#1F2937]">
+                    1. Pay your invoice{vendor.paymentStatus === 'paid' ? ' (done)' : ''}
+                  </p>
+                  <p className="text-sm text-[#6B7280]">
+                    {vendor.paymentStatus === 'paid'
+                      ? 'Thank you, your invoice is paid in full.'
+                      : `You owe $${vendor.balance.toFixed(2)}. Use the Invoice section on this page and click Pay Now.`}
+                  </p>
+                </div>
+              </li>
+              {vendor.porosAccessCode && (
+                <li className="flex items-start gap-3">
+                  {vendor.liabilityFormCompleted ? (
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                  )}
+                  <div>
+                    <p className="font-medium text-[#1F2937]">
+                      2. Complete your liability form{vendor.liabilityFormCompleted ? ' (done)' : ''}
+                    </p>
+                    <p className="text-sm text-[#6B7280]">
+                      {vendor.liabilityFormCompleted
+                        ? 'Your liability form has been submitted.'
+                        : 'Required for this event. This is for you only (the vendor contact). See the Liability Form section below.'}
+                    </p>
+                  </div>
+                </li>
+              )}
+              <li className="flex items-start gap-3">
+                {boothStaff.length > 0 ? (
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                )}
+                <div>
+                  <p className="font-medium text-[#1F2937]">
+                    {vendor.porosAccessCode ? '3' : '2'}. Have your booth staff register
+                  </p>
+                  <p className="text-sm text-[#6B7280]">
+                    {boothStaff.length > 0
+                      ? `${boothStaff.length} ${boothStaff.length === 1 ? 'person has' : 'people have'} registered so far. Anyone else working your booth still needs to register.`
+                      : 'Send everyone working your booth the Booth Staff Code and registration link below. Each person registers on their own.'}
+                  </p>
+                </div>
+              </li>
+            </ul>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Business Info */}
           <div className="lg:col-span-2 space-y-6">
@@ -452,14 +519,52 @@ function VendorPortalContent() {
               </div>
             </Card>
 
-            {/* Vendor Code Card - Only show if approved */}
+            {/* Liability Form Card - only for the vendor contact, only when required */}
+            {vendor.status === 'approved' && vendor.porosAccessCode && (
+              <Card className="p-6">
+                <h2 className="text-xl font-semibold text-[#1E3A5F] mb-2">
+                  Your Liability Form
+                </h2>
+                {vendor.liabilityFormCompleted ? (
+                  <p className="text-green-700 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5" />
+                    Completed. Nothing more to do here.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-[#6B7280] mb-4">
+                      This event requires the vendor contact to complete a liability form and provide a Safe
+                      Environment certificate. This form is for <strong>you only</strong>. Your booth staff
+                      get their own form when they register. Click the button, or enter this code on the
+                      liability form page:
+                    </p>
+                    <code className="block text-2xl font-mono font-bold text-[#1E3A5F] tracking-wider bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB] mb-4">
+                      {vendor.porosAccessCode}
+                    </code>
+                    <Link href={`/poros?code=${encodeURIComponent(vendor.porosAccessCode)}`} className="block">
+                      <Button className="w-full bg-[#1E3A5F] hover:bg-[#2A4A6F] text-white">
+                        Complete My Liability Form
+                      </Button>
+                    </Link>
+                    <p className="text-xs text-[#6B7280] mt-3">
+                      Don&apos;t have your Safe Environment certificate handy? You can finish the form now and email
+                      a copy to {event.organizerEmail}.
+                    </p>
+                  </>
+                )}
+              </Card>
+            )}
+
+            {/* Booth Staff Code Card - Only show if approved */}
             {vendor.status === 'approved' && (
               <Card className="p-6">
-                <h2 className="text-xl font-semibold text-[#1E3A5F] mb-4">
-                  Your Vendor Code
+                <h2 className="text-xl font-semibold text-[#1E3A5F] mb-2">
+                  Booth Staff Code
                 </h2>
                 <p className="text-[#6B7280] mb-4">
-                  Share this code with your booth staff so they can register for the event.
+                  Share this code, along with the registration link below, with everyone who will work your
+                  booth. Each person registers on their own and enters this code so they are linked to your
+                  booth. It is not your login, and it is not your liability form code.
                 </p>
                 <div className="flex items-center gap-3 bg-[#F9FAFB] p-4 rounded-lg border border-[#E5E7EB]">
                   <code className="text-2xl font-mono font-bold text-[#1E3A5F] tracking-wider flex-1">
@@ -486,7 +591,7 @@ function VendorPortalContent() {
                 <Link href={`/events/${event.slug}/register-staff`} className="mt-4 block">
                   <Button className="w-full bg-[#9C8466] hover:bg-[#8B7355] text-white">
                     <Users className="h-4 w-4 mr-2" />
-                    Staff Registration Page
+                    Booth Staff Registration Page
                   </Button>
                 </Link>
               </Card>
@@ -559,7 +664,7 @@ function VendorPortalContent() {
                     <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
                     <p>No staff have registered yet.</p>
                     <p className="text-sm mt-1">
-                      Share your vendor code with your team to get started.
+                      Share your Booth Staff Code and the registration link with your team to get started.
                     </p>
                   </div>
                 ) : (

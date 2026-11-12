@@ -46,6 +46,11 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Only the vendor contact (portal access code) is the "owner"; the shared
+    // booth staff code gets the legacy read-only view and never the private
+    // liability form code.
+    const isOwner = !!vendor
+
     // If not found by accessCode, try vendorCode
     if (!vendor) {
       vendor = await prisma.vendorRegistration.findUnique({
@@ -129,6 +134,8 @@ export async function GET(request: NextRequest) {
         balance,
         paidAt: vendor.paidAt,
         vendorCode: vendor.vendorCode,
+        porosAccessCode: isOwner ? vendor.porosAccessCode : null,
+        liabilityFormCompleted: !!vendor.liabilityFormId,
         createdAt: vendor.createdAt,
       },
       event: {
