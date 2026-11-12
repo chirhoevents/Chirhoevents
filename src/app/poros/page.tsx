@@ -7,7 +7,7 @@ import Link from 'next/link'
 
 interface GroupInfo {
   displayName: string
-  registrationType: 'group' | 'individual' | 'staff'
+  registrationType: 'group' | 'individual' | 'staff' | 'vendor'
   eventName: string
   eventDates: string
   accessCode: string
@@ -55,6 +55,8 @@ export default function PorosLandingPage() {
       const displayName =
         data.registrationType === 'staff'
           ? data.staffName
+          : data.registrationType === 'vendor'
+          ? `${data.vendorName} (${data.businessName})`
           : data.registrationType === 'individual'
           ? data.participantName
           : data.groupName
@@ -66,7 +68,7 @@ export default function PorosLandingPage() {
         accessCode: accessCode.trim().toUpperCase(),
       })
     } catch (err) {
-      setError('Hey! Sorry this access code is invalid or has expired. Contact your group leader for more information!')
+      setError('Sorry, that access code was not recognized. Please check it for typos. Group members can ask their group leader; vendors and staff can find it in their approval or registration email, or contact the event organizers.')
     } finally {
       setLoading(false)
     }
@@ -113,7 +115,7 @@ export default function PorosLandingPage() {
                   Access Your Liability Forms
                 </h1>
                 <p className="text-xl text-gray-600">
-                  Enter your group&apos;s access code to get started
+                  Enter your access code to get started
                 </p>
               </div>
 
@@ -135,7 +137,7 @@ export default function PorosLandingPage() {
                 </div>
 
                 <p className="text-xs text-gray-500 -mt-4">
-                  Staff &amp; volunteer codes begin with <strong>STF-</strong> · Group codes look like <strong>EX2026-GROUPNAME-XXXX</strong>
+                  Vendors: your code begins with <strong>VNDPOR-</strong> · Booth staff &amp; volunteers: <strong>STF-</strong> · Group leaders: <strong>EX2026-GROUPNAME-XXXX</strong>
                 </p>
 
                 {error && (
@@ -165,7 +167,7 @@ export default function PorosLandingPage() {
 
               <div className="mt-8 text-center">
                 <p className="text-sm text-gray-600">
-                  Don&apos;t have an access code? Contact your group leader.
+                  Don&apos;t have an access code? Group members: contact your group leader. Vendors and staff: check your approval or registration email, or contact the event organizers.
                 </p>
               </div>
             </div>
@@ -178,13 +180,13 @@ export default function PorosLandingPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h2 className="text-3xl font-bold text-navy mb-2">Is this your group?</h2>
+                <h2 className="text-3xl font-bold text-navy mb-2">{groupInfo.registrationType === 'group' ? 'Is this your group?' : 'Is this you?'}</h2>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-6 mb-8 space-y-3">
                 <div className="flex justify-between items-center pb-3 border-b border-gray-200">
                   <span className="text-gray-600 font-medium">
-                    {groupInfo.registrationType === 'staff' ? 'Name:' : groupInfo.registrationType === 'individual' ? 'Participant:' : 'Group Name:'}
+                    {groupInfo.registrationType === 'staff' || groupInfo.registrationType === 'vendor' ? 'Name:' : groupInfo.registrationType === 'individual' ? 'Participant:' : 'Group Name:'}
                   </span>
                   <span className="text-navy font-semibold text-right">{groupInfo.displayName}</span>
                 </div>

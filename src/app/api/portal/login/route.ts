@@ -20,10 +20,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'vendor_code',
-          message: 'That looks like a vendor registration code, not a liability form code. Your liability form code starts with STF- and was sent in your staff registration confirmation email.',
+          message:
+            'That is a vendor code, not a liability form code. ' +
+            'VND- is the code you give your booth staff, and VNDACC- is your private vendor portal login. ' +
+            'Your liability form code starts with VNDPOR- (vendor contact) or STF- (booth staff), and is in your approval or registration email.',
         },
         { status: 400 }
       )
+    }
+
+    // Vendor contact liability code (VNDPOR- prefix, issued at vendor approval)
+    if (access_code.startsWith('VNDPOR-')) {
+      const vendorRegistration = await prisma.vendorRegistration.findUnique({
+        where: { porosAccessCode: access_code },
+        include: {
+          event: {
+            include: {
+              settings: true,
+            },
+          },
+        },
+      })
+
+      if (!vendorRegistration) {
+        return NextResponse.json(
+          { error: 'Invalid access code. Please check and try again.' },
+          { status: 404 }
+        )
+      }
+
+      if (vendorRegistration.status !== 'approved') {
+        return NextResponse.json(
+          { error: 'This vendor registration is not approved, so its liability form is not available.' },
+          { status: 400 }
+        )
+      }
+
+      if (hasEventEnded(vendorRegistration.event)) {
+        return NextResponse.json({ error: EVENT_ENDED_FORM_MESSAGE }, { status: 410 })
+      }
+
+      const vStart = new Date(vendorRegistration.event.startDate)
+      const vEnd = new Date(vendorRegistration.event.endDate)
+      const fmt = (d: Date) =>
+        d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+
+      return NextResponse.json({
+        success: true,
+        registrationType: 'vendor',
+        vendorId: vendorRegistration.id,
+        vendorName: `${vendorRegistration.contactFirstName} ${vendorRegistration.contactLastName}`,
+        businessName: vendorRegistration.businessName,
+        vendorEmail: vendorRegistration.email,
+        eventId: vendorRegistration.event.id,
+        eventName: vendorRegistration.event.name,
+        eventDates: `${fmt(vStart)} - ${fmt(vEnd)}`,
+        autoFormType: 'youth_o18_chaperone',
+        formCompleted: !!vendorRegistration.liabilityFormId,
+      })
     }
 
     // Check if this is an individual registration code (starts with "IND-")

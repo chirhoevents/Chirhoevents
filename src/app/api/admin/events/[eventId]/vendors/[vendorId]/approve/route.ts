@@ -3,9 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { verifyEventAccess } from '@/lib/api-auth'
 import { Resend } from '@/lib/resend'
 import { logEmail, logEmailFailure } from '@/lib/email-logger'
-import { wrapEmail, emailButton, emailInfoBox } from '@/lib/email-templates'
+import { wrapEmail, emailInfoBox } from '@/lib/email-templates'
 import { resolveReplyTo } from '@/lib/email-reply-to'
 import { generateVendorPorosCode } from '@/lib/access-code'
+import { vendorCodesGuideHtml } from '@/lib/vendor-code-emails'
 import { deriveVendorPaymentStatus } from '@/lib/vendor-admin'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
@@ -111,9 +112,6 @@ export async function POST(
         process.env.NEXT_PUBLIC_APP_URL ||
         process.env.NEXT_PUBLIC_BASE_URL ||
         'https://chirhoevents.com'
-      const portalUrl = `${baseUrl}/vendor-dashboard?code=${vendor.accessCode}`
-      const staffRegUrl = `${baseUrl}/events/${vendor.event.slug}/register-staff`
-      const liabilityUrl = porosAccessCode ? `${baseUrl}/poros?code=${porosAccessCode}` : null
       const supportEmail = resolveReplyTo(vendor.event.settings, vendor.event.organization)
 
       const emailContent = wrapEmail(`
@@ -127,23 +125,6 @@ export async function POST(
           <strong>Application Status:</strong> Approved<br>
           You're all set to be a vendor at this event!
         `, 'success')}
-
-        <h2>Your Vendor Code</h2>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #e8f4fd; border-radius: 8px; padding: 20px; text-align: center;">
-          <tr>
-            <td>
-              <p style="margin: 0; font-size: 14px; color: #666;">Share this code with your booth staff</p>
-              <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1E3A5F;">${vendor.vendorCode}</p>
-            </td>
-          </tr>
-        </table>
-
-        <h2>Staff Registration</h2>
-        <p>Your booth staff should register using this link and enter the vendor code above:</p>
-        ${emailButton('Register Booth Staff', staffRegUrl, 'secondary')}
-        <p style="font-size: 14px; color: #666; text-align: center;">
-          Or copy this link: <a href="${staffRegUrl}">${staffRegUrl}</a>
-        </p>
 
         <h2>Invoice Details</h2>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0; background: #f9f9f9; border-radius: 8px; padding: 20px;">
@@ -165,29 +146,17 @@ export async function POST(
           </tr>
         </table>
         ${invoiceNotes ? `<p style="font-size: 14px; color: #666;"><strong>Notes:</strong> ${invoiceNotes}</p>` : ''}
+        <p style="font-size: 14px; color: #444;">You can pay this invoice online in your vendor portal &mdash; see step 1 below.</p>
 
-        <h2>Vendor Portal</h2>
-        <p>Access your vendor portal to pay your invoice, upload your logo, and see your registered booth staff:</p>
-        ${emailButton('Access Vendor Portal', portalUrl, 'primary')}
-
-        ${liabilityUrl && porosAccessCode ? `
-        <h2>Liability Form &amp; Safe Environment Required</h2>
-        ${emailInfoBox('<strong>Action Required:</strong> This event requires all vendors to complete a liability form and provide a Safe Environment certificate.', 'warning')}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0; background: #e8f4fd; border-radius: 8px; padding: 20px; text-align: center;">
-          <tr>
-            <td>
-              <p style="margin: 0; font-size: 14px; color: #666;">Your Liability Form Access Code</p>
-              <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1E3A5F;">${porosAccessCode}</p>
-            </td>
-          </tr>
-        </table>
-        ${emailButton('Complete Liability Form', liabilityUrl, 'primary')}
-        <p style="font-size: 13px; color: #666; text-align: center; margin-top: 8px;">
-          Don't have your Safe Environment certificate handy? You can email a copy to
-          <a href="mailto:${supportEmail}" style="color: #1E3A5F;">${supportEmail}</a>
-          and we'll upload it to your record for you.
-        </p>
-        ` : ''}
+        ${vendorCodesGuideHtml({
+          baseUrl,
+          eventSlug: vendor.event.slug,
+          eventName: vendor.event.name,
+          vendorCode: vendor.vendorCode,
+          accessCode: vendor.accessCode,
+          porosAccessCode,
+          supportEmail,
+        })}
 
         <p>We look forward to having you at the event!</p>
 

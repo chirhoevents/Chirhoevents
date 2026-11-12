@@ -116,12 +116,12 @@ export default function StaffRegistrationPage() {
   const totalPrice = calculatePrice()
 
   // Validate vendor code
-  const validateVendorCode = async (code: string) => {
+  const validateVendorCode = async (code: string): Promise<boolean> => {
     if (!code.trim()) {
-      setVendorCodeError('Please enter a vendor code')
+      setVendorCodeError('Please enter the Booth Staff Code from your vendor')
       setVendorCodeValid(false)
       setVendorBusinessName(null)
-      return
+      return false
     }
 
     try {
@@ -132,15 +132,18 @@ export default function StaffRegistrationPage() {
         setVendorCodeError(null)
         setVendorCodeValid(true)
         setVendorBusinessName(data.businessName)
+        return true
       } else {
         setVendorCodeError(data.error || 'Invalid vendor code')
         setVendorCodeValid(false)
         setVendorBusinessName(null)
+        return false
       }
     } catch {
       setVendorCodeError('Failed to validate vendor code')
       setVendorCodeValid(false)
       setVendorBusinessName(null)
+      return false
     }
   }
 
@@ -149,9 +152,10 @@ export default function StaffRegistrationPage() {
     e.preventDefault()
 
     // Validate vendor code if vendor staff
+    // Check it automatically so people don't have to remember to click Verify
     if (formData.isVendorStaff && !vendorCodeValid) {
-      setVendorCodeError('Please enter a valid vendor code')
-      return
+      const ok = await validateVendorCode(formData.vendorCode)
+      if (!ok) return
     }
 
     setSubmitting(true)
@@ -294,9 +298,10 @@ export default function StaffRegistrationPage() {
               {/* Vendor Code Input */}
               {formData.isVendorStaff && (
                 <div className="pt-4 border-t">
-                  <Label htmlFor="vendorCode">Vendor Code <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="vendorCode">Booth Staff Code <span className="text-red-500">*</span></Label>
                   <p className="text-sm text-gray-500 mb-2">
-                    Enter the vendor code provided by your booth organizer
+                    Enter the code the vendor who runs your booth gave you. It starts with <strong>VND-</strong>.
+                    (Not the VNDACC- or VNDPOR- codes, those are private to the vendor.)
                   </p>
                   <div className="flex gap-2">
                     <Input

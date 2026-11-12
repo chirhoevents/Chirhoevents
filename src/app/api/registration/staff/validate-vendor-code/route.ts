@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     const vendorRegistration = await prisma.vendorRegistration.findFirst({
       where: {
-        vendorCode: code.toUpperCase(),
+        vendorCode: code.trim().toUpperCase(),
         eventId,
         status: 'approved',
       },

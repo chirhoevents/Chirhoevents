@@ -101,14 +101,14 @@ function VendorPortalLandingContent() {
                   Vendor Portal
                 </h1>
                 <p className="text-lg text-gray-600">
-                  Enter your vendor access code to view your booth information, pay your invoice, and manage your team.
+                  Enter your Vendor Portal Code to see your booth information, pay your invoice, and check on your booth staff.
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="accessCode" className="block text-sm font-medium text-gray-700 mb-2">
-                    Vendor Access Code
+                    Vendor Portal Code
                   </label>
                   <input
                     type="text"
@@ -121,7 +121,7 @@ function VendorPortalLandingContent() {
                     disabled={loading}
                   />
                   <p className="text-sm text-gray-500 mt-2">
-                    This code was sent to you when your vendor application was approved.
+                    This is the code that starts with VNDACC-. It is in your approval email and is for you only. The code that starts with VND- is for your booth staff, and the one that starts with VNDPOR- is for your liability form.
                   </p>
                 </div>
 
@@ -149,7 +149,7 @@ function VendorPortalLandingContent() {
 
               <div className="mt-8 text-center">
                 <p className="text-sm text-gray-600">
-                  Don&apos;t have an access code? Your code is sent via email when your vendor application is approved.
+                  Can&apos;t find your code? Search your email for &quot;Vendor Application Approved&quot;, or contact the event organizers and they can resend it.
                 </p>
               </div>
             </div>
