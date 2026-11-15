@@ -26,6 +26,7 @@ function getClientIp(request: Request): string {
 
 const isPublicRoute = createRouteMatcher([
   '/',
+  '/maintenance',
   '/demo(.*)',
   '/sign-in(.*)',
   '/sign-up(.*)',
@@ -71,8 +72,36 @@ const isPublicRoute = createRouteMatcher([
   '/api/cron/release-abandoned-checkouts',  // Vercel Cron (no session) - checks CRON_SECRET itself
 ])
 
+// Maintenance / safety mode. Set MAINTENANCE_MODE=true in Vercel env vars and
+// redeploy to take the whole site offline. Optional MAINTENANCE_ALLOWED_IPS
+// (comma-separated) lets specific IPs (e.g. yours) keep using the site.
+function maintenanceResponse(request: Request, pathname: string): NextResponse | null {
+  if (process.env.MAINTENANCE_MODE !== 'true') return null
+  if (pathname === '/maintenance') return null
+
+  const allowed = (process.env.MAINTENANCE_ALLOWED_IPS || '')
+    .split(',')
+    .map(ip => ip.trim())
+    .filter(Boolean)
+  if (allowed.includes(getClientIp(request))) return null
+
+  const headers = { 'Retry-After': '3600', 'X-Robots-Tag': 'noindex' }
+  if (pathname.startsWith('/api/')) {
+    // 503 so Stripe/webhook senders retry later instead of dropping events
+    return NextResponse.json(
+      { error: 'The service is temporarily unavailable for maintenance.' },
+      { status: 503, headers }
+    )
+  }
+  const url = new URL('/maintenance', request.url)
+  return NextResponse.rewrite(url, { status: 503, headers })
+}
+
 export default clerkMiddleware((auth, request) => {
   const { pathname } = request.nextUrl
+
+  const maintenance = maintenanceResponse(request, pathname)
+  if (maintenance) return maintenance
 
   // Fix #14: Apply rate limiting before any other logic
   const matchedRule = RATE_LIMIT_RULES.find(r => r.pattern.test(pathname))
