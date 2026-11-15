@@ -28,6 +28,7 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/maintenance',
   '/api/maintenance-status',
+  '/api/health',  // Uptime monitor
   '/demo(.*)',
   '/sign-in(.*)',
   '/sign-up(.*)',
@@ -102,6 +103,7 @@ async function isSoftMaintenanceOn(request: Request): Promise<boolean> {
 const SOFT_MODE_ALLOWED = [
   /^\/maintenance$/,
   /^\/api\/maintenance-status$/,
+  /^\/api\/health$/,
   /^\/sign-in/,
   /^\/sign-up/,
   /^\/dashboard$/,
