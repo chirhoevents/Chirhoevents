@@ -27,6 +27,7 @@ function getClientIp(request: Request): string {
 const isPublicRoute = createRouteMatcher([
   '/',
   '/maintenance',
+  '/api/maintenance-status',
   '/demo(.*)',
   '/sign-in(.*)',
   '/sign-up(.*)',
@@ -72,12 +73,51 @@ const isPublicRoute = createRouteMatcher([
   '/api/cron/release-abandoned-checkouts',  // Vercel Cron (no session) - checks CRON_SECRET itself
 ])
 
-// Maintenance / safety mode. Set MAINTENANCE_MODE=true in Vercel env vars and
-// redeploy to take the whole site offline. Optional MAINTENANCE_ALLOWED_IPS
-// (comma-separated) lets specific IPs (e.g. yours) keep using the site.
-function maintenanceResponse(request: Request, pathname: string): NextResponse | null {
-  if (process.env.MAINTENANCE_MODE !== 'true') return null
-  if (pathname === '/maintenance') return null
+// Maintenance / safety mode — two ways to turn it on:
+//  1. HARD switch: MAINTENANCE_MODE=true in Vercel env vars + redeploy.
+//  2. SOFT cover: the "Maintenance Mode" toggle in master-admin settings
+//     (stored in the database, takes effect within ~15s, no redeploy).
+// Optional MAINTENANCE_ALLOWED_IPS (comma-separated) keeps specific IPs working.
+// The soft cover still lets master admins sign in and reach their dashboard
+// so the toggle can be turned off again; the hard switch blocks everything.
+let softCache = { enabled: false, checkedAt: 0 }
+
+async function isSoftMaintenanceOn(request: Request): Promise<boolean> {
+  const now = Date.now()
+  if (now - softCache.checkedAt < 15_000) return softCache.enabled
+  try {
+    const res = await fetch(new URL('/api/maintenance-status', request.url), {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(2000),
+    })
+    const data = await res.json()
+    softCache = { enabled: data.enabled === true, checkedAt: now }
+  } catch {
+    // Fail open: if the check fails, don't lock everyone out by accident
+    softCache = { enabled: softCache.enabled, checkedAt: now - 10_000 }
+  }
+  return softCache.enabled
+}
+
+const SOFT_MODE_ALLOWED = [
+  /^\/maintenance$/,
+  /^\/api\/maintenance-status$/,
+  /^\/sign-in/,
+  /^\/sign-up/,
+  /^\/dashboard$/,
+  /^\/dashboard\/master-admin/,
+  /^\/api\/master-admin/,
+  /^\/api\/user\//,
+]
+
+async function maintenanceResponse(request: Request, pathname: string): Promise<NextResponse | null> {
+  if (pathname === '/maintenance' || pathname === '/api/maintenance-status') return null
+
+  const hard = process.env.MAINTENANCE_MODE === 'true'
+  if (!hard) {
+    if (SOFT_MODE_ALLOWED.some(r => r.test(pathname))) return null
+    if (!(await isSoftMaintenanceOn(request))) return null
+  }
 
   const allowed = (process.env.MAINTENANCE_ALLOWED_IPS || '')
     .split(',')
@@ -93,14 +133,13 @@ function maintenanceResponse(request: Request, pathname: string): NextResponse |
       { status: 503, headers }
     )
   }
-  const url = new URL('/maintenance', request.url)
-  return NextResponse.rewrite(url, { status: 503, headers })
+  return NextResponse.rewrite(new URL('/maintenance', request.url), { status: 503, headers })
 }
 
-export default clerkMiddleware((auth, request) => {
+export default clerkMiddleware(async (auth, request) => {
   const { pathname } = request.nextUrl
 
-  const maintenance = maintenanceResponse(request, pathname)
+  const maintenance = await maintenanceResponse(request, pathname)
   if (maintenance) return maintenance
 
   // Fix #14: Apply rate limiting before any other logic

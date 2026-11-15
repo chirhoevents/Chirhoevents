@@ -234,7 +234,7 @@ export default function SettingsPage() {
               <div>
                 <p className="font-medium text-orange-800">Maintenance Mode is ON</p>
                 <p className="text-sm text-orange-600">
-                  New users cannot access the platform. Only master admins can log in.
+                  The public site shows the maintenance page. Only master admins can sign in and reach this dashboard.
                 </p>
               </div>
             </div>
