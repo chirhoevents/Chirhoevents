@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { ReportType } from '@prisma/client'
 import { verifyAdminAccess } from '@/lib/api-auth'
 
 // GET all report templates for an organization
@@ -61,6 +62,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    // The custom report builder sends its data source (e.g. "registrations") as
+    // reportType. The DB enum only allows a fixed set, so anything else is saved
+    // as "custom" (the real data source lives in configuration.dataSource).
+    const validTypes = Object.values(ReportType) as string[]
+    const dbReportType: ReportType = validTypes.includes(reportType)
+      ? (reportType as ReportType)
+      : ReportType.custom
+
     // Create the template
     const template = await prisma.reportTemplate.create({
       data: {
@@ -68,7 +77,7 @@ export async function POST(request: NextRequest) {
         createdByUserId: user.id,
         name,
         description,
-        reportType,
+        reportType: dbReportType,
         configuration,
         isPublic: isPublic || false,
       },
