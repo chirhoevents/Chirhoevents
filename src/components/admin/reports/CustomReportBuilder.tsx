@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -719,6 +719,8 @@ export function CustomReportBuilder({
   const { getToken } = useAuth()
   const [templates, setTemplates] = useState<ReportTemplate[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+  // Set when a template load changes dataSource, so the reset effect doesn't wipe the loaded settings
+  const skipDataSourceReset = useRef(false)
   const [dataSource, setDataSource] = useState<string>('participants')
   const [catalogQuestions, setCatalogQuestions] = useState<Array<{
     id: string
@@ -865,11 +867,15 @@ export function CustomReportBuilder({
   // Clear report data when data source changes
   useEffect(() => {
     setReportData(null)
-    setSelectedFields([])
-    setFilters({})
-    setGroupBy('none')
-    setSortBy('')
-    setGroupFilterSearch('')
+    if (skipDataSourceReset.current) {
+      skipDataSourceReset.current = false
+    } else {
+      setSelectedFields([])
+      setFilters({})
+      setGroupBy('none')
+      setSortBy('')
+      setGroupFilterSearch('')
+    }
     // Load groups when group-detail is selected
     if (dataSource === 'group-detail') {
       loadAvailableGroups()
@@ -926,7 +932,9 @@ export function CustomReportBuilder({
     const template = templates.find(t => t.id === templateId)
     if (template) {
       setSelectedTemplate(templateId)
-      setDataSource(template.configuration.dataSource || template.reportType)
+      const newSource = template.configuration.dataSource || template.reportType
+      if (newSource !== dataSource) skipDataSourceReset.current = true
+      setDataSource(newSource)
       setSelectedFields((template.configuration.fields || []).map(remapLegacyField))
       const loadedFilters = template.configuration.filters || {}
       const legacyFilterId = loadedFilters.catalogAnswerFilter?.questionId
