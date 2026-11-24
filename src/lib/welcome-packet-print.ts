@@ -46,6 +46,7 @@ export interface PacketData {
       isClergy?: boolean
       roleLabel?: string | null
       gender?: string
+      tShirtSize?: string | null
       housing?: {
         building: string
         room: string
@@ -126,6 +127,7 @@ export interface PrintSettings {
   includeRoster?: boolean
   includeHousingAssignments?: boolean
   includeHousingColumn?: boolean
+  includeTshirtSize?: boolean
   includeEmergencyContacts?: boolean
   includeInvoice?: boolean
 }
@@ -138,6 +140,7 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
     includeRoster = true,
     includeHousingAssignments = true,
     includeHousingColumn = true,
+    includeTshirtSize = false,
     includeInvoice = false,
   } = settings
 
@@ -147,6 +150,7 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
       <td style="padding: 6px 8px; font-size: 11px; border-bottom: 1px solid #e5e5e5;">${p.name}</td>
       <td style="padding: 6px 8px; font-size: 11px; text-align: center; border-bottom: 1px solid #e5e5e5;">${p.roleLabel || (p.participantType === 'chaperone' || p.isChaperone ? 'Chaperone' : p.participantType === 'priest' || p.isClergy ? 'Clergy' : 'Youth')}</td>
       <td style="padding: 6px 8px; font-size: 11px; text-align: center; border-bottom: 1px solid #e5e5e5;">${p.gender === 'male' ? 'M' : p.gender === 'female' ? 'F' : '-'}</td>
+      ${includeTshirtSize ? `<td style="padding: 6px 8px; font-size: 11px; text-align: center; font-weight: 600; border-bottom: 1px solid #e5e5e5;">${p.tShirtSize || '-'}</td>` : ''}
       ${includeHousingColumn ? `<td style="padding: 6px 8px; font-size: 11px; border-bottom: 1px solid #e5e5e5;">${p.housing ? `${p.housing.building} ${p.housing.room}${p.housing.bed ? '-' + p.housing.bed : ''}` : 'TBD'}</td>` : ''}
     </tr>
   `).join('') || ''
@@ -471,6 +475,7 @@ export function generateWelcomePacketHTML(packet: PacketData, settings: PrintSet
                 <th style="padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 600; border-bottom: 2px solid #ddd;">Name</th>
                 <th style="padding: 6px 8px; text-align: center; font-size: 10px; font-weight: 600; border-bottom: 2px solid #ddd;">Type</th>
                 <th style="padding: 6px 8px; text-align: center; font-size: 10px; font-weight: 600; border-bottom: 2px solid #ddd;">Gender</th>
+                ${includeTshirtSize ? '<th style="padding: 6px 8px; text-align: center; font-size: 10px; font-weight: 600; border-bottom: 2px solid #ddd;">Shirt</th>' : ''}
                 ${includeHousingColumn ? '<th style="padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 600; border-bottom: 2px solid #ddd;">Housing</th>' : ''}
               </tr>
             </thead>

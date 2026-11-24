@@ -243,11 +243,21 @@ export async function POST(
     })
 
     // Calculate invoice totals
-    const youthCount = group.participants.filter(
+    // Bill by the counts the group registered (that's what the invoice total was
+    // built from), not by how many participant rows have been entered so far.
+    // Otherwise a group that hasn't entered everyone yet shows a mystery
+    // "Additional Charges" line equal to the missing people. Fall back to the
+    // participant rows only when the registration has no counts.
+    const rowYouth = group.participants.filter(
       (p: any) => p.participantType !== 'chaperone' && p.participantType !== 'priest'
     ).length
-    const chaperoneCount = group.participants.filter((p: any) => p.participantType === 'chaperone').length
-    const clergyCount = group.participants.filter((p: any) => p.participantType === 'priest').length
+    const rowChaperone = group.participants.filter((p: any) => p.participantType === 'chaperone').length
+    const rowClergy = group.participants.filter((p: any) => p.participantType === 'priest').length
+    const hasRegisteredCounts =
+      (group.youthCount || 0) + (group.chaperoneCount || 0) + (group.priestCount || 0) > 0
+    const youthCount = hasRegisteredCounts ? group.youthCount || 0 : rowYouth
+    const chaperoneCount = hasRegisteredCounts ? group.chaperoneCount || 0 : rowChaperone
+    const clergyCount = hasRegisteredCounts ? group.priestCount || 0 : rowClergy
 
     const youthPrice = Number(eventPricing?.youthRegularPrice || 0)
     const chaperonePrice = Number(eventPricing?.chaperoneRegularPrice || 0)
@@ -449,6 +459,7 @@ export async function POST(
             isChaperone: p.participantType === 'chaperone',
             isClergy: isClergyOrReligiousType(p.participantType),
             gender: getRatioGender(p.participantType, p.clergyTitle, p.gender),
+            tShirtSize: p.tShirtSize || null,
             housing: assignment
               ? {
                   building: assignment.buildingName,
@@ -571,6 +582,7 @@ export async function POST(
         includeRoster: true,
         includeHousingAssignments: true,
         includeEmergencyContacts: true,
+        includeTshirtSize: false,
         includeInvoice: false,
       },
       generatedAt: new Date(),

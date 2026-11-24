@@ -69,6 +69,7 @@ interface PacketSettings {
   includeRoster: boolean
   includeHousingAssignments: boolean
   includeEmergencyContacts: boolean
+  includeTshirtSize: boolean
   includeInvoice: boolean
 }
 
@@ -145,6 +146,7 @@ const DEFAULT_SETTINGS: PacketSettings = {
   includeRoster: true,
   includeHousingAssignments: true,
   includeEmergencyContacts: true,
+  includeTshirtSize: false,
   includeInvoice: false,
 }
 
@@ -727,6 +729,7 @@ export default function WelcomePacketsPage() {
       includeHousingAssignments: settings.includeHousingAssignments,
       includeHousingColumn: settings.includeHousingAssignments,
       includeEmergencyContacts: settings.includeEmergencyContacts,
+      includeTshirtSize: settings.includeTshirtSize,
       includeInvoice: settings.includeInvoice,
     }
 
@@ -874,6 +877,18 @@ export default function WelcomePacketsPage() {
                 <Label htmlFor="includeRoster" className="font-normal flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   Participant Roster
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="includeTshirtSize"
+                  checked={settings.includeTshirtSize}
+                  onCheckedChange={(checked) => updateSettings('includeTshirtSize', !!checked)}
+                />
+                <Label htmlFor="includeTshirtSize" className="font-normal flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  T-shirt Size (in roster)
                 </Label>
               </div>
 
@@ -1249,6 +1264,9 @@ export default function WelcomePacketsPage() {
                         <tr>
                           <th className="text-left p-2">Name</th>
                           <th className="text-left p-2">Type</th>
+                          {settings.includeTshirtSize && (
+                            <th className="text-left p-2">Shirt</th>
+                          )}
                           {settings.includeHousingAssignments && (
                             <th className="text-left p-2">Housing</th>
                           )}
@@ -1261,6 +1279,9 @@ export default function WelcomePacketsPage() {
                             <td className="p-2">
                               {p.roleLabel || (p.isClergy ? 'Clergy' : p.isChaperone ? 'Chaperone' : 'Youth')}
                             </td>
+                            {settings.includeTshirtSize && (
+                              <td className="p-2 font-semibold">{p.tShirtSize || '-'}</td>
+                            )}
                             {settings.includeHousingAssignments && (
                               <td className="p-2">
                                 {p.housing
