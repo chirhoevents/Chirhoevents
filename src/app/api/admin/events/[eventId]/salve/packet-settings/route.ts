@@ -11,6 +11,7 @@ const DEFAULT_PACKET_SETTINGS = {
   includeRoster: true,
   includeHousingAssignments: true,
   includeEmergencyContacts: true,
+  includeTshirtSize: false,
   includeInvoice: false,
 }
 

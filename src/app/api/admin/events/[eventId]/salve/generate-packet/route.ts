@@ -459,6 +459,7 @@ export async function POST(
             isChaperone: p.participantType === 'chaperone',
             isClergy: isClergyOrReligiousType(p.participantType),
             gender: getRatioGender(p.participantType, p.clergyTitle, p.gender),
+            tShirtSize: p.tShirtSize || null,
             housing: assignment
               ? {
                   building: assignment.buildingName,
@@ -581,6 +582,7 @@ export async function POST(
         includeRoster: true,
         includeHousingAssignments: true,
         includeEmergencyContacts: true,
+        includeTshirtSize: false,
         includeInvoice: false,
       },
       generatedAt: new Date(),

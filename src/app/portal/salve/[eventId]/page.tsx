@@ -714,6 +714,7 @@ export default function SalveDedicatedPortal() {
         includeHousingAssignments: savedSettings.includeHousingAssignments ?? true,
         includeHousingColumn: true,
         includeEmergencyContacts: savedSettings.includeEmergencyContacts ?? true,
+        includeTshirtSize: savedSettings.includeTshirtSize ?? false,
         includeInvoice: savedSettings.includeInvoice ?? false,
       }
 
