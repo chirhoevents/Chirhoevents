@@ -13,6 +13,7 @@ import MedicalReportModal from '@/components/admin/reports/MedicalReportModal'
 import CertificatesReportModal from '@/components/admin/reports/CertificatesReportModal'
 import ChaperoneReportModal from '@/components/admin/reports/ChaperoneReportModal'
 import VendorReportModal from '@/components/admin/reports/VendorReportModal'
+import TShirtReportModal from '@/components/admin/reports/TShirtReportModal'
 import StaffReportModal from '@/components/admin/reports/StaffReportModal'
 import { CustomReportBuilder } from '@/components/admin/reports/CustomReportBuilder'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -263,6 +264,13 @@ export default function ReportsClient({
         />
 
         <ReportCard
+          title="T-Shirt Report"
+          reportType="tshirts"
+          eventId={eventId}
+          onViewReport={() => setActiveModal('tshirts')}
+        />
+
+        <ReportCard
           title="Staff Report"
           reportType="staff"
           eventId={eventId}
@@ -340,6 +348,13 @@ export default function ReportsClient({
 
       <VendorReportModal
         isOpen={activeModal === 'vendors'}
+        onClose={() => setActiveModal(null)}
+        eventId={eventId}
+        eventName={eventName}
+      />
+
+      <TShirtReportModal
+        isOpen={activeModal === 'tshirts'}
         onClose={() => setActiveModal(null)}
         eventId={eventId}
         eventName={eventName}

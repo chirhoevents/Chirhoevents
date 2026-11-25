@@ -57,6 +57,24 @@ export async function GET(
       },
     })
 
+    // Staff also get shirts (size is required on staff registrations)
+    const staffRegs = await prisma.staffRegistration.findMany({
+      where: { eventId },
+      select: { firstName: true, lastName: true, tshirtSize: true },
+    })
+
+    // Per-group size grid (for packing: "this group needs 15 S, 13 M, 18 L")
+    const groupGrid = new Map<string, { group: string; sizes: Record<string, number>; total: number }>()
+    const addToGroup = (group: string, size: string) => {
+      let row = groupGrid.get(group)
+      if (!row) {
+        row = { group, sizes: {}, total: 0 }
+        groupGrid.set(group, row)
+      }
+      row.sizes[size] = (row.sizes[size] || 0) + 1
+      row.total++
+    }
+
     // Count by size
     const sizeCounts: Record<string, { total: number; youth: number; adult: number; details: any[] }> = {}
 
@@ -69,6 +87,7 @@ export async function GET(
       }
 
       sizeCounts[p.tShirtSize].total++
+      addToGroup(p.groupRegistration?.groupName || p.groupRegistration?.parishName || 'Unknown', p.tShirtSize)
 
       const isYouth = p.participantType === 'youth_u18' || p.participantType === 'youth_o18'
       if (isYouth) {
@@ -95,6 +114,7 @@ export async function GET(
       }
 
       sizeCounts[ind.tShirtSize].total++
+      addToGroup('Individual Registrations', ind.tShirtSize)
 
       const isYouth = ind.age && ind.age < 18
       if (isYouth) {
@@ -108,6 +128,24 @@ export async function GET(
           name: `${ind.firstName} ${ind.lastName}`,
           group: 'Individual',
           type: isYouth ? 'youth' : 'adult',
+        })
+      }
+    }
+
+    // Process staff
+    for (const st of staffRegs) {
+      if (!st.tshirtSize) continue
+      if (!sizeCounts[st.tshirtSize]) {
+        sizeCounts[st.tshirtSize] = { total: 0, youth: 0, adult: 0, details: [] }
+      }
+      sizeCounts[st.tshirtSize].total++
+      sizeCounts[st.tshirtSize].adult++
+      addToGroup('Staff', st.tshirtSize)
+      if (!isPreview) {
+        sizeCounts[st.tshirtSize].details.push({
+          name: `${st.firstName} ${st.lastName}`,
+          group: 'Staff',
+          type: 'staff',
         })
       }
     }
@@ -140,11 +178,16 @@ export async function GET(
       return aIndex - bIndex
     })
 
+    const sizeList = sortedSizes.map(([size]) => size)
+    const byGroup = Array.from(groupGrid.values()).sort((a, b) => a.group.localeCompare(b.group))
+
     return NextResponse.json({
       totalShirts,
       totalYouth,
       totalAdult,
       missingCount,
+      sizes: sizeList,
+      byGroup,
       sizeCounts: Object.fromEntries(sortedSizes),
       summary: sortedSizes.map(([size, data]) => ({
         size,

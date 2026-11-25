@@ -18,11 +18,12 @@ import {
   UserCog,
   Building2,
   ClipboardList,
+  Shirt,
 } from 'lucide-react'
 
 interface ReportCardProps {
   title: string
-  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'room-allocations' | 'medical' | 'certificates' | 'chaperones' | 'vendors' | 'staff' | 'group-detail'
+  reportType: 'financial' | 'registrations' | 'forms' | 'housing' | 'room-allocations' | 'medical' | 'certificates' | 'chaperones' | 'vendors' | 'staff' | 'group-detail' | 'tshirts'
   eventId: string
   onViewReport: () => void
 }
@@ -45,6 +46,7 @@ const ICONS: Record<string, any> = {
   vendors: Store,
   staff: UserCog,
   'group-detail': ClipboardList,
+  tshirts: Shirt,
 }
 
 export default function ReportCard({
@@ -149,6 +151,12 @@ export default function ReportCard({
           stat2: { label: 'Approved', value: data.approvedVendors || 0 },
           stat3: { label: 'Booth Staff', value: data.totalBoothStaff || 0 },
         }
+      case 'tshirts':
+        return {
+          stat1: { label: 'Total Shirts', value: data.totalShirts || 0 },
+          stat2: { label: 'Youth / Adult', value: `${data.totalYouth || 0} / ${data.totalAdult || 0}` },
+          stat3: { label: 'Missing Size', value: data.missingCount || 0 },
+        }
       case 'staff':
         return {
           stat1: { label: 'Total Staff', value: data.totalStaff || 0 },
@@ -248,7 +256,7 @@ export default function ReportCard({
                 View Full Report
               </Button>
 
-              {reportType !== 'group-detail' && (
+              {reportType !== 'group-detail' && reportType !== 'tshirts' && (
                 <div className="flex gap-2">
                   <Button
                     onClick={() => handleExport('csv')}
